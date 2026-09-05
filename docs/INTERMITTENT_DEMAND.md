@@ -1,9 +1,9 @@
 # The best forecast by MASE is a forecast of nothing
 
 <!-- GENERATED:header BEGIN -->
-Generated `2026-08-16T21:45:22Z` by `cd backend && python -m seeds.run_carparts_backtest`.
+Generated `2026-09-05T19:35:17Z` by `cd backend && python -m seeds.run_carparts_backtest`.
 Machine-readable: [`intermittent_demand.json`](intermittent_demand.json).
-Hardware arm64 / Darwin 25.5.0 · Python 3.13.5 · numpy 2.4.4 · scipy 1.17.1 · seed 42 · 21.8 s wall.
+Hardware arm64 / Darwin 25.5.0 · Python 3.13.5 · numpy 2.4.4 · scipy 1.17.1 · seed 42 · 14.4 s wall.
 <!-- GENERATED:header END -->
 
 **Every number below comes from that one command, and is now written by it.** Each table
@@ -180,9 +180,9 @@ MAE, seasonality 12). Lower is better everywhere. Mean rank is the Friedman mean
 | `zero` | **0.767** | **0.408** | **0.612** | 0.767 | 0.383 | **1.66** | 3.67 | 4.12 |
 | `naive_last` | 1.092 | 0.611 | 0.740 | 1.092 | 0.546 | 3.00 | 4.41 | 4.68 |
 | `climatology` | 1.136 | 0.780 | 0.692 | 0.693 | 0.270 | 4.21 | 3.06 | 2.94 |
-| `croston` | 1.356 | 0.941 | 0.775 | 0.808 | 0.322 | 4.70 | 3.82 | 3.52 |
-| `sba` | 1.325 | 0.916 | 0.763 | 0.795 | 0.319 | 3.74 | 3.37 | 3.30 |
-| `tsb` | 1.075 | 0.696 | 0.640 | **0.651** | **0.249** | 3.70 | **2.67** | **2.44** |
+| `croston` | 1.356 | 0.941 | 0.775 | 0.806 | 0.322 | 4.70 | 3.82 | 3.52 |
+| `sba` | 1.325 | 0.916 | 0.763 | 0.793 | 0.319 | 3.74 | 3.37 | 3.30 |
+| `tsb` | 1.075 | 0.696 | 0.640 | **0.650** | **0.248** | 3.70 | **2.67** | **2.44** |
 <!-- GENERATED:leaderboard END -->
 
 Three things to read off it:
@@ -218,8 +218,8 @@ mean ranks differ by more than that are significantly different.
 |---|---:|---:|---:|---|
 | MASE | 4296.6 | < 1e-300 | 1272.1 | `tsb` — `sba` |
 | RMSSE | 1259.0 | 4.8e-270 | 278.2 | `sba` — `climatology` |
-| **CRPS** | 1405.9 | 7.4e-302 | 314.5 | **none — every pair separated** |
-| **Scaled pinball** | 2460.2 | < 1e-300 | 604.2 | **none — every pair separated** |
+| **CRPS** | 1409.9 | 1.0e-302 | 315.5 | **none — every pair separated** |
+| **Scaled pinball** | 2467.9 | < 1e-300 | 606.5 | **none — every pair separated** |
 <!-- GENERATED:mcb_table END -->
 
 Critical-difference diagram data (mean-rank axis, best on the left; bracketed groups are
@@ -305,10 +305,10 @@ two-sided, on per-series scaled CRPS. Positive difference favours the second met
 <!-- GENERATED:dm_table BEGIN -->
 | Baseline | Candidate | Δ scaled CRPS | t | p |
 |---|---|---:|---:|---:|
-| `naive_last` | `tsb` | +0.441 | 28.33 | 2.1e-154 |
+| `naive_last` | `tsb` | +0.442 | 28.50 | 4.9e-156 |
 | `naive_last` | `climatology` | +0.400 | 26.09 | 1.0e-133 |
-| `climatology` | `tsb` | +0.041 | 18.15 | 1.9e-69 |
-| `croston` | `tsb` | +0.157 | 18.96 | 2.9e-75 |
+| `climatology` | `tsb` | +0.043 | 21.13 | 1.0e-91 |
+| `croston` | `tsb` | +0.156 | 19.18 | 6.8e-77 |
 <!-- GENERATED:dm_table END -->
 
 TSB beats every alternative on CRPS, including the climatology reference, and all of it is
@@ -359,9 +359,9 @@ Tests: `tests/test_intermittent.py`, `tests/test_proper_scoring.py`,
 <!-- GENERATED:provenance BEGIN -->
 ### Provenance of this run
 
-- **Generated:** 2026-08-16T21:45:44Z (UTC)
+- **Generated:** 2026-09-05T19:35:31Z (UTC)
 - **Generator:** `seeds.run_carparts_backtest`
-- **Commit:** `241ae9e6959c8f53558556dcaae1f4b394d0dbca` — ⚠️ **DIRTY WORKING TREE.** UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.
+- **Commit:** `a1da5b92b9ecdc7d647ec95bbdcc21fbe99e6493` (clean tree)
 - **Input `monash_car_parts_cache`:** `backend/seeds/data/car_parts_monthly.npz` · sha256 `91446a84d4c7ba52…`
 - **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
 <!-- GENERATED:provenance END -->
