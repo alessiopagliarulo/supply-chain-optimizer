@@ -72,7 +72,6 @@ Identical code, identical rolling origins, identical models. The ONLY thing that
 |---|---:|---|---:|---:|---:|---|
 | `2026-08-16` ← **PINNED** | 198 | 2026-06-01 | 0.0313 | 0.0293 | 0.0480 | **Chronos** by 0.20 pp |
 | `2026-07-10` | 197 | 2026-05-01 | 0.0266 | 0.0293 | 0.0437 | **Prophet** by 0.27 pp |
-| `2026-07-01` | 197 | 2026-05-01 | 0.0266 | 0.0293 | 0.0438 | **Prophet** by 0.27 pp |
 
 **Is the headline robust?** The Prophet-vs-Chronos gap on the pinned vintage is **0.0020 WAPE**. Re-scoring the *same* Prophet on a different vintage of the *same* series moves it by **0.0047 WAPE**. The vintage effect is LARGER than the model effect, so the ranking of these two models on this series is **not a robust finding** — it is within the noise that one month of Census revision introduces. Report the pinned number, cite the vintage, and do not claim either model is better in general.
 
@@ -114,22 +113,22 @@ Against the FAIR comparator the cold-start win **disappears**: Prophet trend-onl
 
 **Hardware:** macOS-26.5-arm64-arm-64bit-Mach-O · arm · Python 3.13.5 · torch 2.12.1 (4 threads) · device `cpu` · CUDA available: False.
 
-**Chronos startup:** `import torch` + `import chronos` **2.34 s** · `from_pretrained` **0.67 s** (weights already in the HF cache: **True** — a cold machine must first download ~33 MB) · model size **8.65 M** parameters.
+**Chronos startup:** `import torch` + `import chronos` **2.68 s** · `from_pretrained` **0.4 s** (weights already in the HF cache: **True** — a cold machine must first download ~33 MB) · model size **8.65 M** parameters.
 
-**Warm-up:** the first forward pass costs **10 ms** (lazy init). It is timed separately and EXCLUDED from the steady-state numbers below — reporting it inside a single wall-clock, as this benchmark used to, is what made the old "0.01 s inference" figure impossible to interpret.
+**Warm-up:** the first forward pass costs **73 ms** (lazy init). It is timed separately and EXCLUDED from the steady-state numbers below — reporting it inside a single wall-clock, as this benchmark used to, is what made the old "0.01 s inference" figure impossible to interpret.
 
 Per-call cost over the walk-forward origins (warm-up excluded; the trend-only row is the short-context cold-start run and is timed separately so the medians are not mixed):
 
 | Model | Calls | Context (pts) | Median / call | Mean | Min | Max | What one call does |
 |---|---:|---:|---:|---:|---:|---:|---|
-| Chronos (zero-shot) | 3 | 162–186 | **5.1 ms** | 5.3 ms | 5.1 ms | 5.7 ms | frozen forward pass, H=12 |
-| Prophet (seasonal) | 3 | 162–186 | **31.4 ms** | 32.1 ms | 26.0 ms | 38.9 ms | full Stan fit + predict |
-| Prophet (trend-only, cold-start ctx) | 3 | 6 | **28.8 ms** | 28.9 ms | 23.6 ms | 34.3 ms | full Stan fit + predict |
+| Chronos (zero-shot) | 3 | 162–186 | **2.2 ms** | 2.3 ms | 2.2 ms | 2.5 ms | frozen forward pass, H=12 |
+| Prophet (seasonal) | 3 | 162–186 | **22.4 ms** | 30.5 ms | 22.4 ms | 46.8 ms | full Stan fit + predict |
+| Prophet (trend-only, cold-start ctx) | 3 | 6 | **22.4 ms** | 24.0 ms | 20.9 ms | 28.7 ms | full Stan fit + predict |
 | Seasonal-naive | 3 | 162–186 | **0.0 ms** | 0.0 ms | 0.0 ms | 0.0 ms | array indexing |
 
-**Chronos steady-state latency** (the walk-forward is only 3 calls — not a latency sample): the same forward pass repeated **20×** on the full 198-point context, after a discarded warm-up → median **4.81 ms**, mean 4.79 ms, p95 4.95 ms, range 4.52–4.95 ms (H=12, batch 1). An 8.65 M-parameter encoder-decoder doing ONE non-autoregressive forward pass over ~200 tokens really is single-digit milliseconds on this CPU — the number is small, but it is not a stub: dropping `chronos-forecasting` makes this script fail loudly and write "pending" rather than produce figures.
+**Chronos steady-state latency** (the walk-forward is only 3 calls — not a latency sample): the same forward pass repeated **20×** on the full 198-point context, after a discarded warm-up → median **2.24 ms**, mean 2.24 ms, p95 2.43 ms, range 2.07–2.43 ms (H=12, batch 1). An 8.65 M-parameter encoder-decoder doing ONE non-autoregressive forward pass over ~200 tokens really is single-digit milliseconds on this CPU — the number is small, but it is not a stub: dropping `chronos-forecasting` makes this script fail loudly and write "pending" rather than produce figures.
 
-Chronos's per-forecast cost is **6× cheaper than Prophet's** here — but that compares a frozen forward pass against a full Stan fit, which is exactly the point: the TSFM's cost is the ~2 GB torch install and the one-off weight load, not the inference. (Horizon 12, single series, batch size 1, n=3 calls — this is NOT a throughput benchmark, and with so few calls the median is indicative, not a stable percentile.)
+Chronos's per-forecast cost is **10× cheaper than Prophet's** here — but that compares a frozen forward pass against a full Stan fit, which is exactly the point: the TSFM's cost is the ~2 GB torch install and the one-off weight load, not the inference. (Horizon 12, single series, batch size 1, n=3 calls — this is NOT a throughput benchmark, and with so few calls the median is indicative, not a stable percentile.)
 
 ## Honest take (model selection)
 
@@ -147,18 +146,17 @@ Chronos's per-forecast cost is **6× cheaper than Prophet's** here — but that 
 cd backend
 pip install -r requirements-ml.txt   # heavy: torch + chronos
 python -m seeds.run_chronos_benchmark --as-of 2026-08-16 \
-    --compare-vintage 2026-07-10 \
-    --compare-vintage 2026-07-01
+    --compare-vintage 2026-07-10
 ```
 
-Timings are machine-specific (hardware stated above) and will differ on yours; the WAPE/RMSE figures are deterministic given the same series vintage — which is why `--as-of` is not optional if you want to reproduce them. Run recorded: `2026-08-16T22:05:10+00:00`.
+Timings are machine-specific (hardware stated above) and will differ on yours; the WAPE/RMSE figures are deterministic given the same series vintage — which is why `--as-of` is not optional if you want to reproduce them. Run recorded: `2026-09-05T19:38:55+00:00`.
 
 
 ## Provenance
 
-- **Generated:** 2026-08-16T22:05:10Z (UTC)
+- **Generated:** 2026-09-05T19:38:55Z (UTC)
 - **Generator:** `seeds.run_chronos_benchmark`
-- **Commit:** `241ae9e6959c8f53558556dcaae1f4b394d0dbca` — ⚠️ **DIRTY WORKING TREE.** UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.
+- **Commit:** `5c462d4b8e553f69d5eada90834e3d7ce474dc69` (clean tree)
 - **Input `demand_series`:** `backend/seeds/data/a34sno_vintages/a34sno_20260816.csv` · sha256 `b5e61299781f39ea…`
 - **Data vintage pin:** `2026-08-16`
 - **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
