@@ -1,37 +1,12 @@
 {
   "provenance": {
-    "generated_at_utc": "2026-08-30T14:23:17Z",
+    "generated_at_utc": "2026-09-05T19:45:05Z",
     "generator": "seeds.run_newsvendor",
     "git": {
-      "commit": "5a974825cff9a90b526854fba8684135fe8b1075",
-      "commit_short": "5a974825cf",
+      "commit": "5d45a47160f8fadcc254312a112756177b94f927",
+      "commit_short": "5d45a47160",
       "branch": "main",
-      "dirty": true,
-      "warning": "UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.",
-      "dirty_file_count": 50,
-      "dirty_paths": [
-        ".claude/agent-memory/ml-pipeline-verifier/",
-        ".claude/agent-memory/supply-chain-research-agent/project_state_jun2026.md",
-        ".claude/agent-memory/supply-chain-research-agent/research_market_context_aug2026.md",
-        ".claude/agent-memory/supply-chain-research-agent/research_optimization_or_aug2026.md",
-        ".claude/agent-memory/supply-chain-research-agent/research_statistical_sophistication.md",
-        ".claude/agent-memory/ui-verifier/",
-        ".claude/agents/ml-pipeline-verifier.md",
-        ".claude/agents/supply-chain-research-agent.md",
-        ".claude/agents/ui-verifier.md",
-        "README.md",
-        "backend/app/api/market_intelligence.py",
-        "backend/app/api/newsvendor.py",
-        "backend/app/core/clients/supplymaven_client.py",
-        "backend/app/optimization/sourcing.py",
-        "backend/seeds/run_newsvendor.py",
-        "backend/supply_chain.db",
-        "backend/tests/test_artifacts_pinned_to_code.py",
-        "backend/tests/test_market_intelligence_unavailable.py",
-        "backend/tests/test_newsvendor_evaluation_is_served_from_the_artifact.py",
-        "backend/tests/test_optimizer_flag_wiring.py"
-      ],
-      "dirty_paths_truncated": 30
+      "dirty": false
     },
     "python": "3.13.5",
     "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
@@ -53,7 +28,7 @@
     "n_boot": 5000,
     "bootstrap_seed": 0,
     "permutation_seed": 17,
-    "wall_seconds": 255.2,
+    "wall_seconds": 268.7,
     "writes_to_database": false,
     "reads": "backend/seeds/data/car_parts_monthly.npz (committed, read-only)",
     "evaluation_grid": {
@@ -356,7 +331,7 @@
       "passed": true,
       "reason": "beats all 6 baselines; margin over scarf_minmax is 0.001592 USD/SKU-period with 95% CI [0.001152, 0.002050], excluding zero"
     },
-    "wall_seconds": 3.366
+    "wall_seconds": 3.405
   },
   "sensitivity_line_down": {
     "costs": {
@@ -631,7 +606,7 @@
       "passed": false,
       "reason": "margin over scarf_minmax is not significant: mean difference 0.0014942190868116843 with 95% CI [-0.0033020995177906495, 0.006002159094090309]"
     },
-    "wall_seconds": 3.373
+    "wall_seconds": 3.338
   },
   "sensitivity_review_period_3": {
     "costs": {
@@ -907,7 +882,7 @@
       "passed": false,
       "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
     },
-    "wall_seconds": 3.877
+    "wall_seconds": 3.513
   },
   "sensitivity_review_period_6": {
     "costs": {
@@ -1183,7 +1158,7 @@
       "passed": true,
       "reason": "beats all 6 baselines; margin over point_forecast is 0.005483 USD/SKU-period with 95% CI [0.003345, 0.007606], excluding zero"
     },
-    "wall_seconds": 3.763
+    "wall_seconds": 3.778
   },
   "negative_control_permuted": {
     "costs": {
@@ -1436,7 +1411,7 @@
       "passed": false,
       "reason": "permutation-control run; not a publishable result"
     },
-    "wall_seconds": 3.391
+    "wall_seconds": 3.404
   },
   "grid": {
     "climatology_L1_expedite": {
@@ -1712,7 +1687,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over safety_multiple_2x is 0.001070 USD/SKU-period with 95% CI [0.000458, 0.001673], excluding zero"
       },
-      "wall_seconds": 3.382
+      "wall_seconds": 3.868
     },
     "climatology_L1_line_down": {
       "costs": {
@@ -1987,7 +1962,7 @@
         "passed": false,
         "reason": "margin over scarf_minmax is not significant: mean difference 0.001637692113882597 with 95% CI [-0.0039495215524481325, 0.007060885053609918]"
       },
-      "wall_seconds": 3.37
+      "wall_seconds": 3.64
     },
     "climatology_L2_expedite": {
       "costs": {
@@ -2263,7 +2238,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
       },
-      "wall_seconds": 3.407
+      "wall_seconds": 3.487
     },
     "climatology_L2_line_down": {
       "costs": {
@@ -2539,7 +2514,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.513
+      "wall_seconds": 3.505
     },
     "climatology_L3_expedite": {
       "costs": {
@@ -2815,7 +2790,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
       },
-      "wall_seconds": 3.554
+      "wall_seconds": 3.773
     },
     "climatology_L3_line_down": {
       "costs": {
@@ -3091,7 +3066,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.439
+      "wall_seconds": 3.716
     },
     "climatology_L4_expedite": {
       "costs": {
@@ -3367,7 +3342,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
       },
-      "wall_seconds": 3.489
+      "wall_seconds": 3.797
     },
     "climatology_L4_line_down": {
       "costs": {
@@ -3643,7 +3618,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.474
+      "wall_seconds": 3.709
     },
     "climatology_L5_expedite": {
       "costs": {
@@ -3919,7 +3894,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'point_forecast']"
       },
-      "wall_seconds": 3.608
+      "wall_seconds": 3.706
     },
     "climatology_L5_line_down": {
       "costs": {
@@ -4195,7 +4170,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.647
+      "wall_seconds": 3.664
     },
     "climatology_L6_expedite": {
       "costs": {
@@ -4471,7 +4446,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last']"
       },
-      "wall_seconds": 3.751
+      "wall_seconds": 3.852
     },
     "climatology_L6_line_down": {
       "costs": {
@@ -4747,7 +4722,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.695
+      "wall_seconds": 3.825
     },
     "croston_L1_expedite": {
       "costs": {
@@ -5022,7 +4997,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.399
+      "wall_seconds": 3.414
     },
     "croston_L1_line_down": {
       "costs": {
@@ -5297,7 +5272,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.015506 USD/SKU-period with 95% CI [0.011822, 0.019014], excluding zero"
       },
-      "wall_seconds": 3.328
+      "wall_seconds": 3.425
     },
     "croston_L2_expedite": {
       "costs": {
@@ -5573,7 +5548,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.334
+      "wall_seconds": 3.507
     },
     "croston_L2_line_down": {
       "costs": {
@@ -5849,7 +5824,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.016916 USD/SKU-period with 95% CI [0.009502, 0.023846], excluding zero"
       },
-      "wall_seconds": 3.391
+      "wall_seconds": 3.447
     },
     "croston_L3_expedite": {
       "costs": {
@@ -6125,7 +6100,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.454
+      "wall_seconds": 3.514
     },
     "croston_L3_line_down": {
       "costs": {
@@ -6401,7 +6376,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.017046 USD/SKU-period with 95% CI [0.007302, 0.026290], excluding zero"
       },
-      "wall_seconds": 3.481
+      "wall_seconds": 3.506
     },
     "croston_L4_expedite": {
       "costs": {
@@ -6677,7 +6652,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.467
+      "wall_seconds": 3.583
     },
     "croston_L4_line_down": {
       "costs": {
@@ -6953,7 +6928,7 @@
         "passed": false,
         "reason": "margin over scarf_minmax is not significant: mean difference 0.00739061056521375 with 95% CI [-0.006488042747963374, 0.020377194087511544]"
       },
-      "wall_seconds": 3.505
+      "wall_seconds": 3.703
     },
     "croston_L5_expedite": {
       "costs": {
@@ -7229,7 +7204,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.573
+      "wall_seconds": 3.884
     },
     "croston_L5_line_down": {
       "costs": {
@@ -7505,7 +7480,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.015429 USD/SKU-period with 95% CI [0.002260, 0.028464], excluding zero"
       },
-      "wall_seconds": 3.597
+      "wall_seconds": 3.693
     },
     "croston_L6_expedite": {
       "costs": {
@@ -7781,7 +7756,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'order_nothing', 'point_forecast']"
       },
-      "wall_seconds": 3.707
+      "wall_seconds": 3.854
     },
     "croston_L6_line_down": {
       "costs": {
@@ -8057,7 +8032,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.018755 USD/SKU-period with 95% CI [0.005590, 0.031731], excluding zero"
       },
-      "wall_seconds": 3.667
+      "wall_seconds": 4.517
     },
     "naive_last_L1_expedite": {
       "costs": {
@@ -8333,7 +8308,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.326
+      "wall_seconds": 3.407
     },
     "naive_last_L1_line_down": {
       "costs": {
@@ -8609,7 +8584,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.344
+      "wall_seconds": 3.459
     },
     "naive_last_L2_expedite": {
       "costs": {
@@ -8886,7 +8861,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.356
+      "wall_seconds": 3.438
     },
     "naive_last_L2_line_down": {
       "costs": {
@@ -9163,7 +9138,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['normal_safety_stock', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.367
+      "wall_seconds": 3.413
     },
     "naive_last_L3_expedite": {
       "costs": {
@@ -9440,7 +9415,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.407
+      "wall_seconds": 3.644
     },
     "naive_last_L3_line_down": {
       "costs": {
@@ -9717,7 +9692,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['normal_safety_stock', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.412
+      "wall_seconds": 3.65
     },
     "naive_last_L4_expedite": {
       "costs": {
@@ -9994,7 +9969,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.484
+      "wall_seconds": 3.569
     },
     "naive_last_L4_line_down": {
       "costs": {
@@ -10271,7 +10246,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['normal_safety_stock', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.467
+      "wall_seconds": 3.578
     },
     "naive_last_L5_expedite": {
       "costs": {
@@ -10548,7 +10523,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.571
+      "wall_seconds": 3.67
     },
     "naive_last_L5_line_down": {
       "costs": {
@@ -10825,7 +10800,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.55
+      "wall_seconds": 3.641
     },
     "naive_last_L6_expedite": {
       "costs": {
@@ -11102,7 +11077,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.708
+      "wall_seconds": 3.791
     },
     "naive_last_L6_line_down": {
       "costs": {
@@ -11379,7 +11354,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.695
+      "wall_seconds": 3.756
     },
     "sba_L1_expedite": {
       "costs": {
@@ -11654,7 +11629,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.337
+      "wall_seconds": 3.382
     },
     "sba_L1_line_down": {
       "costs": {
@@ -11929,7 +11904,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.014455 USD/SKU-period with 95% CI [0.010788, 0.017992], excluding zero"
       },
-      "wall_seconds": 3.306
+      "wall_seconds": 3.418
     },
     "sba_L2_expedite": {
       "costs": {
@@ -12205,7 +12180,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.358
+      "wall_seconds": 3.468
     },
     "sba_L2_line_down": {
       "costs": {
@@ -12481,7 +12456,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.016176 USD/SKU-period with 95% CI [0.008655, 0.022993], excluding zero"
       },
-      "wall_seconds": 3.435
+      "wall_seconds": 3.63
     },
     "sba_L3_expedite": {
       "costs": {
@@ -12757,7 +12732,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.467
+      "wall_seconds": 3.776
     },
     "sba_L3_line_down": {
       "costs": {
@@ -13033,7 +13008,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.016530 USD/SKU-period with 95% CI [0.007189, 0.025695], excluding zero"
       },
-      "wall_seconds": 3.452
+      "wall_seconds": 3.66
     },
     "sba_L4_expedite": {
       "costs": {
@@ -13309,7 +13284,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.533
+      "wall_seconds": 3.705
     },
     "sba_L4_line_down": {
       "costs": {
@@ -13585,7 +13560,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.013238 USD/SKU-period with 95% CI [0.000514, 0.025281], excluding zero"
       },
-      "wall_seconds": 3.491
+      "wall_seconds": 3.8
     },
     "sba_L5_expedite": {
       "costs": {
@@ -13861,7 +13836,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'order_nothing', 'point_forecast', 'scarf_minmax']"
       },
-      "wall_seconds": 3.589
+      "wall_seconds": 3.858
     },
     "sba_L5_line_down": {
       "costs": {
@@ -14137,7 +14112,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.015217 USD/SKU-period with 95% CI [0.002003, 0.028068], excluding zero"
       },
-      "wall_seconds": 3.598
+      "wall_seconds": 3.924
     },
     "sba_L6_expedite": {
       "costs": {
@@ -14413,7 +14388,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'order_nothing', 'point_forecast']"
       },
-      "wall_seconds": 3.688
+      "wall_seconds": 4.081
     },
     "sba_L6_line_down": {
       "costs": {
@@ -14689,7 +14664,7 @@
         "passed": true,
         "reason": "beats all 6 baselines; margin over scarf_minmax is 0.020361 USD/SKU-period with 95% CI [0.008330, 0.031794], excluding zero"
       },
-      "wall_seconds": 3.693
+      "wall_seconds": 4.054
     },
     "tsb_L2_expedite": {
       "costs": {
@@ -14965,7 +14940,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
       },
-      "wall_seconds": 3.361
+      "wall_seconds": 3.616
     },
     "tsb_L2_line_down": {
       "costs": {
@@ -15241,7 +15216,7 @@
         "passed": false,
         "reason": "margin over scarf_minmax is not significant: mean difference 0.0016131967190168317 with 95% CI [-0.006229222656140641, 0.009123528526636985]"
       },
-      "wall_seconds": 3.362
+      "wall_seconds": 3.671
     },
     "tsb_L3_line_down": {
       "costs": {
@@ -15517,7 +15492,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.429
+      "wall_seconds": 3.698
     },
     "tsb_L4_expedite": {
       "costs": {
@@ -15793,7 +15768,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
       },
-      "wall_seconds": 3.466
+      "wall_seconds": 3.798
     },
     "tsb_L4_line_down": {
       "costs": {
@@ -16069,7 +16044,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.47
+      "wall_seconds": 3.78
     },
     "tsb_L5_expedite": {
       "costs": {
@@ -16345,7 +16320,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['point_forecast']"
       },
-      "wall_seconds": 3.575
+      "wall_seconds": 3.899
     },
     "tsb_L5_line_down": {
       "costs": {
@@ -16621,7 +16596,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.574
+      "wall_seconds": 3.902
     },
     "tsb_L6_line_down": {
       "costs": {
@@ -16897,7 +16872,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['scarf_minmax']"
       },
-      "wall_seconds": 3.713
+      "wall_seconds": 3.868
     },
     "zero_L1_expedite": {
       "costs": {
@@ -17173,7 +17148,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.324
+      "wall_seconds": 3.463
     },
     "zero_L1_line_down": {
       "costs": {
@@ -17449,7 +17424,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.321
+      "wall_seconds": 3.548
     },
     "zero_L2_expedite": {
       "costs": {
@@ -17726,7 +17701,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.347
+      "wall_seconds": 3.679
     },
     "zero_L2_line_down": {
       "costs": {
@@ -18003,7 +17978,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.332
+      "wall_seconds": 3.835
     },
     "zero_L3_expedite": {
       "costs": {
@@ -18280,7 +18255,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.38
+      "wall_seconds": 3.535
     },
     "zero_L3_line_down": {
       "costs": {
@@ -18557,7 +18532,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.394
+      "wall_seconds": 3.581
     },
     "zero_L4_expedite": {
       "costs": {
@@ -18834,7 +18809,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.465
+      "wall_seconds": 3.627
     },
     "zero_L4_line_down": {
       "costs": {
@@ -19111,7 +19086,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.477
+      "wall_seconds": 3.607
     },
     "zero_L5_expedite": {
       "costs": {
@@ -19388,7 +19363,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.57
+      "wall_seconds": 3.702
     },
     "zero_L5_line_down": {
       "costs": {
@@ -19665,7 +19640,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.571
+      "wall_seconds": 3.9
     },
     "zero_L6_expedite": {
       "costs": {
@@ -19942,7 +19917,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.692
+      "wall_seconds": 4.169
     },
     "zero_L6_line_down": {
       "costs": {
@@ -20219,7 +20194,7 @@
         "passed": false,
         "reason": "did not beat every baseline; lost or tied to ['naive_last', 'normal_safety_stock', 'order_nothing', 'point_forecast', 'safety_multiple_2x', 'scarf_minmax']"
       },
-      "wall_seconds": 3.701
+      "wall_seconds": 4.054
     }
   }
 }
