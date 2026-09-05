@@ -61,9 +61,9 @@ Prophet's skill score against the naive baseline under the real-time protocol is
 
 ## Provenance
 
-- **Generated:** 2026-08-16T22:05:54Z (UTC)
+- **Generated:** 2026-09-05T19:37:09Z (UTC)
 - **Generator:** `seeds.run_forecast_backtest`
-- **Commit:** `241ae9e6959c8f53558556dcaae1f4b394d0dbca` — ⚠️ **DIRTY WORKING TREE.** UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.
+- **Commit:** `f31ecfcd0f0d6edfff3353c8842315ca5e87e73a` (clean tree)
 - **Input `demand_series`:** `backend/seeds/data/a34sno_vintages/a34sno_20260816.csv` · sha256 `b5e61299781f39ea…`
 - **Data vintage pin:** `2026-08-16`
 - **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
