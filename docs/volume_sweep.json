@@ -1,9 +1,9 @@
 {
   "meta": {
-    "generated_utc": "2026-08-30T14:27:34Z",
+    "generated_utc": "2026-09-05T19:39:45Z",
     "hardware": "arm64 / Darwin 25.5.0",
     "python": "3.13.5",
-    "wall_seconds": 0.8,
+    "wall_seconds": 1.2,
     "strategy": "balanced",
     "strategy_weights": {
       "w_cost": 0.4,
@@ -57,53 +57,28 @@
     ]
   },
   "provenance": {
-    "generated_at_utc": "2026-08-30T14:27:34Z",
+    "generated_at_utc": "2026-09-05T19:39:46Z",
     "generator": "seeds.run_volume_sweep",
     "git": {
-      "commit": "5a974825cff9a90b526854fba8684135fe8b1075",
-      "commit_short": "5a974825cf",
+      "commit": "4c19b5510d74d22fa5e2617acc66ca2a2b880960",
+      "commit_short": "4c19b5510d",
       "branch": "main",
-      "dirty": true,
-      "warning": "UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.",
-      "dirty_file_count": 51,
-      "dirty_paths": [
-        ".claude/agent-memory/ml-pipeline-verifier/",
-        ".claude/agent-memory/supply-chain-research-agent/project_state_jun2026.md",
-        ".claude/agent-memory/supply-chain-research-agent/research_market_context_aug2026.md",
-        ".claude/agent-memory/supply-chain-research-agent/research_optimization_or_aug2026.md",
-        ".claude/agent-memory/supply-chain-research-agent/research_statistical_sophistication.md",
-        ".claude/agent-memory/ui-verifier/",
-        ".claude/agents/ml-pipeline-verifier.md",
-        ".claude/agents/supply-chain-research-agent.md",
-        ".claude/agents/ui-verifier.md",
-        "README.md",
-        "backend/app/api/market_intelligence.py",
-        "backend/app/api/newsvendor.py",
-        "backend/app/core/clients/supplymaven_client.py",
-        "backend/app/optimization/sourcing.py",
-        "backend/seeds/run_newsvendor.py",
-        "backend/supply_chain.db",
-        "backend/tests/test_artifacts_pinned_to_code.py",
-        "backend/tests/test_market_intelligence_unavailable.py",
-        "backend/tests/test_newsvendor_evaluation_is_served_from_the_artifact.py",
-        "backend/tests/test_optimizer_flag_wiring.py"
-      ],
-      "dirty_paths_truncated": 31
+      "dirty": false
     },
     "python": "3.13.5",
     "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
     "inputs": {
       "supply_chain_db": {
         "path": "backend/supply_chain.db",
-        "sha256": "523f846b5ceea3ac3c857b80fe41fd9d973a3e3c67beb4f8af28872c986082b8",
-        "bytes": 3121152,
+        "sha256": "b60dc9ba058a6956f672a7e13c62f426354c2f8c9ad45bb3eb8ddcef54aeb83d",
+        "bytes": 3620864,
         "exists": true
       }
     },
     "strategy": "balanced",
     "primary_offer_pool": "deduped",
     "primary_arm": "milp_matched",
-    "wall_seconds": 0.8
+    "wall_seconds": 1.2
   },
   "boms": {
     "iot_sensor_node": {
@@ -173,7 +148,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.005,
+              "solve_seconds": 0.331,
               "us_only": false
             },
             "milp_bench": {
@@ -192,7 +167,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -258,7 +233,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -343,7 +318,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -534,7 +509,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.004,
               "us_only": true
             }
           },
@@ -601,7 +576,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -621,7 +596,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -688,7 +663,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -709,7 +684,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -865,7 +840,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -956,7 +931,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -1145,7 +1120,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -1169,7 +1144,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -1266,7 +1241,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -1336,7 +1311,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -1355,7 +1330,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.001,
               "us_only": true
             }
           },
@@ -1591,7 +1566,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -1764,7 +1739,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -1784,7 +1759,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -1851,7 +1826,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -1872,7 +1847,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -1939,7 +1914,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -1960,7 +1935,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -2028,7 +2003,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -2050,7 +2025,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -2142,7 +2117,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -2236,7 +2211,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -2867,7 +2842,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.005,
+              "solve_seconds": 0.006,
               "us_only": false
             },
             "milp_bench": {
@@ -3053,7 +3028,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -3138,7 +3113,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -3157,7 +3132,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -3223,7 +3198,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -3242,7 +3217,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -3308,7 +3283,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -3327,7 +3302,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -3394,7 +3369,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -3501,7 +3476,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -3655,7 +3630,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -3853,7 +3828,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -3921,7 +3896,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -4282,7 +4257,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": false
             },
             "milp_bench": {
@@ -4301,7 +4276,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -4558,7 +4533,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -4732,7 +4707,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.001,
               "us_only": true
             }
           },
@@ -5654,7 +5629,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.001,
               "us_only": true
             }
           },
@@ -5992,7 +5967,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -6215,7 +6190,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6302,7 +6277,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6369,7 +6344,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -6456,7 +6431,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -6476,7 +6451,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6563,7 +6538,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6631,7 +6606,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -6652,7 +6627,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6720,7 +6695,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.006,
               "us_only": false
             },
             "milp_bench": {
@@ -6809,7 +6784,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -6830,7 +6805,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6919,7 +6894,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -6987,7 +6962,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -7183,7 +7158,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -7311,7 +7286,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -7500,7 +7475,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -7608,7 +7583,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -7635,7 +7610,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -7743,7 +7718,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -7935,7 +7910,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -8073,7 +8048,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -8265,7 +8240,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -8294,7 +8269,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -8506,7 +8481,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -8678,7 +8653,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -8764,7 +8739,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -8871,7 +8846,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -8947,7 +8922,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -9039,7 +9014,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.005,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -9125,7 +9100,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -9144,7 +9119,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -9211,7 +9186,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -9297,7 +9272,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -9384,7 +9359,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -9480,7 +9455,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.006,
+              "solve_seconds": 0.007,
               "us_only": false
             },
             "milp_bench": {
@@ -9501,7 +9476,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -9685,7 +9660,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -10032,7 +10007,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -10119,7 +10094,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.005,
+              "solve_seconds": 0.006,
               "us_only": false
             },
             "milp_bench": {
@@ -10140,7 +10115,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -10209,7 +10184,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -10324,7 +10299,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -10394,7 +10369,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -10487,7 +10462,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -10510,7 +10485,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -10580,7 +10555,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -10673,7 +10648,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -10767,7 +10742,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -11027,7 +11002,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -11114,7 +11089,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -11222,7 +11197,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -11406,7 +11381,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": true
             }
           },
@@ -11476,7 +11451,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -11569,7 +11544,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -11662,7 +11637,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -11762,7 +11737,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -11799,7 +11774,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -11912,7 +11887,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.001,
+              "solve_seconds": 0.002,
               "us_only": true
             }
           },
@@ -12482,7 +12457,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -12847,7 +12822,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -13031,7 +13006,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.004,
+              "solve_seconds": 0.005,
               "us_only": false
             },
             "milp_bench": {
@@ -13051,7 +13026,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.004,
               "us_only": true
             }
           },
@@ -13210,7 +13185,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -13336,7 +13311,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -13592,7 +13567,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -13657,7 +13632,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -13723,7 +13698,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -13790,7 +13765,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -13916,7 +13891,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.003,
+              "solve_seconds": 0.004,
               "us_only": false
             },
             "milp_bench": {
@@ -14235,7 +14210,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -14300,7 +14275,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {
@@ -14366,7 +14341,7 @@
               "feasible": true,
               "solver_status": "OPTIMAL",
               "hit_time_limit": false,
-              "solve_seconds": 0.002,
+              "solve_seconds": 0.003,
               "us_only": false
             },
             "milp_bench": {

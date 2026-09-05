@@ -1,9 +1,9 @@
 # The 44.7% benchmark number is an artifact. Here is the proof — and the freight bug it exposed.
 
 <!-- GENERATED:header_meta:BEGIN -->
-**Generated:** 2026-08-30 · **Script:** `backend/seeds/run_volume_sweep.py` · **Data:** `docs/volume_sweep.json`
+**Generated:** 2026-09-05 · **Script:** `backend/seeds/run_volume_sweep.py` · **Data:** `docs/volume_sweep.json`
 **Hardware:** arm64 / Darwin 25.5.0 · **Solver:** OR-Tools CP-SAT, `num_search_workers=1`, 5s limit
-**Runtime:** 0.8s for the full sweep (10 BOMs × 13 multipliers × 3 arms × 2 offer pools)
+**Runtime:** 1.2s for the full sweep (10 BOMs × 13 multipliers × 3 arms × 2 offer pools)
 <!-- GENERATED:header_meta:END -->
 
 **Aggregate definition used everywhere in this document: POOLED** — `sum(greedy costs) / sum(MILP costs)`
@@ -415,9 +415,9 @@ timeouts. Only the solve-quality counters above are the run log.
 <!-- GENERATED:provenance:BEGIN -->
 ## Provenance
 
-- **Generated:** 2026-08-30T14:27:34Z (UTC)
+- **Generated:** 2026-09-05T19:39:46Z (UTC)
 - **Generator:** `seeds.run_volume_sweep`
-- **Commit:** `5a974825cff9a90b526854fba8684135fe8b1075` — ⚠️ **DIRTY WORKING TREE.** UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.
-- **Input `supply_chain_db`:** `backend/supply_chain.db` · sha256 `523f846b5ceea3ac…`
+- **Commit:** `4c19b5510d74d22fa5e2617acc66ca2a2b880960` (clean tree)
+- **Input `supply_chain_db`:** `backend/supply_chain.db` · sha256 `b60dc9ba058a6956…`
 - **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
 <!-- GENERATED:provenance:END -->
