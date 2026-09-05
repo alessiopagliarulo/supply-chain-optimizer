@@ -1,37 +1,12 @@
 {
   "provenance": {
-    "generated_at_utc": "2026-09-04T01:04:08Z",
+    "generated_at_utc": "2026-09-05T19:40:08Z",
     "generator": "seeds.run_diversification_sweep",
     "git": {
-      "commit": "247cd343f133beaeb757433a3a5bdd02c603ea98",
-      "commit_short": "247cd343f1",
+      "commit": "f5d6b6050f5258ec4faeb627cb5ff619da9a6226",
+      "commit_short": "f5d6b6050f",
       "branch": "main",
-      "dirty": true,
-      "warning": "UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.",
-      "dirty_file_count": 76,
-      "dirty_paths": [
-        "CLAUDE.md",
-        "README.md",
-        "backend/app/api/benchmark.py",
-        "backend/app/api/graph.py",
-        "backend/app/api/ml.py",
-        "backend/app/api/resilience.py",
-        "backend/app/api/stochastic.py",
-        "backend/app/graph/__init__.py",
-        "backend/app/graph/builder.py",
-        "backend/app/main.py",
-        "backend/app/ml/__init__.py",
-        "backend/app/ml/fred_client.py",
-        "backend/app/ml/lead_time_model.py",
-        "backend/app/ml/regime_model.py",
-        "backend/app/models/optimization_run.py",
-        "backend/app/optimization/constants.py",
-        "backend/app/optimization/costs.py",
-        "backend/app/optimization/recommendations.py",
-        "backend/app/optimization/routing.py",
-        "backend/app/optimization/solve.py"
-      ],
-      "dirty_paths_truncated": 56
+      "dirty": false
     },
     "python": "3.13.5",
     "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
@@ -51,7 +26,7 @@
     "ci_alpha": 0.05,
     "n_boms_in_catalog": 10,
     "n_boms_included": 9,
-    "wall_seconds": 2.3,
+    "wall_seconds": 2.4,
     "writes_to_database": false,
     "overwrites_benchmark": false
   },
