@@ -1,49 +1,24 @@
 {
   "provenance": {
-    "generated_at_utc": "2026-09-03T22:55:10Z",
+    "generated_at_utc": "2026-09-05T19:45:56Z",
     "generator": "seeds.run_benchmark",
     "git": {
-      "commit": "247cd343f133beaeb757433a3a5bdd02c603ea98",
-      "commit_short": "247cd343f1",
+      "commit": "6e88a69f4339f92879d5f5435f9c09b5826ada52",
+      "commit_short": "6e88a69f43",
       "branch": "main",
-      "dirty": true,
-      "warning": "UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.",
-      "dirty_file_count": 46,
-      "dirty_paths": [
-        "LAUDE.md",
-        "README.md",
-        "backend/app/api/benchmark.py",
-        "backend/app/api/graph.py",
-        "backend/app/api/ml.py",
-        "backend/app/api/resilience.py",
-        "backend/app/api/stochastic.py",
-        "backend/app/graph/__init__.py",
-        "backend/app/graph/builder.py",
-        "backend/app/main.py",
-        "backend/app/ml/__init__.py",
-        "backend/app/ml/fred_client.py",
-        "backend/app/ml/lead_time_model.py",
-        "backend/app/ml/regime_model.py",
-        "backend/app/models/optimization_run.py",
-        "backend/app/optimization/costs.py",
-        "backend/app/optimization/routing.py",
-        "backend/app/optimization/solve.py",
-        "backend/app/optimization/sourcing.py",
-        "backend/app/optimization/stochastic.py"
-      ],
-      "dirty_paths_truncated": 26
+      "dirty": false
     },
     "python": "3.13.5",
     "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
     "inputs": {
       "database": {
         "path": "backend/supply_chain.db",
-        "sha256": "f338a73b4afa7ff59b6fffee6aaf3b80c545c435386b32f84ce59062c3c41bf4",
-        "bytes": 3346432,
+        "sha256": "b60dc9ba058a6956f672a7e13c62f426354c2f8c9ad45bb3eb8ddcef54aeb83d",
+        "bytes": 3620864,
         "exists": true
       }
     },
-    "run_id": 9,
+    "run_id": 10,
     "run_tag": "static_fallback",
     "boms_included": 9,
     "boms_in_catalog": 10,
@@ -51,7 +26,7 @@
     "database_path_is_repo_canonical": true
   },
   "meta": {
-    "run_id": 9,
+    "run_id": 10,
     "run_tag": "static_fallback",
     "strategy": "balanced",
     "annual_reorders_assumption": 12,
@@ -62,7 +37,7 @@
       "portwatch": false,
       "fred_freight": false
     },
-    "wall_seconds": 2.1,
+    "wall_seconds": 2.2,
     "n_rows": 90,
     "holdout": "benchmark IS the holdout \u2014 no strategy tuning happens here"
   },

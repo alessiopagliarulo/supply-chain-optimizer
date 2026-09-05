@@ -1,8 +1,8 @@
-# Benchmark Results — run_id=9
+# Benchmark Results — run_id=10
 
 > **This file is generated** by `python -m seeds.run_benchmark`. Everything outside the `CURATED:BEGIN` / `CURATED:END` HTML-comment markers is overwritten on every run; everything inside them is preserved verbatim. Put prose, retractions and caveats there.
 
-**Generated:** 2026-09-03 22:55 UTC
+**Generated:** 2026-09-05 19:45 UTC
 **Coverage:** **9 of 10 BOMs** — 1 excluded, see §0 for the reason.
 **Rows:** 90 (9 BOMs × 10 rows: 6 arms×nominal + 2 milp×2 disruptions)
 **Seed:** 42 · **Strategy:** balanced · **Holdout:** benchmark IS the holdout
@@ -171,9 +171,9 @@ Writes this file and `docs/benchmark_results.json` (the machine-readable twin th
 
 ## Provenance
 
-- **Generated:** 2026-09-03T22:55:10Z (UTC)
+- **Generated:** 2026-09-05T19:45:56Z (UTC)
 - **Generator:** `seeds.run_benchmark`
-- **Commit:** `247cd343f133beaeb757433a3a5bdd02c603ea98` — ⚠️ **DIRTY WORKING TREE.** UNCOMMITTED CHANGES: this artifact was generated from a working tree that did not match its git commit. Checking out the recorded SHA alone will NOT reproduce these numbers. Regenerate from a clean tree before treating them as published.
-- **Input `database`:** `backend/supply_chain.db` · sha256 `f338a73b4afa7ff5…`
+- **Commit:** `6e88a69f4339f92879d5f5435f9c09b5826ada52` (clean tree)
+- **Input `database`:** `backend/supply_chain.db` · sha256 `b60dc9ba058a6956…`
 - **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
 
