@@ -737,68 +737,26 @@ def _artifacts_with_git_provenance() -> list[str]:
 #: Regenerate from a clean tree, then remove the entry. Nothing here may be
 #: cleared by editing a provenance stamp.
 CLEAN_TREE_EXEMPTIONS: Dict[str, Dict[str, Any]] = {
-    "benchmark_results.json": {
-        "commit_short": "247cd343f1",
-        "dirty_file_count": 46,
-        "reason": (
-            "generated 2026-09-03 mid-overclaim-sweep; the dirty set includes "
-            "backend/app/api/benchmark.py — the benchmark code itself was "
-            "uncommitted when the benchmark ran. Regenerate: "
-            "python -m seeds.run_benchmark (~2.1 s wall)."
-        ),
-    },
-    "chronos_benchmark.json": {
-        "commit_short": "241ae9e695",
-        "dirty_file_count": 93,
-        "reason": (
-            "generated 2026-08-16 from a 93-file working tree, before the "
-            "provenance migration settled. Regenerate: "
-            "python -m seeds.run_chronos_benchmark --as-of 2026-08-16."
-        ),
-    },
-    "diversification_frontier.json": {
-        "commit_short": "247cd343f1",
-        "dirty_file_count": 76,
-        "reason": (
-            "generated 2026-09-04 from the same 76-file tree as the sweep. "
-            "Regenerate: python -m seeds.run_diversification_sweep (~2.3 s wall)."
-        ),
-    },
-    "forecast_backtest.json": {
-        "commit_short": "241ae9e695",
-        "dirty_file_count": 93,
-        "reason": (
-            "generated 2026-08-16 alongside chronos_benchmark.json, same dirty "
-            "tree. Regenerate: "
-            "python -m seeds.run_forecast_backtest --as-of 2026-08-16."
-        ),
-    },
-    "intermittent_demand.json": {
-        "commit_short": "241ae9e695",
-        "dirty_file_count": 91,
-        "reason": (
-            "generated 2026-08-16 from a 91-file tree. Regenerate: "
-            "python -m seeds.run_carparts_backtest (~21.8 s wall)."
-        ),
-    },
-    "newsvendor.json": {
-        "commit_short": "5a974825cf",
-        "dirty_file_count": 50,
-        "reason": (
-            "generated 2026-08-30; the dirty set includes its OWN generator, "
-            "backend/seeds/run_newsvendor.py. Regenerate: "
-            "python -m seeds.run_newsvendor (~255 s wall — the bootstrap)."
-        ),
-    },
-    "volume_sweep.json": {
-        "commit_short": "5a974825cf",
-        "dirty_file_count": 51,
-        "reason": (
-            "generated 2026-08-30 from the same tree as newsvendor.json, which "
-            "also carried uncommitted seeds/ generators. Regenerate: "
-            "python -m seeds.run_volume_sweep (~0.8 s wall)."
-        ),
-    },
+    # EMPTY, AND THAT IS THE POINT. On 2026-09-05 this held seven entries —
+    # benchmark_results, chronos_benchmark, diversification_frontier,
+    # forecast_backtest, intermittent_demand, newsvendor and volume_sweep — every
+    # artifact in docs/ except the two that had already been regenerated. All seven
+    # were regenerated from a clean tree that same day and every entry was deleted.
+    #
+    # Not one substantive number moved across any of the seven. The only changes
+    # were provenance blocks, timestamps and wall-clock latency. So the dirtiness
+    # was never an accuracy problem; it was a REPRODUCIBILITY problem, and the
+    # difference is worth keeping straight: a clean stamp says the tree was tidy
+    # when the file was written, while a leaf-by-leaf diff against the previous
+    # version says the code still produces the number. Regenerating bought both.
+    #
+    # Adding an entry here is legitimate — sometimes an artifact must ship before
+    # its tree can be cleaned. But it is a DEBT, not a category. Write the commit
+    # and the dirty count so the exemption cannot silently drift onto a different
+    # artifact, and delete it the moment the artifact goes clean:
+    # `test_no_clean_tree_exemption_names_a_clean_artifact` fails if you do not,
+    # which is what stops this list becoming another label that outlives its
+    # condition.
 }
 
 

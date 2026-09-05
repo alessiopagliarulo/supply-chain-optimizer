@@ -542,15 +542,29 @@ def test_the_newsvendor_precompute_cost_is_the_sweep_the_artifact_timed(
     as a measurement, and unfalsifiable by anything in this repo. It was found by the
     unverified-number guard in `test_pages_do_not_publish_unverified_numbers.py`.
 
-    The replacement is deliberately a figure the artifact actually records, so it now
-    moves when the sweep moves instead of drifting until someone happens to reread the
-    sentence. Rounded to the second: the page is prose, not a telemetry readout.
+    The first replacement was "takes 255 s", pinned to `meta.wall_seconds` exactly.
+    That was WRONG IN THE SAME WAY, just less obviously: `wall_seconds` is a wall-clock
+    measurement of whichever machine ran the generator, so regenerating the artifact on
+    2026-09-05 moved it 255.2 -> 268.7 and turned the page red for no reason anyone
+    reading the site would care about. A number that must be hand-synced after every
+    regeneration is precisely the kind that eventually gets hand-typed wrong — which is
+    how "108 s" got there in the first place.
+
+    So the pin binds the CLAIM rather than the digits. The page's sentence exists to
+    justify one thing: why 72 settings are precomputed instead of computed on request.
+    That justification is true whenever the sweep takes minutes, and it is what this
+    asserts. If the sweep ever became fast enough to serve live, this goes red and the
+    sentence has to change — which is the outcome you want, and the exact-seconds
+    version could not distinguish from a faster laptop.
     """
-    m = claim("NewsvendorPage.tsx", r"The full sweep takes (\d+) s to precompute")
+    claim("NewsvendorPage.tsx", r"takes over four minutes to precompute")
     recorded = newsvendor["meta"]["wall_seconds"]
-    assert int(m.group(1)) == round(recorded), (
-        f"page: 'takes {m.group(1)} s to precompute'; docs/newsvendor.json "
-        f"meta.wall_seconds = {recorded} (rounds to {round(recorded)})."
+    assert recorded > 240, (
+        f"The page tells the reader the sweep takes over four minutes, which is why "
+        f"it is precomputed rather than run on request. docs/newsvendor.json records "
+        f"meta.wall_seconds = {recorded}, so that justification no longer holds. If "
+        f"the sweep genuinely got this fast, rewrite the sentence — do not relax this "
+        f"bound to keep a stale claim alive."
     )
 
 

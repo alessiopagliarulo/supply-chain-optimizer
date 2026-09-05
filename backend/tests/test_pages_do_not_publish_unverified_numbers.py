@@ -377,11 +377,13 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "NewsvendorPage.tsx": (
         (
-            "The full sweep takes 255 s to precompute",
-            "Pinned to docs/newsvendor.json meta.wall_seconds (255.2) by "
+            "takes over four minutes to precompute",
+            "Bound to docs/newsvendor.json meta.wall_seconds > 240 by "
             "test_pages_match_their_sources.py::"
             "test_the_newsvendor_precompute_cost_is_the_sweep_the_artifact_timed. "
-            "Replaced an unrecorded '108 s per setting' that traced to nothing.",
+            "Deliberately a threshold, not a digit: wall_seconds is machine speed "
+            "(255.2 -> 268.7 on a regeneration) and a hand-synced number is how the "
+            "fabricated '108 s per setting' got here in the first place.",
         ),
 
         (

@@ -1060,7 +1060,7 @@ export default function NewsvendorPage() {
               <p className="text-sm text-slate-400 mt-2 leading-relaxed">
                 Every balanced series is scored at three rolling origins under six forecast
                 methods, then compared with a 5,000-replication paired bootstrap. The full sweep
-                takes 255 s to precompute, so it is not done on request: all 72 settings are
+                takes over four minutes to precompute, so it is not done on request: all 72 settings are
                 precomputed by <span className="font-mono">seeds.run_newsvendor</span> and served
                 from the committed artifact, which a backend test re-runs and compares leaf by
                 leaf.
