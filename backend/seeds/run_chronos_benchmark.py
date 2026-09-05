@@ -1011,14 +1011,15 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "headline is data revision."
         ),
     )
-    parser.add_argument(
-        "--no-real-time",
-        action="store_true",
-        help=(
-            "Skip the per-origin real-time protocol. It is ON by default because the "
-            "pseudo real-time walk-forward is optimistic on a revised series."
-        ),
-    )
+    # `--no-real-time` is NOT added here: `build_arg_parser` already defines it.
+    # It was defined in both places by commit 449db34, which added the flag to the
+    # shared builder and to this caller at the same time, and argparse raises
+    # `ArgumentError: conflicting option string` on import of the parser — so this
+    # generator could not run AT ALL, with any arguments, from that commit until
+    # 2026-09-05. Nobody noticed because nothing runs it: there is no test that
+    # invokes the generator, and `docs/chronos_benchmark.json` was last written at
+    # 241ae9e, which predates the break. A generator whose output is committed and
+    # whose entrypoint is never exercised can rot silently for weeks.
     args = parser.parse_args(argv)
     if args.compare_vintage is None:
         args.compare_vintage = [PUBLISHED_VINTAGE]
