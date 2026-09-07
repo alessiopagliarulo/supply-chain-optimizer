@@ -19,15 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-## Data licensing
-
-The MIT license above covers the code in this repository only. The bundled
-electronic-components dataset (`backend/seeds/`, sourced from HuggingFace
-`mdnh/electronic-components-supply-chain`, itself collected via the Nexar API
-from Octopart) is licensed separately under **CC-BY-4.0**, which permits reuse
-with attribution. See `docs/DATA_PROVENANCE.md` for full source details. When
-reusing that dataset, attribute the original HuggingFace dataset
-(`mdnh/electronic-components-supply-chain`) per CC-BY-4.0.
