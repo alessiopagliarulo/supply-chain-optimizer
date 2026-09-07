@@ -29,10 +29,11 @@ artifact that CI diffs against the prose (`tests/test_docs_match_artifacts.py`).
   earlier version did not, and was refused rather than shipped.
   → [docs/MODEL_CI.md](docs/MODEL_CI.md)
 
-[![CVaR efficient frontier — cost vs. tail risk, with the knee at λ = 0.3](docs/screenshots/current/11-frontier.png)](docs/CVAR_EFFICIENT_FRONTIER.md)
+[![Cost vs. CVaR-95 efficient frontier: expected cost on the x-axis, CVaR-95 on the y-axis, nine λ-solves falling from the risk-neutral plan down to the knee at λ = 0.3 and then flattening. A dashed chord marks the $4.27-per-$1 stretch.](docs/cvar_frontier.png)](docs/CVAR_EFFICIENT_FRONTIER.md)
 
-*The frontier as the app renders it: expected cost on one axis, CVaR-95 on the other, each
-point a λ-solve. The knee is where the chord ratio above stops being worth paying.*
+*Drawn from `docs/cvar_frontier.json` by `backend/seeds/render_cvar_frontier_chart.py` — the
+same artifact the prose above is checked against, so the picture and the sentence cannot
+disagree. Every figure on it is read from the artifact; none is typed.*
 
 ---
 
@@ -538,10 +539,10 @@ runner, and it runs against the **live deployment**:
 ```bash
 cd frontend
 BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
-# -> 239 passed, 0 failed
+# -> 256 passed, 0 failed
 ```
 
-Also a real run, 2026-09-02, against `85b2890`. `scripts/ui-gate.cjs` drives a real
+Also a real run, 2026-09-07, against the live deployment. `scripts/ui-gate.cjs` drives a real
 Chromium over **all 10 routes at 4 viewports** (390 / 768 / **1280** / 1440 — 1280 is
 there because a nav regression lived exactly at that breakpoint) and asserts what a human
 would otherwise have to notice:
