@@ -38,8 +38,7 @@ ANNUAL_REORDERS = 12
 
 # ── The retracted headline ────────────────────────────────────────────────────
 # `docs/BENCHMARK_VOLUME_CURVE.md` retracted "the optimizer is 44.7% cheaper" in
-# July 2026 and `docs/RESILIENCE_INTERVIEW_GUIDE.md` says verbatim "DO NOT say my
-# optimizer is 44.7% cheaper". The retraction landed in every document but never in
+# July 2026. The retraction landed in every document but never in
 # this API, which kept serving `savings_pct: 48.09` as a bare headline off a run of
 # 4-line, 5-to-9-unit prototype BOMs. This endpoint now serves the volume curve and
 # the decomposition instead, with the prototype-volume figure explicitly labelled as
@@ -1218,9 +1217,9 @@ def _build_headline(curve: VolumeCurve) -> Headline:
         "benchmark scores 4-line BOMs of 5-9 TOTAL UNITS. At that size a fixed "
         "$75-per-supplier LTL fee (x1.5) is larger than the parts, so consolidating "
         "suppliers dominates everything else. The fee does not grow with volume and "
-        "component cost does, so the percentage decays. docs/"
-        "RESILIENCE_INTERVIEW_GUIDE.md states it plainly: do not say the optimizer is "
-        "44.7% cheaper."
+        "component cost does, so the percentage decays. The single-number claim "
+        "\"the optimizer is 44.7% cheaper\" is retracted and must not be requoted; "
+        "use the volume curve below instead."
     )
     common = {
         "retracted_claim": RETRACTED_HEADLINE,

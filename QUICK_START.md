@@ -1,16 +1,15 @@
 # Quick Start — Electronics Supply Chain Optimizer
 
-## ⭐ To SEE the app (the only way you should)
+## ⭐ To SEE the app
 
-```bash
-./launch
-```
+Open **https://supply-chain-ui-bhwz.onrender.com** — that is the deployed build of
+`main`, and it is the only URL that shows what actually ships. The nav bar's top-right
+corner prints `build <hash>`; compare it against `GET /api/v1/version` (or the commit
+you expect) to confirm which version you are looking at. Deployment is automatic on
+push to `main` via Render.
 
-That one command pushes the latest code, waits for Render to deploy it,
-**verifies the live site is running exactly that version**, then opens
-https://supply-chain-ui-bhwz.onrender.com. The nav bar's top-right shows
-`build <hash>` so you always know which version you're looking at.
-Never use localhost to view the app — that's how stale pages happen.
+Don't judge the app from a localhost server — a local build can pass while the deployed
+one is broken, and that is how stale pages get demoed.
 
 ---
 
@@ -119,7 +118,9 @@ Interactive US map showing distributor hubs colored by type and risk tier.
 ### Resilience Dashboard
 Simulate supply chain disruptions under three scenarios:
 - **Distributor Failure**: pick a distributor, see which BOMs break and rerouting cost
-- **Geopolitical Risk**: overlay real GPR/ACLED data at 0.5×–5× multiplier
+- **Geopolitical Risk**: a 0.5×–5× stress dial on each component's stored risk score
+  (it is a what-if multiplier, not a live GPR/ACLED override — the live feeds reach the
+  optimizer on `/optimize/*`, not this endpoint)
 - **Delivery Target**: slide to 1–90 days and see which suppliers can hit the deadline
 
 ---

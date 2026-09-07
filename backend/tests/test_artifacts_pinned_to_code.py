@@ -16,7 +16,7 @@ the repo has now hit twice:
     ``python -m seeds.run_volume_sweep`` moved a cell: $181,919.39 → $181,908.01,
     5 → 6 suppliers, and the pooled 10,000x row 7.96% → 7.97%.
 
-CLAUDE.md names exactly this failure: *"twice shipped figures that two documents
+The repo's standing bar names exactly this failure: *"twice shipped figures that two documents
 agreed on while both disagreed with the code."* Nothing can catch it except a
 check that re-runs the real code path and compares the result to the bytes on
 disk. That is what this file does.
@@ -124,7 +124,7 @@ SWEEP_SKIP_FIELDS = frozenset({"solve_seconds"})
 # The seeded snapshot every published number is computed from. Asserted rather
 # than assumed: DATABASE_URL is CWD-relative and SQLite CREATES rather than
 # fails, so running from the wrong directory yields a silently empty database
-# (LEARNINGS.md, 2026-08-28).
+# (loop learnings log, 2026-08-28).
 EXPECTED_ROW_COUNTS = {
     "components": 791,
     "distributors": 92,
@@ -658,9 +658,9 @@ def test_newsvendor_primary_reproduces_from_the_live_evaluation():
 # ------------------------------------------------------
 # HONESTLY UNPINNABLE. There is no generator for it anywhere in this repo: it is
 # a hand-run snapshot from the 2026-08-19 production repair (see
-# `docs/archive/handoffs/handoff-2026-08-19-production-repair-and-verification.md`),
+# the 2026-08-19 production repair and verification pass),
 # so there is no function to call — pinning it would mean writing the very
-# reimplementation `LEARNINGS.md` forbids. Its content is 42 live HTTPS responses
+# reimplementation the loop's learnings log forbids. Its content is 42 live HTTPS responses
 # from Render, and it stores a `seconds` field per check that cannot reproduce by
 # construction. A test that re-issued those calls would assert that a free-tier
 # service is awake, not that this repo's code is unchanged: it would go red on a
@@ -1102,7 +1102,7 @@ def _sha256_of(path: Path) -> str:
 #
 # The tempting fix — widen the tolerance until Prophet passes on both machines —
 # is forbidden here. A tolerance loose enough to absorb a non-deterministic fit
-# is a check that cannot reliably fail, which `LEARNINGS.md` (2026-08-28) names
+# is a check that cannot reliably fail, which the loop's learnings log (2026-08-28) names
 # as worse than no check at all. So the arms are split by whether they are
 # reproducible, and BOTH halves keep the SAME strict tolerance:
 #

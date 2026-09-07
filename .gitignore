@@ -68,16 +68,11 @@ test-screenshots/
 /Screenshot*.png
 
 # Claude Code local state (personal) — agent memory, agent definitions, settings.
-# CLAUDE.md forbids committing anything under .claude/. Until 2026-09-01 only
-# .claude/skills/ was ignored, so agent-memory dirs left the tree permanently dirty —
-# which made every generated artifact stamp provenance.git.dirty = true and turned that
-# flag into unfalsifiable noise. Ignoring the whole directory restores the flag's meaning.
-# NOTE: 9 files under .claude/ are still TRACKED from before this rule; .gitignore does not
-# untrack them. See docs/OUTSTANDING_WORK.md — untracking them is an open owner decision.
-.claude/*
-!.claude/agents/
-.claude/agents/*
-!.claude/agents/*.md
+# The whole directory is local-only: it holds machine-specific paths and assistant
+# configuration that is not part of the application. Untracked 2026-09-07; the files
+# remain on the maintainer's disk.
+.claude/
+.mcp.json
 
 # Personal research notes
 backend/apimcpresearch.txt
@@ -88,3 +83,19 @@ backend/apimcpresearch.txt
 # UI gate run artifacts (frontend/scripts/ui-gate.cjs writes beside itself)
 frontend/scripts/gate-shots/
 frontend/scripts/gate-report.json
+
+# ── Local-only working notes and developer conveniences (2026-09-07) ──────────
+# These stay on the maintainer's disk but are not part of the published project.
+# They are working notes for the assistant-driven development process, not
+# documentation of the system itself.
+CLAUDE.md
+LEARNINGS.md
+LOOP-DASHBOARD.md
+launch
+graphify-out/
+
+# Session handoff notes and superseded point-in-time audits (working notes).
+docs/handoffs/
+docs/archive/handoffs/
+docs/archive/history/
+docs/archive/SESSION-PROCESS-ERRORS-2026-08-26.md

@@ -1,21 +1,19 @@
 # Outstanding work
 
 Live backlog. Every item was found by a verification pass against the deployed
-site and the artifacts, not from a wishlist. Ordered by **interview damage**:
+site and the artifacts, not from a wishlist. Ordered by **published-claim risk**:
 a false published claim outranks a correctness bug, which outranks polish.
 
 Status: `TODO` · `WIP` · `DONE` · `DEFERRED (owner)`
 
 Live: 247cd34 · updated 2026-09-03 (verified 2026-09-02 by calling the deployed services;
-`/optimize/vrp` measured at 0.59-0.67 s, down from ~10 s. Current handoff:
-`handoffs/handoff-2026-09-03-cold-start-and-interrupted-agent.md`.)
+`/optimize/vrp` measured at 0.59-0.67 s, down from ~10 s.)
 
 ## What is actually still open
 
-**Items 1–40 below are all `DONE`.** Of the four `ml-pipeline-verifier` findings in
-**[`../archive/handoffs/handoff-2026-08-30-visual-test-prep.md`](../archive/handoffs/handoff-2026-08-30-visual-test-prep.md)**,
-**all four are now `DONE`** (2026-08-28/29), as is the lower-priority `recommended_k`
-item. What follows is the record of each:
+**Items 1–40 below are all `DONE`.** Of the four findings from the 2026-08-30 ML pipeline
+verification pass, **all four are now `DONE`** (2026-08-28/29), as is the lower-priority
+`recommended_k` item. What follows is the record of each:
 
 1. ~~`/ml/stress` publishes a probability computed from a **2026-07-01** frame with no as-of
    field~~ — **DONE** (2026-08-29). The response now carries `observation_date`,
@@ -48,7 +46,7 @@ item. What follows is the record of each:
    `+0.804 → +0.084 → −0.784`, plus the served `metrics.joblib` audit `+0.8084 → +0.1169 →
    −0.3895`) with the retired 810-row/27-manufacturer numbers labelled and dated as superseded.
    Same stale panel size (817 rows / 2 snapshots / 56 features) also found and corrected in
-   `PROJECT_OVERVIEW.md`, `RESEARCH_TECHNIQUES.md` and `RESILIENCE_INTERVIEW_GUIDE.md`.
+   `PROJECT_OVERVIEW.md` and `RESEARCH_TECHNIQUES.md`.
    `python_version` provenance stamping (3.13 local vs 3.11 CI) remains unresolved — see "Owner
    decisions" below.
 
@@ -99,12 +97,12 @@ published verdict.
 ## Found 2026-08-29 — three gates that could not go red
 
 None of these was on any backlog. Each is the same class of defect: a check that passed
-because it was incapable of failing. `LEARNINGS.md`: *a check that cannot fail is worse than
+because it was incapable of failing. The standing rule: *a check that cannot fail is worse than
 no check.*
 
 **41. The standing TypeScript gate typechecked nothing.** `DONE`. `frontend/tsconfig.json` is
 a solution file (`"files": []` + `references`), so `npx tsc --noEmit` — the gate written in
-`CLAUDE.md` — resolves no source files and exits 0 on any error. Proven by planting
+the repo's standing bar — resolves no source files and exits 0 on any error. Proven by planting
 `const x: number = "definitely not a number"` in `services/api.ts`: `--noEmit` passed,
 `tsc -b --force` reported it. It had already waved through two real type errors in this
 session's own work. Gate corrected to `npx tsc -b --force` (what `npm run build` already
@@ -115,12 +113,12 @@ runs, so CI was never affected) with a "Never do this" entry recording the evide
 `is_chinese_origin` double-count) and hand-edited only the artifact's `meta` prose without
 re-running the generator. `test_volume_curve_pooled_table_matches_sweep_json` compares the
 **doc to the artifact** — both were stale together, so it stayed green while both disagreed
-with the code. Verbatim the failure mode `CLAUDE.md` opens with. Regenerated via the real
+with the code. Verbatim the failure mode the repo's standing bar opens with. Regenerated via the real
 `python -m seeds.run_volume_sweep` (1.0 s): the published **2.6-8.0%** range *reproduces*
 (2.61%-7.97%), 12 of 13 rows bit-identical; one genuine cell moved
 (`pcb_power_supply` @10,000x, $181,919.39 → $181,908.01, 5 → 6 suppliers, pooled 7.96% →
 7.97%). **A scratch reimplementation had claimed the whole curve was near-zero/negative. It
-was wrong.** `LEARNINGS.md`'s rule held: only the real generator settles a number.
+was wrong.** The standing rule held: only the real generator settles a number.
 
 **43. Only two artifact-vs-code pins existed in the whole suite.** `DONE`. Everything else
 that looked like one was doc-to-artifact, artifact-to-artifact, schema, or API-to-artifact —
@@ -214,7 +212,7 @@ though it carries the same deterministic MILP as a baseline. It published
 *the identical cell that moved in the volume sweep* — and `CVAR_EFFICIENT_FRONTIER.md:534-535`
 showed a reader the derived **$183,171 / $219,128 / 5**. `test_cvar_doc_matches_artifact.py` was
 green throughout: it compares the doc to the artifact, and both were stale together. **Third
-recurrence of the failure mode `CLAUDE.md` opens with.** It also invented a difference that does
+recurrence of the failure mode the repo's standing bar opens with.** It also invented a difference that does
 not exist: the doc showed the shipped MILP at $183,171 / 5 suppliers *beside* the mean-value EEV
 baseline at $182,932 / 6, as though the two were different plans. They are the same plan —
 `solve_sourcing` with disruptions assumed away IS the mean-value solve — and after the fix the
@@ -227,7 +225,7 @@ artifact changed. (The solve-quality churn that came with the re-run is item 45,
 
 **`backend_verification.json` is honestly UNPINNABLE, and the test file says so.** No generator
 for it exists in this repo — it is a hand-run snapshot from the 2026-08-19 production repair —
-so a pin would have to be the reimplementation `LEARNINGS.md` forbids. Its content is 42 live
+so a pin would have to be the reimplementation the loop's learnings log forbids. Its content is 42 live
 HTTPS responses with a per-check `seconds` field that cannot reproduce; a test re-issuing them
 would go red on a Render cold start and green on a broken build.
 
@@ -515,7 +513,7 @@ machine (macOS/arm64, Python 3.13); CI is Linux/x86_64, Python 3.11. Stan's opti
 platform-dependent results and no seed or flag changes that. The two honest options were (a) run
 the Prophet pin only where the artifact is written, or (b) widen the tolerance until a
 non-deterministic fit passes anywhere — and (b) is a check that cannot reliably fail, which
-`LEARNINGS.md` (2026-08-28) forbids. **(a) was taken: both halves keep the same strict
+the loop's learnings log (2026-08-28) forbids. **(a) was taken: both halves keep the same strict
 `STAT_ABS_TOL`/`STAT_REL_TOL` of 1e-9.** The local standing gate (`pytest tests/ -q`, no `-m`
 filter) still runs the Prophet pins on every push, on the only machine where those artifacts can
 actually go stale. `slow` in this block means LOCAL-ONLY, not expensive.
@@ -631,7 +629,7 @@ separate from this item and deliberately not attempted here.
 > champion turned it red at 9.1% held-out RMSE reduction against a 10% floor.
 
 **56. Four documents stated the lead-time panel's RETIRED size as the current one — one of
-them on public GitHub, one of them scripting a false sentence for an interview.** `DONE`
+them on public GitHub.** `DONE`
 (2026-09-01), found by an `ml-pipeline-verifier` pass.
 
 **The defect.** `44e718c` ("data(lead-times): weekly observed snapshot 2026-08-31") added 1,533
@@ -658,12 +656,10 @@ another document**, which is how items 3 and 41 got their contradictions.
   table below it can never again be read as panel figures; the leakage table itself is now
   labelled "properties of the 2026-08-24 artifact vintage", in the same style as the retired
   810-row vintage already disclosed there.
-- `docs/RESILIENCE_INTERVIEW_GUIDE.md` — the highest-damage site: it did not merely state the
-  figure, it **coached the reader to say** *"1,922 real observations across four snapshots"* out
-  loud. Replaced with a two-row artifact-vs-panel table, a corrected scripted line that names the
-  gap rather than hiding it, and a short "if they push on the gap, that is the good outcome"
-  paragraph. The "paired change between the two snapshots" finding now names which two
-  (2026-07-01 and 2026-08-15) — it was ambiguous the moment a fifth snapshot existed.
+- A maintainer working note (unpublished) restated the same figure and was corrected the same
+  way: a two-row artifact-vs-panel table that names the gap rather than hiding it. The "paired
+  change between the two snapshots" finding now names which two (2026-07-01 and 2026-08-15) —
+  it was ambiguous the moment a fifth snapshot existed.
 - `docs/PROJECT_OVERVIEW.md` — the capability table, the achievement bullet and the ST-event
   paragraph. Line 180 claimed **"there are two snapshots"**, which matched neither the artifact
   (4) nor the disk (5) and **was already wrong before `44e718c`**; the correction records that.
@@ -804,7 +800,7 @@ matching `HEAD`, 791 / 92 / 8,176, `PRAGMA integrity_check` ok — **not committ
 | 12 | Benchmark deltas are **uninterval'd means over 9 BOMs, 2 structurally zero** (effective n = 7). *(Corrected 2026-09-02: this description said "4 structurally zero (effective n = 5–7)", which contradicted its own resolution of `n_effective = 7`. The live `/benchmark/summary` returns `n_boms: 9`, `n_effective_boms: 7` and `zero_plan_boms: [drone_flight_controller, rf_transceiver_module]` — two, and 9 − 7 = 2.)* No CI, SE or replicate anywhere; single seed 42; `−0.0072×` published to 4 dp. This contradicts the repo's own ship standard (paired bootstrap CI excluding zero) that the ML models are held to. | `api/benchmark.py`, `seeds/run_benchmark.py`, `BenchmarkPage.tsx` | **DONE** — paired bootstrap over BOM clusters, 10k resamples. **3 of 5 deltas survive; both stress deltas do NOT** (stress_cascade CI [−27.78, +5.56] pp covers zero). Page neutralises colour, prints the interval, and the Honest-finding panel now says "no measurable effect" instead of claiming −8 pp. `n_effective = 7`, BOMs named. |
 | 13 | CVaR-95 under stress **saturates at a 1.15 ceiling** on 8 of 9 BOMs (`1 + (4/4)·0.15`), so the metric is structurally incapable of discriminating in the scenario designed to create saturation. The probability that *would* discriminate (`n_scenarios_with_shortfall / n`) is computed and never persisted. | `graph/simulation.py`, `models/optimization_run.py`, `migrations/0009`, `seeds/run_benchmark.py`, `api/benchmark.py`, `BenchmarkPage.tsx` | **DONE** — `p_shortfall` / `p_total_shortfall` / `cvar_95_ceiling` / `cvar_95_saturated` computed, **persisted** (migration 0009 → `mc_*` columns), **served** (`/benchmark/summary` saturation block + `p_total_shortfall_intervals`) and **shown** (the `/benchmark` CVaR tiles flag a ceiling tie and name the tied BOMs). **16/18 published rows are at the ceiling; 10/18 are bit-identical ties; `p_total_shortfall` breaks 8 of 10.** Proved re-basing CVaR would not help (exact affine map, 0/36 deviate) with a test to stop it being tried. Also corrected `CVAR_EFFICIENT_FRONTIER.md`, which claimed this was fixed on 2026-08-16. |
 
-| 21 | **The test suite cannot be run concurrently.** Fixtures build a fixed-name `backend/test_hardening.db`, so two pytest processes clobber each other's data — observed live on 2026-08-28: a targeted run returned `component_id 5 not found` / `404` on 5 stochastic tests purely because a sibling process was mid-fixture. `LEARNINGS.md` warns "never kill pytest mid-flight — it poisons test_hardening.db" but the fixed filename is the actual defect. Give the DB a per-process unique name (PID or `tmp_path_factory`), which also makes `pytest -n auto` possible and would cut the 10-minute suite substantially. **Discovered by the loop, 2026-08-28.** | `backend/tests/conftest.py` | **DONE** — per-process name + session teardown; proved with 3 concurrent runs (24+34+45 passing) |
+| 21 | **The test suite cannot be run concurrently.** Fixtures build a fixed-name `backend/test_hardening.db`, so two pytest processes clobber each other's data — observed live on 2026-08-28: a targeted run returned `component_id 5 not found` / `404` on 5 stochastic tests purely because a sibling process was mid-fixture. The loop's learnings log warns "never kill pytest mid-flight — it poisons test_hardening.db" but the fixed filename is the actual defect. Give the DB a per-process unique name (PID or `tmp_path_factory`), which also makes `pytest -n auto` possible and would cut the 10-minute suite substantially. **Discovered by the loop, 2026-08-28.** | `backend/tests/conftest.py` | **DONE** — per-process name + session teardown; proved with 3 concurrent runs (24+34+45 passing) |
 
 | 22 | **Nav overflowed at 1280px — the third recurrence of this defect.** Adding a tenth link (`/newsvendor`) pushed the desktop row to **1371px** while it collapsed to a hamburger only *below* Tailwind's `xl` (1280px), so at exactly 1280 the full nav rendered into a bar 91px too narrow. The agent that added the link measured at 1440, where it fits, and concluded it was safe. **The gate would have missed it too** — it tested 390/768/1440, and the bug lived in the gap between a breakpoint and the width the content needs. **Discovered by the loop, 2026-08-28.** | `NavBar.tsx`, `gate.js` | **DONE** — breakpoint moved to a measured `min-[1400px]`; verified collapsing at 1399 and fitting at 1440/1536; **1280 added as a fourth gate viewport** |
 
@@ -814,7 +810,7 @@ matching `HEAD`, 791 / 92 / 8,176, `PRAGMA integrity_check` ok — **not committ
 |---|---|---|---|
 | 23 | **The resilience summary published a claim its own adjacent field refuted.** `/benchmark/summary` served "the graph-aware arm **lowered** both plan cascade risk and the CVaR-95 tail" while returning `stress_cascade_risk_reduction = -0.0833` — the arm had **raised** it — and `intervals.stress_cascade_risk_reduction.significant = False` in the same response object. The branch tested only whether a reduction was *exactly* `0.0` and never looked at sign, so every negative value fell through to a hardcoded "lowered". At HEAD, on public Swagger, in the endpoint the honesty sweep had just rewritten. | `api/benchmark.py` | **DONE** — interpretation is now COMPOSED from `reductions` + `intervals`, moved after the bootstrap so it can consult significance; names wrong-way metrics as WRONG WAY and marks any interval covering zero "not quotable as a result". 9 tests, all verified RED against the old code. |
 | 24 | **Public Swagger advertised a retired series count.** `api/newsvendor.py:11,422` said "2,643 held-out series"; the endpoint returns **2,646**. Item 16 built a doc-vs-artifact gate for `RESEARCH_TECHNIQUES.md` §3.4 but nothing guarded the docstrings, which are the copy a reader meets first. | `api/newsvendor.py` | **DONE** — corrected, plus 2 guards reading `docs/newsvendor.json`; verified RED on the stale number. |
-| 25 | **Three docs quoted a retired leakage vintage with no caveat**, including the guide read before interviews. Old 810-row / 27-manufacturer / `random_forest` figures (R² +0.638→+0.082→−0.550) against a deployed artifact of 1,879 rows / 28 manufacturers / 472 families, champion **`gradient_boosting`** (`metrics.joblib['best_lead_time_model']`). | `RESILIENCE_INTERVIEW_GUIDE.md`, `PROJECT_OVERVIEW.md`, `RESEARCH_TECHNIQUES.md` | **DONE** — all figures traced to `leakage_progression.json` / `metrics.joblib` and corrected; the retired vintage is kept, dated and labelled as superseded. |
+| 25 | **Three docs quoted a retired leakage vintage with no caveat.** Old 810-row / 27-manufacturer / `random_forest` figures (R² +0.638→+0.082→−0.550) against a deployed artifact of 1,879 rows / 28 manufacturers / 472 families, champion **`gradient_boosting`** (`metrics.joblib['best_lead_time_model']`). | `PROJECT_OVERVIEW.md`, `RESEARCH_TECHNIQUES.md` (and one unpublished note) | **DONE** — all figures traced to `leakage_progression.json` / `metrics.joblib` and corrected; the retired vintage is kept, dated and labelled as superseded. |
 | 26 | **`/ml` labelled a GSCPI regime probability "Semiconductor shortage stress".** The served signal is `RegimeModel.stress_proba` = P(GSCPI z > band-hi), a general pressure regime; the semiconductor-specific `compute_stress_label` is marked legacy and is not wired to it. | `api/ml.py:441` | **DONE** — relabelled "Global supply-chain pressure (NY Fed GSCPI regime)". |
 | 27 | **A served caveat no reader could see.** `docs/diversification_frontier.json` carries "these figures reproduce against the pre-fix solver only"; `benchmark.py` passed `caveats` through and `BenchmarkPage.tsx` rendered only 5 hand-picked fields, dropping 3 including that one. | `BenchmarkPage.tsx` | **DONE** — the full served caveat array is rendered. |
 | 28 | **The frontier generator would have reintroduced a retired claim.** The artifact was hand-corrected after the `to_obj_units()` fix; `run_diversification_sweep.py` still held the present-tense "quantises unit prices to whole cents" text, so regenerating would undo the correction. | `seeds/run_diversification_sweep.py` | **DONE** — generator's 8 caveats now match the artifact byte-for-byte. |

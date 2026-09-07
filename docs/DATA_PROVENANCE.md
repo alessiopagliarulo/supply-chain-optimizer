@@ -47,8 +47,7 @@ verified.
   from Nexar/Octopart via a 2024 static snapshot (CC-BY-4.0)" — **not** "live
   Nexar/Octopart API," which overstates freshness. Prices, MPNs, and
   suppliers are real; they are not live/current.
-- **Known limitations (carried over from the 2026-07-01 gap audit,
-  `docs/archive/history/GAP_AUDIT_2026-07-01.md` §1.6):**
+- **Known limitations (carried over from the 2026-07-01 gap audit):**
   - MOQ is uniformly 1 in the seeded data (no price breaks).
   - ~40 Asian distributors in `DISTRIBUTOR_LOCATIONS` share one hardcoded
     Shenzhen coordinate (real city, but not each distributor's actual
@@ -72,8 +71,7 @@ verified.
 
 ## 3. Lead-time, demand, and regime data (Route A build)
 
-Documented separately in `docs/archive/history/ROUTE_A_BUILD_PLAN.md`, owned by the
-forecasting/ML tracks, not `seed_db.py`:
+Owned by the forecasting/ML tracks, not `seed_db.py`:
 
 - **Demand:** Census M3 `A34SNO` (New Orders, Computers & Electronic
   Products) — `https://api.census.gov/data/timeseries/eits/advm3`
@@ -101,8 +99,8 @@ forecasting/ML tracks, not `seed_db.py`:
 - **Lead time:** DigiKey `ManufacturerLeadWeeks` + Mouser `LeadTime` (real
   keys; see `backend/app/core/clients/`)
 
-See `docs/archive/history/ROUTE_A_BUILD_PLAN.md` for verification status and current build
-progress on those tracks.
+Verification status for those tracks lives in `docs/MODEL_CI.md` and
+`docs/LEAKAGE_PROGRESSION.md`, which are regenerated from the artifacts.
 
 ## 4. Emission factors (`backend/app/core/constants.py`)
 
@@ -130,3 +128,23 @@ re-verified in this pass (out of scope — no changes made in this area).
 - ~~**Offer count drift:** README says 8,731 offers vs. 8,176 actually in the
   DB.~~ **RESOLVED 2026-07-13** — see §1. Live count is **8,176**; all
   user-facing copy now matches.
+
+---
+
+## Licensing — code vs. data
+
+Moved here from `LICENSE` on 2026-09-07 so that `LICENSE` is a verbatim, unmodified
+MIT text. GitHub's licence detector (Licensee) refuses to classify a `LICENSE` file
+that carries any content beyond the licence itself, so the extra section below was
+making the repository's sidebar read "Other"/NOASSERTION while the README said MIT.
+Nothing about the terms changed — only where they are written down.
+
+- **The code** in this repository is **MIT** licensed. See [`LICENSE`](../LICENSE).
+- **The bundled electronic-components dataset** (`backend/seeds/`, sourced from the
+  HuggingFace dataset `mdnh/electronic-components-supply-chain`, itself collected via
+  the Nexar API from Octopart) is licensed separately under **CC-BY-4.0**, which
+  permits reuse with attribution.
+
+When reusing that dataset, attribute the original HuggingFace dataset
+(`mdnh/electronic-components-supply-chain`) per CC-BY-4.0. Full source details for it
+are in §1 above.

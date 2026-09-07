@@ -31,7 +31,7 @@ from app.core.security import create_access_token, get_password_hash
 #: ``component_id 5 not found`` / 404 on five stochastic tests purely because a
 #: second run was in flight. Nothing was wrong with the code under test.
 #:
-#: ``LEARNINGS.md`` records the symptom ("never kill pytest mid-flight — it poisons
+#: The loop's learnings log records the symptom ("never kill pytest mid-flight — it poisons
 #: test_hardening.db"), but the fixed filename was the actual defect: a poisoned
 #: shared file is only reachable because the file is shared. A per-process name
 #: also makes ``pytest -n auto`` possible, which the fixed name silently forbade.

@@ -613,7 +613,7 @@ const AUDIT=()=>{
   }
 
   // ── the nav AT its own collapse point ─────────────────────────────────────
-  // Nav overflow has shipped from this repo three times (LEARNINGS.md), and the
+  // Nav overflow has shipped from this repo three times, and the
   // rule written down after the third was: measure AT the breakpoint and one
   // pixel either side. That rule was being followed against the WRONG NUMBER.
   // The viewport list above brackets 1280 — Tailwind's `xl`, where the nav used

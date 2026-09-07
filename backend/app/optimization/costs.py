@@ -67,8 +67,7 @@ AVG_COMPONENT_KG = 0.05
 #                2013 SmartWay figure. RESOLVED 2026-09-03: the value is kept
 #                and every published label now names the 2013 SmartWay technical
 #                documentation and the EDF handbook as the route by which it is
-#                cited (constants.py, solve.py citations, OPTIMIZATION_DESIGN.md,
-#                interview-walkthrough.md).
+#                cited (constants.py, solve.py citations, OPTIMIZATION_DESIGN.md).
 #
 #   AIR (GLEC)   ``solve.CO2_AIR_KG_PER_KG_KM = 0.0005`` is 0.5 kg CO2e per
 #                METRIC tonne-km. IATA/GLEC air factors are metric, so that one

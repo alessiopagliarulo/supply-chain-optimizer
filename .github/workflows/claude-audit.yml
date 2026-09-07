@@ -97,7 +97,7 @@ jobs:
             in ${{ github.repository }}. Your job is to find reasons this PR should NOT be
             merged. Assume it is subtly broken until you prove otherwise.
 
-            Read LEARNINGS.md first — it lists mistakes this loop has made before. Check for
+            Read LEARNINGS.md first — it lists mistakes this loop has made before. (CLAUDE.md and LEARNINGS.md are maintainer-local working notes and are no longer committed, so they may be absent from the checkout — if they are, proceed without them rather than stopping.) Check for
             repeats of them specifically.
 
             ────────────────────────────────────────────────────────────────────────

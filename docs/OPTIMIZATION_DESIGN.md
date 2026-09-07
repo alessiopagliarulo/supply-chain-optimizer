@@ -747,16 +747,18 @@ One test at `tests/e2e/sub-project-a.spec.ts` executed via the Playwright MCP:
 - [ ] At least one strategy selects a real cross-dock hub
 - [ ] Cross-dock visualization visible on the map
 - [ ] Objective Breakdown panel shows citations on each card
-- [ ] `docs/interview-walkthrough.md` exists and covers all sections in 9.1
+- [ ] A one-page whiteboard walkthrough exists covering all sections in 9.1
+      (kept as a maintainer working note, not published)
 - [ ] This design doc exists and is committed
 - [ ] No references to `materials`, `suppliers`, `production_hubs`, `hubs.py`, or `materials.py` in the current codebase
 - [ ] `git commit` clean
 
-## 9. Interview Walkthrough Doc
+## 9. One-page whiteboard walkthrough
 
 ### 9.1 Structure
 
-A one-page markdown at `docs/interview-walkthrough.md` that lets the candidate whiteboard the problem under interrogation. Sections:
+A one-page markdown (kept as a maintainer working note rather than published) that lets a
+reader reconstruct the problem from scratch on a whiteboard. Sections:
 
 1. **Business framing** (1 paragraph) — PCB manufacturer sourcing electronic components for a production run, needs to balance cost / delivery time / carbon across 92 distributors offering 8,000+ competitive price offers
 2. **Decision variables** (math notation)
@@ -897,9 +899,9 @@ Sub-Project A is DONE when:
 5. The map page renders the cross-dock hub layer and a consolidated route when one is selected.
 6. All three pytest test files pass.
 7. The Playwright E2E test passes and produces `test-screenshots/sub-project-a-demo.png`.
-8. This design doc and `docs/interview-walkthrough.md` are committed.
+8. This design doc is committed, and the §9 whiteboard walkthrough is written.
 9. `backend/app/api/hubs.py`, `materials.py`, and the three stale tables are gone.
-10. The user can sit in a mock interview and whiteboard the math from the walkthrough doc without needing to consult external references.
+10. A reader can whiteboard the math from the §9 walkthrough without consulting external references.
 
 ---
 

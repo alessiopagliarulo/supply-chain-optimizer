@@ -186,7 +186,7 @@ def test_a_non_significant_delta_is_marked_unquotable_in_the_prose():
 
     Uses the "mixed" panel deliberately. On the "worse" panel every non-zero delta
     is significant, so this loop would skip every metric and assert NOTHING while
-    still reporting green — the failure mode LEARNINGS.md records for 2026-08-28.
+    still reporting green — the failure mode the loop's learnings log records for 2026-08-28.
     The `checked` counter below makes that impossible to reintroduce silently.
     """
     resil = _resilience("mixed")

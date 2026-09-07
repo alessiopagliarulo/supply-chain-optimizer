@@ -31,7 +31,7 @@ Three questions feed one decision:
 | Route optimization | Real distributor geography | Exhaustive enumeration (≤8 stops), OR-Tools routing above that | Symmetric TSP; proven optimum on the sizes the site actually produces, guided local search beyond them |
 | Network fragility analysis | The real distributor→component bipartite graph | NetworkX | Spectral graph theory: algebraic connectivity (Fiedler), betweenness, PageRank, k-core, HHI |
 | Monte Carlo disruption simulation | 1,000 scenarios over that graph | NumPy | Percolation; tail risk (CVaR-95) |
-| Lead-time prediction | **2,664 real DigiKey observations across 5 snapshots, collected by our own weekly pipeline** (the served model is fitted on 2,615 of those rows / 5 snapshots / 324 API-derived features, retrained 2026-09-03 — artifact and panel are the same vintage) | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
+| Lead-time prediction | **3,406 real DigiKey observations across 6 snapshots, collected by our own weekly pipeline** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07); the served model is fitted on an earlier cut — 2,615 usable rows of the then five-snapshot panel / 324 API-derived features, retrained 2026-09-03, so the artifact is one snapshot behind the panel and `/ml/model-info` reports `stale: true` | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
 | Macro supply-stress regime model | NY Fed GSCPI + FRED, 343 monthly observations | scikit-learn | Walk-forward validation; proper scoring rules (Brier); calibration slope; ship gate vs persistence and climatology |
 | Intermittent-demand benchmark | Monash car parts: 2,674 series × 51 months, 136,374 observations | Croston / SBA / TSB, custom CRPS | Distributional forecasting; proper scoring rules; Friedman + Nemenyi significance testing |
 | Macro demand backtest | US Census M3 `A34SNO`, 198 monthly observations, ALFRED vintage `2026-08-16` (pinned, offline) | Prophet, Chronos-Bolt | Rolling-origin backtesting; time-series foundation models; data-vintage reproducibility |
@@ -69,8 +69,9 @@ decay. *(`docs/BENCHMARK_VOLUME_CURVE.md`)*
 Random split: +0.825. Grouped by part-family key: +0.073. Holding out whole manufacturers: **−0.697** —
 worse than predicting the mean. The model learned how three vendors quote, not how parts behave.
 Effective sample size is 28 manufacturers, not 2,615 rows. (Those three counts describe the
-**2026-09-03 served artifact**, fitted on the full five-snapshot, 2,664-row panel now on
-disk — 2,615 of its rows survive the label and match-quality drops. The fold groups are 472 *grouping keys*
+**2026-09-03 served artifact**, fitted on the then five-snapshot, 2,664-row cut of the panel —
+2,615 of those rows survive the label and match-quality drops. The panel on disk has since
+grown to 3,406 rows / 6 snapshots; the artifact has not been refitted. The fold groups are 472 *grouping keys*
 from `lead_time_model._group_key`, over 361 distinct `base_product` values — the two counts are
 different quantities and `LEAKAGE_PROGRESSION.md` keeps them apart.)
 *(`docs/leakage_progression.json`, `python -m seeds.run_leakage_progression`)*
@@ -139,35 +140,6 @@ A train/serve schema mismatch silently made every lead-time prediction the same 
 published R²=0.93 described a model that was never served. There are now 50 gates; each names the
 bug it prevents. The subtlest: the contract test written to catch that bug had itself stopped
 working, because the primary feature was renamed underneath it. *(`docs/MODEL_CI.md`)*
-
----
-
-## Draft resume bullets
-
-Pick 3–4. Adjust the emphasis to the role.
-
-- Built a supplier-sourcing optimizer over **8,176 real distributor offers** using CP-SAT
-  mixed-integer programming, then extended it to a **two-stage stochastic program with a CVaR
-  objective**, producing a cost-vs-tail-risk efficient frontier whose knee removes **$4.27 of
-  tail risk per $1 of expected cost at 60,000-unit volume** (`knee` is `null` at 100× and
-  1,000× volume — the frontier is flat there and no trade-off exists to price;
-  [`CVAR_EFFICIENT_FRONTIER.md`](CVAR_EFFICIENT_FRONTIER.md) discloses this in full).
-- Audited my own benchmark and **retracted a 44.7% savings headline**, showing the advantage was a
-  per-supplier fixed fee that decays to 3–8% at realistic order volume; published the volume curve.
-- Built a **resumable, quota-aware DigiKey collection pipeline** (**2,664 observations across
-  five snapshot dates** to date, 6.2% miss rate logged per attempt; the served model is fitted
-  on 2,615 of those rows with 324 features, retrained 2026-09-03) and found the lead-time model's R²
-  collapses from **+0.83 to −0.70** under manufacturer-held-out cross-validation — diagnosing
-  part-family leakage as the cause.
-- Re-scored an intermittent-demand benchmark across **2,646 series** with proper scoring rules
-  (CRPS, pinball) and Friedman/Nemenyi significance testing, showing **MASE ranks a
-  predict-nothing forecast first** and that the accuracy and decision leaderboards are
-  anti-correlated (Kendall's τ = −0.20).
-- Shipped **50 model-CI gates** enforcing train/serve schema parity, baseline dominance, serving
-  coverage and artifact provenance — each derived from a defect that had reached production.
-- Integrated **6 live external APIs** (DigiKey OAuth2, Nexar GraphQL, OEMsecrets, FRED, IMF
-  PortWatch, GPR) with quota handling and explicit degraded states; deployed full-stack on Render
-  with GitHub Actions CI/CD.
 
 ---
 

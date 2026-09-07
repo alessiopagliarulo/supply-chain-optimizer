@@ -239,7 +239,7 @@ No explicit rate limit, but each scenario simulation is computationally expensiv
 
 ## Tracing (Optional)
 
-If OpenTelemetry/Jaeger is running (see `docs/RESILIENCE_INTERVIEW_GUIDE.md`), slow spans (>500ms) are exported:
+If OpenTelemetry/Jaeger is running, slow spans (>500ms) are exported:
 
 ```
 span.name: "distributor_failure_scenario" (or geopolitical_risk_scenario, delivery_target_scenario)

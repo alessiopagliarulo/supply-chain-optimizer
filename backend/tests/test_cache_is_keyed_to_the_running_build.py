@@ -18,7 +18,7 @@ standing bar forbids.
 CI cannot catch this. It builds a fresh database with an empty cache, so the
 cross-build read never happens there. Only the deployed artifact carries rows
 written by an earlier build. That is the same shape as the 2026-08-29 alembic
-incident recorded in CLAUDE.md.
+incident recorded in this repo's maintainer notes.
 """
 import hashlib
 

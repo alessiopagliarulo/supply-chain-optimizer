@@ -1,20 +1,14 @@
 # Docs index
 
-~37 files. This page is the reading path so you don't have to open all of them.
+This page is the reading path so you don't have to open all of them.
 
-## If you are resuming work (start here instead)
-
-- **[handoffs/handoff-2026-09-03-cold-start-and-interrupted-agent.md](handoffs/handoff-2026-09-03-cold-start-and-interrupted-agent.md)**
-  — the live handoff and the next objective. `handoffs/` holds exactly one file: the current one.
-  Everything superseded is in `archive/handoffs/` with a banner naming its successor.
 - **[OUTSTANDING_WORK.md](OUTSTANDING_WORK.md)** — the live backlog and the source of truth for
   item status, the completion criteria, and the standing gates.
 
 ## Start here (top 5)
 
 1. **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — the one-sentence pitch and the
-   numbers behind it, written for interviews; everything in it is reproducible
-   from a script in the repo.
+   numbers behind it; everything in it is reproducible from a script in the repo.
 2. **[MODEL_CI.md](MODEL_CI.md)** — the CI gates that exist because each one
    caught a defect that actually shipped; shows the ML pipeline is checked, not
    just tested for "did it run."
@@ -68,13 +62,8 @@
   headline benchmark number back to the volume sweep that produced it, and the
   freight-cost bug the investigation exposed.
 - **[IMPACT_FRAMING.md](IMPACT_FRAMING.md)** — how each dollar figure quoted
-  elsewhere in the project is derived, so it can be defended in an interview.
-- **[interview-walkthrough.md](interview-walkthrough.md)** — a one-page,
-  whiteboard-ready walkthrough of the sourcing + routing system for an
-  operations/data-science interview setting.
-- **[RESILIENCE_INTERVIEW_GUIDE.md](RESILIENCE_INTERVIEW_GUIDE.md)** — the
-  interview narrative for the resilience dashboard, with the rule that every
-  number shown must be reproducible live against the seeded DB.
+  elsewhere in the project is derived, and what each one does and does not
+  license you to claim.
 
 ## Internal working notes (not part of the reading path)
 
@@ -82,10 +71,6 @@ These exist to run the project day-to-day (the autonomous improvement loop,
 API/contract references, checklists) rather than to present it. Listed here so
 the index accounts for every file, but skip them on a first read:
 
-- **[archive/handoffs/](archive/handoffs/)** — session-to-session handoff documents.
-- **[archive/history/](archive/history/)** — point-in-time audit and planning
-  records, kept as a dated trail rather than current status (see
-  `archive/history/README.md`).
 - **[archive/loop-brief.md](archive/loop-brief.md)** — the product brief the
   autonomous loop's agents read before acting.
 - **[archive/AUTONOMOUS-LOOP.md](archive/AUTONOMOUS-LOOP.md)** — how the
