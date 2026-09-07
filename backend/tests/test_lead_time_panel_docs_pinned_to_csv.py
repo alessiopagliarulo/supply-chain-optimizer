@@ -8,11 +8,18 @@ A weekly bot cron (``collect-lead-time-panel``, see
 ``.github/workflows/collect-lead-times.yml``) commits new rows to
 ``backend/seeds/data/lead_time_panel/observed_lead_times.csv`` every Monday. On
 2026-08-31 it did: the CSV grew to 2,664 rows across five snapshot dates. But
-``README.md``, ``docs/RESILIENCE_INTERVIEW_GUIDE.md``, ``docs/PROJECT_OVERVIEW.md``
-and ``docs/RESEARCH_TECHNIQUES.md`` all kept publishing the OLD figure — "1,922
-observations across four snapshot dates" — in the same commit. That false number
-was live on public GitHub, including inside an interview-prep script coaching the
-owner to say it out loud. Nothing gated it, so no test went red.
+``README.md``, ``docs/PROJECT_OVERVIEW.md`` and ``docs/RESEARCH_TECHNIQUES.md``
+all kept publishing the OLD figure — "1,922 observations across four snapshot
+dates" — in the same commit. That false number was live on public GitHub.
+Nothing gated it, so no test went red.
+
+The same thing happened again on 2026-09-07 (panel 2,664 -> 3,406 rows, five
+snapshots -> six) and this file is what caught it. The reason it was allowed to
+reach main at all is separate and now fixed: the collector pushes with the
+default ``GITHUB_TOKEN``, and GitHub does not raise ``push`` events for commits
+made with that token, so ``ci.yml`` could never run on the very commit that
+falsified the docs. ``ci.yml`` now also triggers on ``workflow_run`` from the
+collector and on a weekly schedule.
 
 This repo has already shipped three defects where a doc and an artifact were
 stale *together* and a doc-vs-artifact test stayed green (see
@@ -26,8 +33,8 @@ The one thing this file must NOT do is force the "served model" figures (e.g.
 older, frozen training cut and are *supposed* to differ from the live panel
 whenever a retrain is owed — see the ``training_data_staleness`` block at
 ``GET /api/v1/ml/model-info``. Conflating the two subjects was the original
-defect (the panel grew to five snapshots/2,664 rows while docs still described
-the four-snapshot/1,922-row cut as if it were the panel). So the regexes below
+defect (the panel grew past the artifact while docs still described the older
+training cut as if it were the panel). So the regexes below
 are deliberately narrow: they only match sentences that describe *the panel /
 the CSV on disk* (" observations across N snapshot(s)", "rows across N
 snapshot(s)", "rows / N snapshots on disk"), never sentences that describe what
@@ -53,9 +60,12 @@ PANEL_CSV = (
     REPO_ROOT / "backend" / "seeds" / "data" / "lead_time_panel" / "observed_lead_times.csv"
 )
 
+# Every PUBLISHED doc that states a panel figure. A doc removed from the repo is
+# removed from here too -- asserting against a file that is no longer committed
+# would pass on the maintainer's disk (where the file still exists) and fail in a
+# clean CI checkout, which is the exact inversion of what this file is for.
 DOC_PATHS = {
     "README.md": REPO_ROOT / "README.md",
-    "docs/RESILIENCE_INTERVIEW_GUIDE.md": DOCS / "RESILIENCE_INTERVIEW_GUIDE.md",
     "docs/PROJECT_OVERVIEW.md": DOCS / "PROJECT_OVERVIEW.md",
     "docs/RESEARCH_TECHNIQUES.md": DOCS / "RESEARCH_TECHNIQUES.md",
 }
@@ -148,7 +158,8 @@ def test_every_doc_states_the_panel_total_and_it_matches_the_csv() -> None:
                 f"{label} claims the panel holds {found:,} observations, but "
                 f"{PANEL_CSV.relative_to(REPO_ROOT)} actually parses to "
                 f"{actual_total:,} rows. Re-run the panel-total prose through the "
-                "real CSV before publishing -- see CLAUDE.md's standing bar."
+                "real CSV before publishing. Nothing this repo publishes may be "
+                "contradicted by the code or the artifacts."
             )
 
 
@@ -182,9 +193,9 @@ def test_per_snapshot_breakdowns_match_the_csv() -> None:
             )
 
     assert docs_with_breakdowns >= 2, (
-        "expected at least README.md and docs/RESILIENCE_INTERVIEW_GUIDE.md to "
-        "publish a per-snapshot breakdown of the panel -- found none. If the "
-        "breakdown prose was removed entirely, delete this test's expectation "
+        "expected at least README.md and docs/PROJECT_OVERVIEW.md to publish a "
+        f"per-snapshot breakdown of the panel -- found {docs_with_breakdowns}. If "
+        "the breakdown prose was removed entirely, delete this test's expectation "
         "deliberately; do not let it pass by silently matching nothing."
     )
 
@@ -195,10 +206,11 @@ def test_served_artifact_claims_are_not_forced_to_match_the_live_panel() -> None
     training count (2,615 rows / 5 snapshots, trained 2026-09-03) equals the
     live CSV's row count. They are allowed -- expected -- to differ, and they
     differ even immediately after a retrain, because ``build_training_design``
-    drops rows with no label or a bad DigiKey match (2,664 in the CSV, 2,615
-    fitted). Between retrains the gap widens by a whole snapshot. README.md /
-    docs/PROJECT_OVERVIEW.md / docs/RESEARCH_TECHNIQUES.md /
-    docs/RESILIENCE_INTERVIEW_GUIDE.md all publish both subjects side by side.
+    drops rows with no label or a bad DigiKey match (2,664 in that cut of the
+    CSV, 2,615 fitted). Between retrains the gap widens by a whole snapshot --
+    it is a full snapshot wide right now, with 3,406 rows on disk against a
+    2,664-row training cut. README.md / docs/PROJECT_OVERVIEW.md /
+    docs/RESEARCH_TECHNIQUES.md all publish both subjects side by side.
     This test just documents that the panel-total regexes above do not match the
     served-artifact sentences, so nobody "fixes" a future failure by loosening
     PANEL_ACROSS_RE until it accidentally does.
@@ -211,21 +223,19 @@ def test_served_artifact_claims_are_not_forced_to_match_the_live_panel() -> None
 
     served_model_sentences = [
         # README.md
-        "was trained **2026-09-03** on the **2,615** usable rows of the "
-        "2,664-row, five-snapshot panel, with **324** features",
-        "The served model is fitted on this panel (2,615 of its 2,664 rows "
-        "survive the label and match-quality drops; 5 snapshots, trained "
+        "was trained **2026-09-03** on the **2,615** usable rows of the then "
+        "2,664-row, five-snapshot cut of the panel, with **324** features",
+        "The served model is fitted on an earlier cut of this panel (2,615 "
+        "usable rows of the then 2,664-row, five-snapshot cut, trained "
         "2026-09-03)",
-        # docs/RESILIENCE_INTERVIEW_GUIDE.md
-        "**2,615 rows** (of the 2,664 in the panel; 49 dropped for a missing "
-        "label or a bad match), 5 snapshots, 324 features",
         # docs/PROJECT_OVERVIEW.md
-        "the served model is fitted on 2,615 of those rows / 5 snapshots / "
-        "324 API-derived features, retrained 2026-09-03",
+        "the served model is fitted on an earlier cut -- 2,615 usable rows of "
+        "the then five-snapshot panel / 324 API-derived features, retrained "
+        "2026-09-03",
         # docs/RESEARCH_TECHNIQUES.md
-        "the **served model is fitted on that same panel** -- 2,615 of its "
-        "rows survive the label and match-quality drops, **5 snapshots**, "
-        "retrained 2026-09-03",
+        "the **served model is fitted on an earlier cut of it** -- 2,615 usable "
+        "rows of the then 2,664-row, five-snapshot panel (sha256 "
+        "`c68e2891...`), retrained 2026-09-03",
     ]
 
     for sentence in served_model_sentences:

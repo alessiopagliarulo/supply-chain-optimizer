@@ -90,7 +90,11 @@ jobs:
           # header and stops 25 calls short of the 1,000/day wall by itself, so all
           # 791 parts fit in one run. --no-sync-db because the DB here is the
           # checked-in SQLite artifact — rewriting a 10 MB binary every week would
-          # bloat the repo, and Render serves from Postgres, not this file.
+          # bloat the repo for no gain: the panel CSV, not the DB, is what the
+          # model and the published figures are built from. (Render serves the
+          # committed SQLite file itself — render.yaml pins
+          # DATABASE_URL=sqlite:///./supply_chain.db — so the deployed instance
+          # picks up a reseed at deploy time, not from this job.)
           LIMIT_ARG=""
           if [ -n "${{ inputs.limit }}" ]; then LIMIT_ARG="--limit ${{ inputs.limit }}"; fi
           python -m app.ml.lead_time_collector $LIMIT_ARG --no-sync-db

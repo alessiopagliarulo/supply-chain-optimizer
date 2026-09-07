@@ -6,6 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+  # The weekly panel collector (collect-lead-times.yml) commits to main using the
+  # default GITHUB_TOKEN. GitHub deliberately does NOT raise `push` events for
+  # commits made with that token, so the one commit most likely to falsify a
+  # published figure — a new snapshot appended to observed_lead_times.csv — could
+  # never trigger the run above. The badge stayed green while the docs went stale.
+  # Both triggers below close that hole:
+  workflow_run:
+    workflows: ["Collect lead-time panel"]
+    types: [completed]
+
+  # Belt and braces: a weekly run on main catches drift from any other source
+  # (an artifact regenerated out-of-band, a bot commit from a future workflow)
+  # even if the workflow_run link is ever renamed apart. Mondays 08:00 UTC, two
+  # hours after the collector's 06:00 slot.
+  schedule:
+    - cron: "0 8 * * 1"
+
 jobs:
   backend:
     name: Backend tests
