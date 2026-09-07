@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import httpx
@@ -20,12 +20,22 @@ logger = logging.getLogger(__name__)
 GPR_URL = "https://www.matteoiacoviello.com/gpr_files/gpr_web_latest.xlsx"
 
 
-async def fetch_gpr() -> float:
-    """Download GPR XLSX and return the latest monthly GPR index value.
+async def fetch_gpr_observation() -> "tuple[float, Optional[datetime]]":
+    """Download GPR XLSX and return (latest GPR value, its observation date).
 
     The GPR sheet has columns: Date (A), GPR (B), GPR_THREAT (C), GPR_ACT (D), ...
-    Monthly data since 1985; updated ~10th of each month.
-    Returns float in range ~50-500+.
+    Monthly data since 1985.
+
+    WHY THE DATE IS RETURNED AT ALL. This fetcher used to return only the value,
+    so the only freshness signal anything downstream had was "did the HTTP GET
+    succeed" — and it always does. The file at GPR_URL is an archive whose newest
+    row is dated 2021-09-01; the app reported the feed `live` and published its
+    2021 number as a current reading. Reading column A alongside column B is what
+    makes the difference between "we downloaded it recently" and "the number is
+    recent" observable, so /feeds/status can tell them apart.
+
+    Returns the date as None if column A holds nothing parseable — in which case
+    the caller falls back to download recency and must not imply more.
 
     T-03-05: URL is hardcoded as constant — never user-provided (SSRF mitigation).
     T-03-10: httpx timeout=30s; openpyxl read_only=True; offloaded to thread.
@@ -36,20 +46,56 @@ async def fetch_gpr() -> float:
         content = resp.content
 
     # openpyxl is synchronous — offload to thread to avoid blocking the event loop
-    def _parse(data: bytes) -> float:
+    def _parse(data: bytes) -> "tuple[float, Optional[datetime]]":
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         ws = wb["GPR"]
         last_value = None
+        last_date = None
         for row in ws.iter_rows(min_row=2, max_col=2, values_only=True):
             # T-03-08: only column B numeric values extracted; non-numeric skipped
             if row[1] is not None:
                 last_value = row[1]
+                last_date = _coerce_observation_date(row[0])
         wb.close()
         if last_value is None:
             raise ValueError("GPR XLSX contained no valid GPR values in column B")
-        return float(last_value)
+        return float(last_value), last_date
 
     return await asyncio.to_thread(_parse, content)
+
+
+def _coerce_observation_date(cell: object) -> "Optional[datetime]":
+    """Best-effort parse of the GPR sheet's date column.
+
+    openpyxl usually hands back a datetime for a date-formatted cell, but the
+    sheet has historically also carried plain strings and YYYYMM integers, so all
+    three are handled. Anything else returns None rather than a guess — an
+    invented observation date would be worse than no observation date, because
+    the whole point of the field is to be trusted.
+    """
+    if isinstance(cell, datetime):
+        return cell
+    if isinstance(cell, date):
+        return datetime(cell.year, cell.month, cell.day)
+    if isinstance(cell, (int, float)):
+        raw = int(cell)
+        if 190001 <= raw <= 299912:  # YYYYMM
+            return datetime(raw // 100, raw % 100, 1)
+        return None
+    if isinstance(cell, str):
+        text = cell.strip()
+        for fmt in ("%Y-%m-%d", "%Y-%m", "%Y%m", "%d/%m/%Y", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(text, fmt)
+            except ValueError:
+                continue
+    return None
+
+
+async def fetch_gpr() -> float:
+    """Latest GPR index value only. See `fetch_gpr_observation` for the date."""
+    value, _ = await fetch_gpr_observation()
+    return value
 
 
 # ── ACLED Conflict Event Data ──────────────────────────────────────────────────

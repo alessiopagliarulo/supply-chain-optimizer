@@ -209,6 +209,10 @@ export const Dashboard = () => {
     status: 'live' | 'stale' | 'inactive' | 'unavailable';
     value_summary: string | null;
     detail?: string | null;
+    // Date of the newest OBSERVATION in the payload, where the payload dates
+    // itself. A feed can download fine and still be stale on this field — that
+    // is exactly the GPR case, and `detail` explains it in the tooltip.
+    observation_date?: string | null;
   }>>([]);
   const [feedError, setFeedError] = useState(false);
 

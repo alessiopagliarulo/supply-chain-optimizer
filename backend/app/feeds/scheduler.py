@@ -16,7 +16,7 @@ from app.feeds.fetchers import (
     acled_inactive_reason,
     fetch_acled,
     fetch_fred_freight,
-    fetch_gpr,
+    fetch_gpr_observation,
     fetch_portwatch,
 )
 from app.core.config import settings
@@ -57,7 +57,7 @@ async def refresh_all_feeds(cache: LiveDataCache) -> None:
     acled_reason = acled_inactive_reason(settings.ACLED_EMAIL, settings.ACLED_KEY)
 
     await asyncio.gather(
-        _safe_refresh(cache.gpr, lambda: fetch_gpr(), "gpr"),
+        _refresh_gpr(cache.gpr),
         _refresh_acled(cache.acled, acled_reason),
         _safe_refresh(cache.portwatch, lambda: fetch_portwatch(), "portwatch"),
         _safe_refresh(
@@ -66,6 +66,17 @@ async def refresh_all_feeds(cache: LiveDataCache) -> None:
             "fred_freight",
         ),
     )
+
+
+async def _refresh_gpr(feed: CachedFeed) -> None:
+    """Refresh GPR, recording the observation date as well as the fetch time.
+
+    GPR is the one feed where those two dates diverge by years: the file at
+    GPR_URL still downloads on every tick, but its newest row is dated 2021-09.
+    Storing both is what lets /feeds/status say "downloaded minutes ago,
+    observation is four years old" instead of a bare "live".
+    """
+    await _safe_refresh(feed, fetch_gpr_observation, "gpr", splits_observation_date=True)
 
 
 async def _refresh_acled(feed: CachedFeed, inactive_reason) -> None:
@@ -82,12 +93,18 @@ async def _refresh_acled(feed: CachedFeed, inactive_reason) -> None:
     )
 
 
-async def _safe_refresh(feed: CachedFeed, fetcher, name: str) -> None:
+async def _safe_refresh(
+    feed: CachedFeed, fetcher, name: str, splits_observation_date: bool = False
+) -> None:
     import asyncio
 
     async with feed.lock:
         try:
-            feed.data = await fetcher()
+            result = await fetcher()
+            if splits_observation_date:
+                feed.data, feed.observed_at = result
+            else:
+                feed.data = result
             feed.fetched_at = datetime.utcnow()
             feed.error = None
             feed.inactive_reason = None

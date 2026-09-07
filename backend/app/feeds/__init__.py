@@ -29,6 +29,14 @@ import asyncio
 class CachedFeed:
     data: object = None
     fetched_at: Optional[datetime] = None
+    # When the underlying OBSERVATION is dated, as opposed to when we downloaded
+    # it. These are not the same thing and conflating them is how a frozen
+    # archive got published as a "live" feed: the GPR file downloads fine every
+    # 15 minutes, but its newest row is from September 2021. A successful
+    # download says the publisher's server answered; it says nothing about
+    # whether the publisher is still updating the series. Left None by feeds
+    # whose payload carries no usable observation date.
+    observed_at: Optional[datetime] = None
     error: Optional[str] = None
     # Set when the feed cannot run at all because its credentials are absent.
     # Non-None => the feed is DORMANT by configuration, not broken. Its `data`
