@@ -1,3 +1,14 @@
+# OPTIONAL local Postgres stack. Nothing depends on this file.
+#
+# The application ships on SQLite: render.yaml pins
+# DATABASE_URL=sqlite:///./supply_chain.db, QUICK_START.md's five-minute path
+# needs no containers at all, and CI runs against the committed SQLite artifact.
+# This compose file exists so the PostgreSQL support in the SQLAlchemy layer can
+# actually be exercised locally, which is the only way that support stays
+# honest. It is not the deployment path and is not what any published figure
+# was produced on.
+#
+#   docker compose up   # requires POSTGRES_PASSWORD and SECRET_KEY in .env
 version: '3.8'
 
 services:

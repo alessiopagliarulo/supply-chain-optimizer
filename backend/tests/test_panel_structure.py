@@ -250,8 +250,8 @@ def test_metrics_artifact_carries_provenance():
 def test_provenance_records_no_absolute_filesystem_path():
     """Provenance is PUBLISHED, so a path recorded at fit time is a path served.
 
-    The committed artifact carried
-    ``/Users/<name>/Documents/Claude Projects/.../observed_lead_times.csv`` in
+    The committed artifact carried an absolute path of the form
+    ``/Users/<name>/.../observed_lead_times.csv`` in
     ``provenance.training_data_path``, and ``GET /ml/model-info`` returns the
     provenance block verbatim — so every visitor to the live API was told the
     trainer's operating system, username and directory layout. It was never
