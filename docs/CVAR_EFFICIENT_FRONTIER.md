@@ -21,6 +21,21 @@ artifact rather than typed here.
 
 ---
 
+## The curve
+
+![CVaR efficient frontier — expected cost against CVaR-95, one point per lambda-solve, with the knee at lambda = 0.3](screenshots/current/11-frontier.png)
+
+*Rendered by the app from `POST /api/v1/stochastic/frontier`, which reads the same
+`cvar_frontier.json` this document is generated from. Expected cost runs along one axis and
+CVaR-95 — the **mean cost of the worst 5% of scenarios** — along the other; every point is
+one λ-solve. The knee at λ = 0.3 is where the chord ratio quoted below stops being worth
+paying: $4.27 of tail risk removed per $1 of expected cost up to that point, $0.41 beyond
+it. Both figures are averages over a stretch of the curve, not marginal rates at a point,
+and both are specific to the headline BOM at 60,000 units — at 100× and 1,000× volume the
+`knee` is `null` because the frontier is flat and there is no trade-off to price.*
+
+---
+
 ## What this replaces
 
 Every "resilience" number this repository produced before today was a **deterministic
