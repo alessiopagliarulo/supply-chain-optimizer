@@ -118,7 +118,17 @@ class DistributorFailureRequest(_BomRequest):
 
 
 class GeopoliticalRiskRequest(_BomRequest):
-    risk_multiplier: float = Field(..., ge=0.5, le=5.0, description="Multiplier for live feed indices")
+    risk_multiplier: float = Field(
+        ...,
+        ge=0.5,
+        le=5.0,
+        description=(
+            "Stress dial applied to each component's STORED risk_score column, and "
+            "passed into the Monte Carlo as a scenario stress factor. It does NOT "
+            "read or override any live feed — this endpoint imports no feed cache. "
+            "The live GPR signal reaches the optimizer elsewhere, on /optimize/*."
+        ),
+    )
 
 
 class DeliveryTargetRequest(_BomRequest):
@@ -308,7 +318,19 @@ def _graph(db: Session):
 
 
 def _distributor_lead_days(dist: Distributor) -> float:
-    """Real, geography-derived lead time for one distributor (days)."""
+    """Geography-derived lead-time ESTIMATE for one distributor (days).
+
+    NOT an observed lead time. It is a deterministic proxy: great-circle distance
+    from the reference hub, converted at a fixed ground speed, plus a fixed order
+    processing allowance and a customs allowance for non-domestic suppliers. The
+    distributor coordinates are real; the elapsed time derived from them is a
+    model, and it is never compared against a measured delivery.
+
+    This path deliberately does not use the observed DigiKey lead-time panel or
+    the trained lead-time model. Those measure FACTORY replenishment lead time
+    per part; this needs a per-distributor shipping estimate for a hypothetical
+    plan, which the panel does not observe.
+    """
     dist_km = haversine_km(dist.latitude, dist.longitude, _REF_HUB_LAT, _REF_HUB_LNG)
     days = _ORDER_PROCESSING_DAYS + dist_km / GROUND_KM_PER_DAY
     if not dist.is_domestic:
@@ -317,12 +339,13 @@ def _distributor_lead_days(dist: Distributor) -> float:
 
 
 def _real_alt_suppliers(db: Session, supplier_names: List[str]) -> List[Dict]:
-    """Build real per-alternative-supplier detail for the BOM impact table.
+    """Build per-alternative-supplier detail for the BOM impact table.
 
     Given the affected/alternative distributor names, return a list of
-    {"name", "lead_time_days"} with the lead time derived from real distributor
-    geography via `_distributor_lead_days` — never a hardcoded constant. Suppliers
-    are sorted fastest-first so the most useful reroute options surface at the top.
+    {"name", "lead_time_days"} with the lead time ESTIMATED from each
+    distributor's real geography via `_distributor_lead_days` — never a hardcoded
+    constant, and never an observed delivery time either. Suppliers are sorted
+    fastest-first so the most useful reroute options surface at the top.
     """
     if not supplier_names:
         return []
@@ -426,14 +449,14 @@ def _plan_eta_days(
 
     `chosen` is the `component_id -> distributor_id` argmin map that `_price_bom`
     returns — the suppliers this plan really buys from. A BOM is complete only once
-    every line has landed, so the ETA is the max of those suppliers' real,
-    geography-derived lead times. Returns None when the plan buys nothing.
+    every line has landed, so the ETA is the max of those suppliers'
+    geography-derived lead-time estimates. Returns None when the plan buys nothing.
 
     This replaces a max-over-lines of MIN-over-suppliers, which answered a question
     nobody asked: "if every line came from the fastest distributor in the whole
     catalogue, when would the BOM land". That number described a DIFFERENT PLAN from
     the cost printed beside it. On the demo cart the cheapest-offer rule sends 4 of 5
-    lines to a Singapore distributor at 26.6 days, so the $166.94 plan's real ETA is
+    lines to a Singapore distributor at 26.6 days, so the $166.94 plan's estimated ETA is
     26.6 days — the page published 2.8, a 9.4x understatement, and its own
     line-by-line table named the 26.6-day supplier on those four rows.
 
@@ -494,11 +517,16 @@ _COST_BASIS = (
 
 _ETA_BASIS = (
     "baseline_eta_days / scenario_eta_days = the SLOWEST line of the plan whose cost "
-    "is reported beside it: max over lines of the real, geography-derived lead time of "
-    "the distributor that line is actually bought from (cheapest available offer). It "
-    "is NOT the fastest supplier in the catalogue — that figure described a plan nobody "
-    "buys and understated the demo cart by 9.4x. A cheap distant supplier is therefore "
-    "visibly also a slow one, and dropping it can IMPROVE the ETA while raising cost."
+    "is reported beside it: max over lines of a GEOGRAPHY-DERIVED lead-time ESTIMATE "
+    "for the distributor that line is actually bought from (cheapest available offer). "
+    "That estimate is great-circle distance at a fixed ground speed plus fixed order-"
+    "processing and customs allowances -- the coordinates are real, the elapsed time is "
+    "modelled, and it is NOT an observed lead time and not a prediction from the trained "
+    "lead-time model (that model predicts factory replenishment weeks per part, a "
+    "different quantity). It is also NOT the fastest supplier in the catalogue -- that "
+    "figure described a plan nobody buys and understated the demo cart by 9.4x. A cheap "
+    "distant supplier is therefore visibly also a slow one, and dropping it can IMPROVE "
+    "the ETA while raising cost."
 )
 
 

@@ -70,9 +70,13 @@ STRATEGIES: List[StrategyWeights] = [
         # lines (9.5 d vs 5.5 d for "greenest") with 13 pickup stops.
         # 1.0 charges real, unscaled transport cost (so the plan is not distance
         # blind) and $150 — 2x the $75 LTL base fee — prices the time cost of
-        # opening one more supplier. Swept against real BOMs of 2/5/12/25/40
-        # lines: fastest has the lowest ETA of all four strategies on every one,
-        # while remaining a DISTINCT plan wherever any strategies diverge at all.
+        # opening one more supplier. Swept at 2/5/12/25/40 BOM lines built from
+        # REAL catalogue components and their real offers, but assembled for the
+        # sweep: BOM_CATALOG's ten named BOMs are all 4-line, so every size other
+        # than that was composed for this test rather than drawn from the
+        # catalogue. Result: fastest has the lowest ETA of all four strategies at
+        # every size, while remaining a DISTINCT plan wherever any strategies
+        # diverge at all.
         # Raising the distance penalty instead (>=1.5) also makes it fastest but
         # collapses it onto "greenest" — same lever, same answer.
         # The clean fix is a lead-time term in the Stage 1 objective

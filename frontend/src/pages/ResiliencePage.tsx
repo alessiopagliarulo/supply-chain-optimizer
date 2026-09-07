@@ -149,10 +149,11 @@ const COST_TOOLTIP =
 // is often also the most distant one, so dropping it can pull delivery in while
 // pushing cost up. The backend ships this same sentence as `eta_basis`.
 const ETA_TOOLTIP =
-  'The slowest line of the plan priced beside it — the real lead time of the ' +
-  'distributor each line is actually bought from, not the fastest supplier in the ' +
-  'catalogue. A cheap distant supplier is also a slow one, so dropping it can improve ' +
-  'delivery while raising cost.';
+  'The slowest line of the plan priced beside it — a geography-derived lead-time ' +
+  'estimate (distance at a fixed ground speed, plus fixed processing and customs ' +
+  'allowances) for the distributor each line is actually bought from, not an observed ' +
+  'delivery time and not the fastest supplier in the catalogue. A cheap distant ' +
+  'supplier is also a slow one, so dropping it can improve delivery while raising cost.';
 
 // Translates the CVaR-95 cost multiplier into a concrete dollar figure: the extra
 // procurement spend exposed in the worst-5% of disruption scenarios. Fully derived
@@ -446,8 +447,9 @@ function ScenarioDeltas({
           <span className="font-semibold text-white">
             Delivery gets faster here, and that is the model working, not an error.
           </span>{' '}
-          The ETA is the slowest line of the plan priced beside it — the real lead time
-          of the distributor each line is actually bought from. When this scenario forces
+          The ETA is the slowest line of the plan priced beside it — a geography-derived
+          lead-time estimate for the distributor each line is actually bought from, not an
+          observed delivery time. When this scenario forces
           those lines off their cheapest supplier onto the next-cheapest surviving one,
           the replacement is often nearer, so the BOM lands in{' '}
           {result.scenario_eta_days.toFixed(1)} days instead of{' '}
