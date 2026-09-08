@@ -511,22 +511,21 @@ cd backend
 ./venv/bin/python -m pytest tests/ -q
 ```
 
-**One test fails, on purpose, and it is named here rather than buried:**
+**Measured 2026-09-07, serially, on the committed database: `1 failed, 1317 passed,
+4 skipped`.** What CI runs is `-m "not slow"`, which is `1313 passed, 3 skipped, 0 failed`.
+The one red is named here rather than buried:
 
 | Failing test | Why, and what it means |
 | --- | --- |
-| `test_model_ci_gates.py::test_the_served_estimator_is_the_one_the_metrics_describe` | A **local-environment** artifact. It asserts that the estimator answering predictions is the one `metrics.joblib` describes, and that identity resolves through whichever MLflow store is reachable at import time on the machine running the suite. `backend/mlruns/` is gitignored, so **in CI — and in production — there is no registry, the on-disk joblib serves, and this passes**. On a developer machine that has run training more than once the local registry can still hold an older champion, and then it fails. This is the one permitted failure and it is not to be "fixed" by weakening the assertion. |
+| `test_artifacts_pinned_to_code.py::test_leakage_progression_reproduces_from_the_live_lead_time_model` | **The drift tripwire doing its job.** The weekly collector committed the 2026-09-07 snapshot, which moved the panel from 2,664 rows / 5 snapshots to 3,406 / 6. The served artifact was fitted on the earlier cut, so the published leakage figures no longer reproduce from the live model — a retrain (`python -m seeds.train_ml_models`, then `python -m seeds.run_leakage_progression`) is owed and has not been done. It is marked `slow`, so CI deselects it and a fresh collector commit cannot turn the badge red on its own; that is deliberate, and the gap is published on `GET /api/v1/ml/model-info` as `training_data_staleness: stale: true` rather than hidden. It is cleared by retraining, **never** by editing an artifact. |
 
-A suite that reports "all passed" and hides that red would be worse than this. The
-failure is not a defect in shipped behaviour: `MLFLOW_TRACKING_URI` pointed at an empty
-store reproduces CI exactly, and the whole `test_model_ci_gates.py` file goes green.
+A suite that reported "all passed" while a published figure had stopped reproducing would
+be worse than this.
 
-The second failure that stood here until 2026-09-03 —
-`test_artifacts_pinned_to_code.py::test_leakage_progression_reproduces_from_the_live_lead_time_model`,
-red because the weekly collector's 2026-08-31 commit moved the panel past the artifact —
-was cleared the way the tripwire intends: by retraining
-(`python -m seeds.train_ml_models`) and regenerating
-(`python -m seeds.run_leakage_progression`), never by editing an artifact.
+`test_model_ci_gates.py::test_the_served_estimator_is_the_one_the_metrics_describe` used
+to stand here as a second, permitted failure — a local-only MLflow registry identity check
+that was always green in CI. The 2026-09-03 retrain cleared it and it now passes locally
+too, so it is no longer an exception the reader has to hold in their head.
 
 Coverage: optimization solver (sourcing, routing, cross-dock), graph metrics, ML models
 and their published-artifact pins, resilience API, auth guards, feed integrations.
@@ -607,14 +606,20 @@ trained on, so that growth is visible rather than silently ignored.
 ```bash
 cd backend
 MODEL_CI_STRICT=1 ./venv/bin/python -m pytest tests/ -m model_ci -q
-# -> 1 failed, 50 passed, 1092 deselected, 1 xfailed in 155.55s (0:02:35)
-#    ^ the single failure is a known LOCAL-ONLY MLflow identity check that is
-#      GREEN in CI — it is explained immediately below, not glossed over.
+# -> 52 passed, 1270 deselected in 141.96s (0:02:21)
 ```
 
-51 gates plus one `xfail`. The single red is
-`test_the_served_estimator_is_the_one_the_metrics_describe` — the same permitted
-local-only MLflow identity check described under [Tests](#tests), green in CI.
+**52 gates, all green** — measured 2026-09-07. This block read `1 failed, 50 passed` until
+today, describing a local-only MLflow registry identity check that the 2026-09-03 retrain
+had already cleared; the number outlived the condition it described, which is the failure
+mode this whole section exists to catch.
+
+One of those 52 gates emits a warning rather than a failure right now, and that is by
+design: `test_training_data_staleness_is_reported_never_ignored` reports **STALE** —
+the served artifact was fitted on the panel at `c68e2891…` and the file on disk is
+`d94df904…` since the 2026-09-07 collector run. A scheduled data commit must not be able
+to turn the build red by itself, so the tripwire warns, names the retrain command, and the
+gap is served on `/api/v1/ml/model-info`. See [Tests](#tests).
 
 Full write-up, including what these gates deliberately do **not** claim:
 **[docs/MODEL_CI.md](docs/MODEL_CI.md)**.
