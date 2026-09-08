@@ -154,7 +154,7 @@ def main() -> None:
     ax.set_xlabel("Expected cost  →  more expensive", fontsize=10, color=INK_SECONDARY, labelpad=9)
     ax.set_ylabel("CVaR-95  →  more tail risk", fontsize=10, color=INK_SECONDARY, labelpad=9)
 
-    n_plans = len({(round(x, 2), round(y, 2)) for x, y in zip(xs, ys)})
+    n_plans = len({(round(x, 2), round(y, 2)) for x, y in zip(xs, ys, strict=True)})
     ax.set_title(
         "Buying down tail risk costs less at first, then stops being worth it",
         fontsize=14.5, color=INK, fontweight="bold", loc="left", pad=40,
