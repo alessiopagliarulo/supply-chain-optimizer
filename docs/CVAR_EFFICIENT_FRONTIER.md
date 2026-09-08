@@ -139,24 +139,37 @@ This replaces that with a two-stage stochastic program and publishes the whole
 > those seconds bought is fixed; the seconds are not.
 >
 > **2. Truncation is now REPRODUCIBLE, not absent.** A deterministic budget does not make a
-> hard instance converge; it makes it fail in the same place every time. Three instances in
-> the `breadth` arm are genuinely hard and are still reported as such:
+> hard instance converge; it makes it fail in the same place every time. **Every figure in
+> this block was re-derived from `solve_quality.not_converged` on 2026-09-07; all four of
+> the ranges it previously gave were wrong, and so was the identity of the worst solve.**
+> Four instances in the `breadth` arm are hard enough to be worth naming:
 >
-> * **`drone_flight_controller ×1`** — no converged λ at all (gaps 48.32–62.25% across all
->   five), so the row is marked **excluded** and no frontier is reported for it;
-> * **`automotive_ecu ×1`** — likewise no converged λ (12.43–90.79%), also **excluded**;
-> * **`rf_transceiver_module ×1`** — one of five λ proved, the other four left at
->   90.46–94.96%, including the worst single solve in the entire run (**94.955%** at
->   λ = 0.75).
+> * **`drone_flight_controller ×1`** — no converged λ at all (per-λ gaps **52.28 / 54.56 /
+>   59.10 / 61.45 / 62.93%**), so the row is marked **excluded** and no frontier is
+>   reported for it;
+> * **`automotive_ecu ×1`** — likewise no converged λ (**89.14–91.07%** across all five),
+>   also **excluded**;
+> * **`smart_meter ×1`** — likewise no converged λ (**40.50–64.67%**), also **excluded**.
+>   This is the third excluded instance, and the prose here used to count only two;
+> * **`rf_transceiver_module ×1`** — one of five λ proved (λ = 0), the other four left at
+>   **91.57–93.71%**.
 >
-> **That exclusion is a statement about the compute budget, not about the BOM.** The same
-> `rf_transceiver_module` closes all five λ to a **0.000%** gap at ×100 and at ×1,000;
-> nothing about the part list is intractable. And raising the budget does not rescue the
-> hard end: a **20× budget sweep** on `rf_transceiver_module ×1` moved its worst gap only
-> from **92.69% to 89.12%** — three percentage points for twenty times the compute. (Those
-> two figures are a bench measurement of the budget, made against the previous wall-clock
-> vintage; they are not fields of this artifact. This artifact's own worst gap for that
-> instance, under the shipped 15-unit budget, is 94.955%.)
+> The **worst single solve in the entire run is not on that list**: it is
+> **`iot_sensor_node ×1` at λ = 0.25, gap 95.057%**, `FEASIBLE` at the budget
+> (`solve_quality.worst_solve`). That instance still converged on its other four λ, which
+> is exactly why a per-instance worst-gap headline is the wrong summary and the per-solve
+> record is published instead.
+>
+> **Exclusion is a statement about the compute budget, not about the BOM — but only where
+> the artifact actually shows it.** `rf_transceiver_module` closes all five λ to a
+> **0.000%** gap at ×1,000. It does **not** at ×100: four of five converge there and the
+> fifth (λ = 1.0) is left at **24.97%**. This paragraph used to claim 0.000% at both.
+> Raising the budget also does not rescue the hard end: a **20× budget sweep** on
+> `rf_transceiver_module ×1` moved its worst gap only from **92.69% to 89.12%** — three
+> percentage points for twenty times the compute. (Those two figures are a bench
+> measurement of the budget, made against the previous wall-clock vintage; they are not
+> fields of this artifact. This artifact's own worst gap for that instance, under the
+> shipped 15-unit budget, is **93.707%**.)
 >
 > **3. It did not move the economics — because those were never the problem.** Not one
 > plan, not one supplier set, not one cost, not one CVaR value and not one frontier point
@@ -928,19 +941,26 @@ rather than quietly averaged in.
 >
 > ### The `Worst gap` column, the `all λ converged` column, the **excluded** markings — and which rows appear in the table at all — are a record of what a **15-unit deterministic work budget** proved. They reproduce under any CPU load. They are still statements about the compute budget, not about these BOMs.
 >
-> **44 of this arm's 150 solves returned a status other than `OPTIMAL`**, i.e. exhausted
-> that work budget with the bound still open. The leading counts in the paragraph below
-> (**2** instances excluded, **28** producing a frontier, a tradeoff in **10** of them,
-> spread over **5 of 10** BOMs) are therefore budget-dependent — they are derived from
+> **48 of this arm's 150 solves returned a status other than `OPTIMAL`**, i.e. exhausted
+> that work budget with the bound still open (`by_arm.breadth.n_time_limit_hits`; this
+> sentence said 44, which matches no field of the artifact). The leading counts in the
+> paragraph below (**3** instances excluded, **27** producing a frontier, a tradeoff in
+> **10** of them, spread over **5 of 10** BOMs) are therefore budget-dependent — they are derived from
 > which solves converged — but they are no longer *load*-dependent. Before 2026-09-01 they
 > were: a re-run under CPU load moved 16 of these worst-gap values and **removed
 > `smart_meter` from this table entirely**. Under the deterministic budget the identical
 > sweep hashed identically at load averages 2.5, 43.5 and 2.6. See §0.
 >
 > **A bigger budget would not rescue the excluded rows.** `drone_flight_controller ×1`
-> (48.32–62.25%) and `automotive_ecu ×1` (12.43–90.79%) are genuinely hard at this size;
-> the same BOMs converge to 0.000% at higher volumes, and a 20× budget sweep on the
+> (**52.28–62.93%**), `automotive_ecu ×1` (**89.14–91.07%**) and `smart_meter ×1`
+> (**40.50–64.67%**) are genuinely hard at this size, and a 20× budget sweep on the
 > hardest instance bought three percentage points of gap (§0).
+>
+> This paragraph used to add "the same BOMs converge to 0.000% at higher volumes". That is
+> **not something this artifact can support**: `drone_flight_controller` has no point above
+> ×1 in the sweep at all, and `automotive_ecu`'s only higher-volume point is ×10, whose
+> worst gap is **63.09%**. The claim was true of a different BOM (`rf_transceiver_module`,
+> at ×1,000) and had been generalised to these.
 >
 > ### What is NOT budget-dependent at all: `CVaR-95 reduction available` and `Price of it`.
 >
@@ -1164,8 +1184,8 @@ moves when you add two λ points was measuring the sweep, not the frontier.
 Omit `depot_lat`/`depot_lng` and the endpoint answers the same question from Memphis —
 a real frontier, but not this one.
 
-Tests: `backend/tests/test_stochastic_sourcing.py` (50) and
-`backend/tests/test_stochastic_api.py` (22). The load-bearing ones:
+Tests: `backend/tests/test_stochastic_sourcing.py` (58) and
+`backend/tests/test_stochastic_api.py` (24). The load-bearing ones:
 
 * `test_no_supplier_ever_saturates_at_probability_one` — the regression guard for §2.
 * `test_with_no_uncertainty_it_reproduces_the_deterministic_landed_cost` — the

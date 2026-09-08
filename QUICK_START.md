@@ -4,8 +4,9 @@
 
 Open **https://supply-chain-ui-bhwz.onrender.com** — that is the deployed build of
 `main`, and it is the only URL that shows what actually ships. The nav bar's top-right
-corner prints `build <hash>`; compare it against `GET /api/v1/version` (or the commit
-you expect) to confirm which version you are looking at. Deployment is automatic on
+corner prints `build <hash>`; compare it against
+[`/version`](https://supply-chain-api-qy8x.onrender.com/version) on the API (note: no
+`/api/v1` prefix — it is a root route) to confirm which version you are looking at. Deployment is automatic on
 push to `main` via Render.
 
 Don't judge the app from a localhost server — a local build can pass while the deployed

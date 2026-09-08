@@ -30,9 +30,11 @@ gated version lives.
   τ between the MASE and pinball orderings is **−0.20**, i.e. mildly *anti*-correlated.
   → [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md)
 - **Macro supply-stress regime model — 219 walk-forward folds** (2008–2026), Brier
-  **0.393** against persistence 0.539 and climatology 0.673, calibration slope 0.629. It
-  passes its ship gate because it beats both baselines on a proper scoring rule; an
-  earlier version did not, and was refused rather than shipped.
+  **0.393** against persistence 0.539 and climatology 0.673, calibration slope 0.629.
+  **It ties persistence on accuracy — 0.7306 vs 0.7306, a dead heat** — and ships anyway,
+  because accuracy is not the gate: the optimizer consumes a probability, and persistence
+  can only ever emit 0 or 1. Its own ship-gate record says both halves; so does this line.
+  An earlier version lost on the proper score too, and was refused rather than shipped.
   → [docs/MODEL_CI.md](docs/MODEL_CI.md)
 
 [![Cost vs. CVaR-95 efficient frontier: expected cost on the x-axis, CVaR-95 on the y-axis, nine λ-solves falling from the risk-neutral plan down to the knee at λ = 0.3 and then flattening. A dashed chord marks the $4.27-per-$1 stretch.](docs/cvar_frontier.png)](docs/CVAR_EFFICIENT_FRONTIER.md)

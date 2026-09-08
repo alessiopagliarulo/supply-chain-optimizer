@@ -40,7 +40,7 @@ because this file reads them.
 Consequences worth knowing before you "fix" a failure here:
 
 * Regenerating the artifact WILL turn these red. That is the point — the solver telemetry
-  (387 / 351 / 36, the 15-unit / 80-unit deterministic budgets, the 95% worst gap) moves
+  (387 / 347 / 40, the 15-unit / 80-unit deterministic budgets, the 95% worst gap) moves
   when the budget or the model moves. Red here means the page has to be re-typed to the
   new artifact, not that the test is wrong.
 * Deleting a ``data-testid`` turns these red too, loudly, rather than silently skipping.
@@ -252,7 +252,7 @@ def test_the_sensitivity_tile_attributes_the_missing_knee_to_the_right_arm(
 def test_the_offline_study_paragraph_matches_the_solve_quality_block(
     page_source: str, artifact: dict
 ) -> None:
-    """387 / 351 / 36, the grid size, the BOM count and the 95% worst gap.
+    """387 / 347 / 40, the grid size, the BOM count and the 95% worst gap.
 
     These are solver telemetry. Since 2026-09-01 they reproduce across runs (the sweep
     is on a deterministic work budget), but they still move when the budget, the model
