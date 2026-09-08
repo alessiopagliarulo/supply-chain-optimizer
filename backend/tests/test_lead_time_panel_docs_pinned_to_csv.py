@@ -126,7 +126,7 @@ def test_panel_csv_parses_to_a_plausible_row_count() -> None:
     assert all(count > 0 for count in per_date.values())
 
 
-def test_all_four_docs_are_readable() -> None:
+def test_every_scanned_doc_is_readable() -> None:
     """Anti-vacuity guard: if a doc path is wrong, every regex below would
     (falsely) find zero matches and every 'at least one match' assertion would
     legitimately fail loudly -- but let's fail with a clear message instead."""

@@ -9,7 +9,7 @@ How this repo improves itself while the computer is off, and what you do from yo
 | **Scout** | Every hour | Researches the market and the codebase. Files issues labeled `proposal`. Stops at 8 open; never writes code. |
 | **Builder** | Every 30 minutes | Builds one issue and opens one pull request — but only if your review queue has room. |
 | **Auditor** | Every pull request | An independent agent attacks the PR from five angles and posts a verdict before you read it. |
-| **Metrics** | Daily 7am | Recomputes `LOOP-DASHBOARD.md` from what actually merged. No agent, no tokens. |
+| **Metrics** | Daily 7am | Recomputes `metrics/loop-metrics.json` from what actually merged, plus a local-only phone-readable summary. No agent, no tokens. |
 | **Retro** | Sundays 6pm | Reads the week's real outcomes and proposes fixes to the loop itself. |
 | **@claude** | Whenever you type it | Comment `@claude do X` on any issue or PR and an agent picks it up. |
 
@@ -41,7 +41,8 @@ That's it. Everything else is automatic.
 
 ## The one number that matters
 
-`LOOP-DASHBOARD.md` — open it in the GitHub app. **Merge rate** is the health check. If you're
+`metrics/loop-metrics.json` — the committed scorecard (a phone-readable rendering of it is
+generated alongside but kept local). **Merge rate** is the health check. If you're
 merging most of what the agents build, it's working. If you're throwing most of it away, the
 loop is generating noise and the retro will tell you why.
 

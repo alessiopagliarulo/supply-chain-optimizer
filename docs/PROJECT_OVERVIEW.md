@@ -32,7 +32,7 @@ Three questions feed one decision:
 | Network fragility analysis | The real distributor→component bipartite graph | NetworkX | Spectral graph theory: algebraic connectivity (Fiedler), betweenness, PageRank, k-core, HHI |
 | Monte Carlo disruption simulation | 1,000 scenarios over that graph | NumPy | Percolation; tail risk (CVaR-95) |
 | Lead-time prediction | **3,406 real DigiKey observations across 6 snapshots, collected by our own weekly pipeline** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07); the served model is fitted on an earlier cut — 2,615 usable rows of the then five-snapshot panel / 324 API-derived features, retrained 2026-09-03, so the artifact is one snapshot behind the panel and `/ml/model-info` reports `stale: true` | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
-| Macro supply-stress regime model | NY Fed GSCPI + FRED, 343 monthly observations | scikit-learn | Walk-forward validation; proper scoring rules (Brier); calibration slope; ship gate vs persistence and climatology |
+| Macro supply-stress regime model | NY Fed GSCPI + FRED, 339 monthly observations | scikit-learn | Walk-forward validation; proper scoring rules (Brier); calibration slope; ship gate vs persistence and climatology |
 | Intermittent-demand benchmark | Monash car parts: 2,674 series × 51 months, 136,374 observations | Croston / SBA / TSB, custom CRPS | Distributional forecasting; proper scoring rules; Friedman + Nemenyi significance testing |
 | Macro demand backtest | US Census M3 `A34SNO`, 198 monthly observations, ALFRED vintage `2026-08-16` (pinned, offline) | Prophet, Chronos-Bolt | Rolling-origin backtesting; time-series foundation models; data-vintage reproducibility |
 | Live pricing & risk feeds | DigiKey and OEMsecrets return real offers on demand; Nexar is credentialled but currently returns errors on every path (open bug). FRED, IMF PortWatch, GPR index | httpx, OAuth2 client-credentials, GraphQL | API integration; auth flows; quota/rate-limit handling; graceful degradation |
@@ -61,7 +61,7 @@ script.
 
 **1. I retracted my own headline.**
 The benchmark claimed 44.7% cost savings vs a greedy baseline. Decomposed, the entire advantage
-was a $75-per-supplier fixed freight fee on 4-part / 7-unit orders — fixed fees were 96.5% of the
+was a $75-per-supplier fixed freight fee on 4-part / 7-unit orders — fixed fees were 96.2% of the
 cost being optimized. At realistic volume it falls to 3–8%. Published the volume curve showing the
 decay. *(`docs/BENCHMARK_VOLUME_CURVE.md`)*
 
@@ -137,7 +137,7 @@ collector was mine.
 
 **6. My CI gates come from my own bugs.**
 A train/serve schema mismatch silently made every lead-time prediction the same constant while a
-published R²=0.93 described a model that was never served. There are now 50 gates; each names the
+published R²=0.93 described a model that was never served. There are now 52 gates; each names the
 bug it prevents. The subtlest: the contract test written to catch that bug had itself stopped
 working, because the primary feature was renamed underneath it. *(`docs/MODEL_CI.md`)*
 
@@ -153,8 +153,8 @@ Being precise here is what makes the rest credible.
   (Live pricing *is* real, on demand, via `/live-prices/*`.)
 - **Not** a validated lead-time point predictor. Family-grouped R² is +0.08; the honest product is
   an interval, which is what Move 2 builds.
-- **Not** temporal validation of the lead-time model — the panel holds five snapshot dates
-  spanning 2026-07-01 to 2026-08-31 (the served artifact was fitted on the first four), which is
+- **Not** temporal validation of the lead-time model — the panel holds six snapshot dates
+  spanning 2026-07-01 to 2026-09-07 (the served artifact was fitted on the first five), which is
   far too short a span for time-series features to be learnable. The weekly collector fixes this
   over time. *(This line read "there are two snapshots" until 2026-09-01; that matched neither the
   panel nor the artifact at any point.)*

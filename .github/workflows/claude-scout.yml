@@ -450,7 +450,7 @@ jobs:
             target. Large batches are measurably worse: every zero-evidence idea this loop has
             ever produced came out of one oversized burst.
 
-            1. Read the codebase and CLAUDE.md to understand what this product actually is and
+            1. Read the codebase to understand what this product actually is and
                where it is weakest. Read LEARNINGS.md — it is the record of mistakes this loop
                has already made. Read for two things at once, not one: where the product is
                weak, AND what it already does. You need the second one in step 5, where every

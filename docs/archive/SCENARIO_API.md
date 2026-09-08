@@ -61,7 +61,7 @@ Simulate the failure of a specific distributor. Returns cost, delivery time, ris
 
 ### POST /resilience/geopolitical-risk
 
-Simulate a geopolitical risk event (e.g., war, sanctions, trade tensions). Live feeds (GPR, ACLED) are multiplied by the risk factor.
+Simulate a geopolitical risk event (e.g., war, sanctions, trade tensions). **This endpoint reads no live feed.** `risk_multiplier` is a stress dial applied to each component's STORED `risk_score` column, and is passed into the Monte Carlo as a scenario stress factor. The sentence here previously said "live feeds (GPR, ACLED) are multiplied by the risk factor"; that was false, and the retraction now stands in `backend/app/api/resilience.py` and on the OpenAPI spec too. The live GPR signal does reach the CP-SAT objective — but in `optimization/sourcing.py`, on `/optimize/*`, not here.
 
 **Request:**
 ```json
@@ -72,7 +72,7 @@ Simulate a geopolitical risk event (e.g., war, sanctions, trade tensions). Live 
 ```
 
 **Parameters:**
-- `risk_multiplier` (float, required): Multiplier for live feed values. Range: 0.5–5.0.
+- `risk_multiplier` (float, required): Multiplier on the stored `risk_score` column (NOT on any live feed value). Range: 0.5–5.0.
   - 0.5: Low risk scenario (e.g., de-escalation)
   - 1.0: Baseline (current state)
   - 2.0: Moderate risk (e.g., trade war intensifies)

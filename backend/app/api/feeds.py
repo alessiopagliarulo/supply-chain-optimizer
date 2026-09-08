@@ -57,10 +57,20 @@ class FeedStatus(BaseModel):
 FEED_TTL_MINUTES = 15
 
 # How old the newest OBSERVATION may be before a feed reads `stale` regardless of
-# download recency. GPR and the FRED freight index are monthly series, so three
-# missed months is not a publication lag — it means the series has stopped being
-# maintained at the URL we read. 90 days is deliberately generous: the failure
-# this catches is measured in years, not weeks.
+# download recency. GPR is a monthly series, so three missed months is not a
+# publication lag — it means the series has stopped being maintained at the URL
+# we read. 90 days is deliberately generous: the failure this catches is measured
+# in years (the GPR archive's newest row is from September 2021), not weeks.
+#
+# WHICH FEEDS THIS ACTUALLY PROTECTS, stated rather than implied: **GPR only.**
+# `fetch_gpr_observation` is the one fetcher that returns an observation date;
+# FRED and PortWatch parse a date out of their payloads and discard it
+# (`fetchers.py`), and ACLED is a rolling 90-day window with no single "as of".
+# Those three therefore fall back to download recency and this constant never
+# applies to them — so do not read a `live` on them as a claim about the age of
+# their DATA. Extending the guard to FRED needs its own threshold, not this one:
+# FRED's freight index publishes with a real multi-month lag, so a 90-day rule
+# would mark a perfectly healthy series stale.
 MAX_OBSERVATION_AGE_DAYS = 90
 
 

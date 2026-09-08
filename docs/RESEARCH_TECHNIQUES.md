@@ -18,10 +18,10 @@ Verified against the artifacts on disk:
 |---|---|---|
 | **Monash car parts** (`docs/intermittent_demand.json`) | **2,674 series × 51 months**, 24.1% non-zero, **2,646 scored** under the rolling-origin protocol | **Now carrying the demand story** — proper scoring rules and significance testing shipped (1.1/1.2 below); still supports a newsvendor study (1.4) and conformal calibration. |
 | Census M3 A34SNO (`docs/forecast_backtest.json`) | `n_obs=198` at the pinned `2026-08-16` vintage, **`n_windows=3`**, horizon 12 → **36 test points from 3 origins** | The weakest evidence in the repo. No significance test is possible. And the series is *revised in place* — see 4.1; it is now vintage-pinned, and the revision moves WAPE more than the model choice does. Saying so is worth more than another model. |
-| CVaR frontier (`docs/cvar_frontier.json`) | tail atoms now 31–53 after calibration work; largest single atom still 32–80% of tail mass | Tail estimate improved but remains atom-dominated at low volume. Report it. |
+| CVaR frontier (`docs/cvar_frontier.json`) | tail atoms now 31–54 after calibration work; largest single atom still 32–80% of tail mass | Tail estimate improved but remains atom-dominated at low volume. Report it. |
 | Lead-time panel | **3,406 rows / 6 snapshots on disk** (sha256 `d94df904…`); the **served model is fitted on an earlier cut of it** — 2,615 usable rows of the then 2,664-row, five-snapshot panel (sha256 `c68e2891…`), retrained 2026-09-03 — one distributor | Supports the ST-extension *event narrative*; supports almost no inference. The staleness tripwire reports `stale: true` — the 2026-09-07 collector run moved the panel past the artifact, and a retrain is owed. Every `2,615` / `472` / `28` / `324` figure below is a property of that artifact, not of the panel. |
 
-**Therefore: stop pointing new statistics at the 197-point macro series. Point them at car parts.**
+**Therefore: stop pointing new statistics at the 198-point macro series. Point them at car parts.**
 Nearly every item below gets cheaper and more defensible under that reframe.
 
 ---
@@ -92,7 +92,7 @@ p = 4.5e-30.
 - Clark, T.E. & West, K.D. (2007), *J. Econometrics* 138(1):291–311 — **required instead of DM
   when models are nested**; naive nests inside several of our methods, so raw DM is invalid there.
 
-**The honest half matters as much:** state that MCB is right for 2,658 series and *wrong* for
+**The honest half matters as much:** state that MCB is right for 2,646 series and *wrong* for
 A34SNO, where 3 origins cannot support any test. Refusing to run an unpowered test is the
 differentiator; most portfolio projects run a t-test on three numbers.
 
@@ -541,7 +541,7 @@ Stating these is worth real credibility.
   technical ceiling, but the Euclidean-ball form needs an SOCP solver and CP-SAT cannot do conic
   constraints — a second solver stack. Stretch goal only.
 - **SPCI** (Xu & Xie, ICML 2023) — fits a secondary quantile regressor on lagged residuals;
-  nowhere near enough residual history on a 197-point series.
+  nowhere near enough residual history on a 198-point series.
 - **Any deep learning on this data.** The MLP already in our own model zoo scores
   `cv_r2_mean = −0.791` on family-grouped folds ([`leakage_progression.json`](leakage_progression.json)).
   That is the answer.
@@ -561,7 +561,7 @@ Stating these is worth real credibility.
 
 **If only three:** 1.2 (significance testing), 1.1 (distributional re-scoring), 3.4 (newsvendor).
 All three run on the car-parts panel at genuine scale and tell one coherent story:
-*"I found my metric was measuring the wrong functional, tested the ranking properly across 2,658
+*"I found my metric was measuring the wrong functional, tested the ranking properly across 2,646
 series, then showed the forecast that wins on accuracy is not the forecast that wins on decision
 cost."*
 

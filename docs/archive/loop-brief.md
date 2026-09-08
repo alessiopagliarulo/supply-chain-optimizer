@@ -20,8 +20,8 @@ must be left alone. Without it, agents fall back to generic engineering hygiene.
   as the work that revealed it. Say plainly what changed and why.
 - **Keep it short.** Aim for under 100 lines. It is loaded into every agent's context on
   every run; length here is paid for on every single run.
-- **Do not turn it into a changelog.** Mistakes and corrections go in `LEARNINGS.md`;
-  metrics go in `LOOP-DASHBOARD.md`. This file describes the present, not the history.
+- **Do not turn it into a changelog.** Mistakes and corrections go in the local-only lessons log;
+  metrics go in `metrics/loop-metrics.json`. This file describes the present, not the history.
 - **Never delete a section.** If a section does not apply yet, write "Not decided yet"
   under it so the gap is visible instead of silent.
 

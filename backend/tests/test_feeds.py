@@ -587,3 +587,172 @@ def test_feed_status_endpoint_stale():
         assert gpr_item["status"] == "stale"
     finally:
         feeds_module._cache = original_cache
+
+
+# ── Observation date vs. download date (2026-09-07) ──────────────────────────
+#
+# These exist because the feature they cover shipped with none, and a guard with
+# no test is a guard that can be deleted without anything going red. Proven: with
+# the `observed_at` branch removed from `app.api.feeds._feed_status`, the first
+# test below fails.
+#
+# The bug being guarded: the published GPR file downloads successfully on every
+# 15-minute tick, but its newest observation is dated 2021-09-01. Status derived
+# from `fetched_at` alone therefore reported `live` and the app served a
+# four-year-old number as a current reading of geopolitical risk.
+
+def test_a_fresh_download_of_a_frozen_series_reports_stale_not_live():
+    """The GPR case, exactly: downloaded seconds ago, observed in 2021."""
+    from datetime import datetime, timedelta
+
+    from app.api.feeds import MAX_OBSERVATION_AGE_DAYS, _feed_status
+
+    now = datetime.utcnow()
+    assert _feed_status(now, 128.78, None, datetime(2021, 9, 1)) == "stale"
+
+    # And the boundary is the constant, not a coincidence of today's date.
+    just_inside = now - timedelta(days=MAX_OBSERVATION_AGE_DAYS - 1)
+    just_outside = now - timedelta(days=MAX_OBSERVATION_AGE_DAYS + 1)
+    assert _feed_status(now, 128.78, None, just_inside) == "live"
+    assert _feed_status(now, 128.78, None, just_outside) == "stale"
+
+
+def test_a_feed_with_no_observation_date_still_uses_download_recency():
+    """FRED/PortWatch/ACLED publish no observation date through this path.
+
+    They must be completely unaffected: `observed_at=None` means "no opinion",
+    and the download-recency answer stands. If this ever starts returning
+    `stale`, three healthy feeds have been slandered.
+    """
+    from datetime import datetime, timedelta
+
+    from app.api.feeds import _feed_status
+
+    now = datetime.utcnow()
+    assert _feed_status(now, 150.0, None, None) == "live"
+    assert _feed_status(now - timedelta(hours=1), 150.0, None, None) == "stale"
+
+
+def test_an_old_download_is_stale_even_when_the_observation_is_recent():
+    """Download recency is still checked first — the new branch only adds a way
+    to FAIL, never a way to pass something that was already stale."""
+    from datetime import datetime, timedelta
+
+    from app.api.feeds import _feed_status
+
+    now = datetime.utcnow()
+    assert _feed_status(now - timedelta(hours=1), 150.0, None, now) == "stale"
+
+
+def test_inactive_and_unavailable_outrank_the_observation_check():
+    from datetime import datetime
+
+    from app.api.feeds import _feed_status
+
+    now = datetime.utcnow()
+    assert _feed_status(now, 128.78, "ACLED_KEY not set", datetime(2021, 9, 1)) == "inactive"
+    assert _feed_status(now, None, None, datetime(2021, 9, 1)) == "unavailable"
+    assert _feed_status(None, 128.78, None, datetime(2021, 9, 1)) == "unavailable"
+
+
+def test_the_stale_detail_names_the_observation_date_and_never_invents_one():
+    from datetime import datetime
+
+    from app.api.feeds import _observation_detail
+
+    detail = _observation_detail(datetime(2021, 9, 1), "stale")
+    assert detail is not None
+    assert "2021-09-01" in detail
+    assert "not a current reading" in detail
+
+    # No observation date, or not stale => nothing to explain. In particular this
+    # must not manufacture an explanation for a `live` feed.
+    assert _observation_detail(None, "stale") is None
+    assert _observation_detail(datetime(2021, 9, 1), "live") is None
+
+
+def test_the_gpr_date_column_is_parsed_in_every_spelling_it_has_ever_used():
+    """`_coerce_observation_date` fails OPEN — an unparseable cell yields None,
+    which falls back to download recency and reports `live`. Breadth here is
+    therefore the actual mitigation, so it is asserted rather than assumed.
+    """
+    from datetime import date, datetime, timezone
+
+    from app.feeds.fetchers import _coerce_observation_date
+
+    expected = datetime(2021, 9, 1)
+    for cell in (
+        datetime(2021, 9, 1),
+        date(2021, 9, 1),
+        202109,                 # YYYYMM integer
+        44440,                  # raw Excel serial, 1900 date system
+        "2021-09-01",
+        "2021-09",
+        "202109",
+        "2021/09/01",
+        "Sep-2021",
+        "September 2021",
+        "2021M09",              # the FRED/ALFRED monthly spelling
+    ):
+        assert _coerce_observation_date(cell) == expected, f"failed on {cell!r}"
+
+    # A timezone-aware cell must come back NAIVE: feeds.py subtracts it from
+    # datetime.utcnow(), and mixing the two raises TypeError inside a status
+    # endpoint instead of returning "stale".
+    aware = _coerce_observation_date(datetime(2021, 9, 1, tzinfo=timezone.utc))
+    assert aware is not None and aware.tzinfo is None
+
+    # Genuinely unreadable => None, never a guess.
+    for cell in (None, "n/a", "", "not a date", object()):
+        assert _coerce_observation_date(cell) is None
+
+
+def test_one_unreadable_row_does_not_discard_every_good_observation_date():
+    """The parse loop keeps the last date that PARSED, not the last attempted.
+
+    Assigning unconditionally meant a single unreadable final row threw away
+    every good date in the sheet and left the feed with no observation date —
+    i.e. back to reporting `live`. One bad cell must not disarm the guard.
+    """
+    import io
+
+    import openpyxl
+
+    from app.feeds.fetchers import fetch_gpr_observation
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "GPR"
+    ws.append(["Date", "GPR"])
+    ws.append(["2021-08-01", 120.0])
+    ws.append(["2021-09-01", 128.78])
+    ws.append(["-- provisional --", 129.0])   # unreadable date, real value
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    import asyncio
+    from unittest.mock import patch
+
+    class _Resp:
+        content = buf.getvalue()
+
+        def raise_for_status(self):
+            return None
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url):
+            return _Resp()
+
+    with patch("app.feeds.fetchers.httpx.AsyncClient", lambda *a, **k: _Client()):
+        value, observed = asyncio.run(fetch_gpr_observation())
+
+    from datetime import datetime
+
+    assert value == 129.0                      # the newest VALUE still wins
+    assert observed == datetime(2021, 9, 1)    # the newest PARSEABLE date survives

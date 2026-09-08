@@ -234,8 +234,8 @@ feature: fix the brief in the same PR.
 | Path                          | What it is                                                        |
 | ----------------------------- | ----------------------------------------------------------------- |
 | `docs/archive/loop-brief.md`          | The product brief every agent reads before proposing work.         |
-| `LEARNINGS.md`                | Dated record of mistakes the loop already made. Failures only.     |
-| `LOOP-DASHBOARD.md`           | The metrics ledger written by `scripts/loop-metrics.mjs`.          |
+| `LEARNINGS.md`                | Dated record of mistakes the loop already made. Failures only. Local-only (gitignored). |
+| `LOOP-DASHBOARD.md`           | Phone-readable ledger written by `scripts/loop-metrics.mjs`. Local-only (gitignored); `metrics/loop-metrics.json` is the committed half. |
 | `metrics/loop-metrics.json`   | Daily snapshots behind the dashboard's Metrics page.               |
 | `.github/loop-config.json`    | Per-repo caps + autonomy switches (see above).                     |
 | `.mcp.json`                   | MCP servers available to this repo's agents (starts empty).        |

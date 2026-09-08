@@ -38,10 +38,14 @@ verified.
 - **Used by:** this is the DB the live app actually runs on (it's what
   `backend/manage.py seed` / `python -m seeds.seed_db` loads). The
   alternative live-fetch path, `backend/seeds/seed_live.py`, queries the real
-  Nexar API directly — but the deployment has no `NEXAR_CLIENT_ID` /
-  `NEXAR_CLIENT_SECRET` configured (checked `backend/app/core/config.py`,
-  `.env.example`, `render.yaml`), so that path has never actually run in
-  production. `seed_db.py` is therefore the load-bearing seeder, not a
+  Nexar API directly. `render.yaml` declares `NEXAR_CLIENT_ID` /
+  `NEXAR_CLIENT_SECRET` as `sync: false` entries, i.e. the slots exist and the
+  values are pasted in the Render dashboard rather than committed here — so
+  whether that path *can* run in production is not answerable from this
+  repository, and this file previously asserted (wrongly) that the credentials
+  were absent. What is observable: the live Nexar client currently returns
+  errors on every path (see `docs/PROJECT_OVERVIEW.md`), and no published figure
+  comes from it. `seed_db.py` is therefore the load-bearing seeder, not a
   fallback.
 - **Honest framing for README/UI copy:** say "791 real components, sourced
   from Nexar/Octopart via a 2024 static snapshot (CC-BY-4.0)" — **not** "live
@@ -55,7 +59,7 @@ verified.
   - ~~Any place in the app claiming "8,731 offers" should be reconciled against
     the actual live row count.~~ **RESOLVED 2026-07-13:** the live row count is
     **8,176** (`SELECT COUNT(*) FROM distributor_offers`), and every user-facing
-    claim (README, QUICK_START, `docs/PROJECT.md`, the dashboard) now says 8,176.
+    claim (README, QUICK_START, `docs/PROJECT_OVERVIEW.md`, the dashboard) now says 8,176.
     Note the count is not a constant: offers with `price <= 0` are dropped at seed
     time, so it can shift by seed run / dataset revision. Re-check it after any
     reseed rather than treating 8,176 as permanent.
@@ -85,8 +89,10 @@ Owned by the forecasting/ML tracks, not `seed_db.py`:
   - Both `seeds.run_forecast_backtest` and `seeds.run_chronos_benchmark` take
     `--as-of` and are pinned to ALFRED vintage **`2026-08-16`**.
   - The vintage files are committed verbatim under
-    `backend/seeds/data/a34sno_vintages/` — pins for `2026-07-01`, `2026-07-10` and
-    `2026-08-16` — with their SHA-256s recorded in
+    `backend/seeds/data/a34sno_vintages/` — **six** pins: `2023-08-01`,
+    `2024-08-01` and `2025-08-01` (one per rolling origin, used by the real-time
+    protocol) plus the publication/reference vintages `2026-07-01`, `2026-07-10`
+    and `2026-08-16` — with their SHA-256s recorded in
     `backend/seeds/macro_demand.py::VINTAGE_SHA256`. **A pinned run does no network
     I/O**, so a reader can reproduce a published figure offline and a test can prove
     the pins have not been edited.
@@ -102,10 +108,25 @@ Owned by the forecasting/ML tracks, not `seed_db.py`:
 Verification status for those tracks lives in `docs/MODEL_CI.md` and
 `docs/LEAKAGE_PROGRESSION.md`, which are regenerated from the artifacts.
 
-## 4. Emission factors (`backend/app/core/constants.py`)
+## 4. Emission factors (`backend/app/optimization/solve.py`)
 
-Cited real sources per the improvement plan: EPA SmartWay, ICAO, IATA. Not
-re-verified in this pass (out of scope — no changes made in this area).
+Corrected 2026-09-07: this section named `backend/app/core/constants.py`, which
+does not exist — the factors are constants in `solve.py`, and the citations
+beside them there are the authoritative ones.
+
+It also listed "EPA SmartWay, ICAO, IATA", two thirds of which `solve.py` has
+since retracted in place:
+
+- **Road** — the value is a **2013** SmartWay figure, not the "EPA SmartWay
+  2023" label this repo used to carry; `solve.py` now cites the 2013 SmartWay
+  technical documentation and the EDF handbook as the route by which it is
+  cited.
+- **Air** — relabelled from "ICAO 2023" to **GLEC Framework v3.2** (long-haul
+  dedicated-freighter tank-to-wheel, 503 g CO2e/tonne-km), because ICAO
+  publishes no static air-freight table to cite.
+
+Read the citations in `solve.py`, not this summary, if the exact vintage
+matters.
 
 ---
 

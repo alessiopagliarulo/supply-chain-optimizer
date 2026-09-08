@@ -105,7 +105,8 @@ used to appear were removed along with the tables they read from; see the README
 Interactive US map showing distributor hubs colored by type and risk tier.
 
 ### Cart → Checkout (the key demo)
-1. Go to **Cart** — pre-loaded with 6 components (ESP8266EX, DFR1063, etc.)
+1. Go to **Cart** — pre-loaded with 5 lines / 225 units (ESP32-WROOM-32UE-N4, STM32F103C8T6,
+   GD25Q64CSIGR, ESP8266EX, ATMEGA328P-PU — see `backend/seeds/seed_demo_cart.py`)
 2. Click **"Optimize & Checkout"**
 3. The CP-SAT solver runs in ~12 seconds and returns **4 route strategies**:
    - Cheapest — minimize component + transport cost
@@ -139,10 +140,13 @@ Simulate supply chain disruptions under three scenarios:
 
 ## Environment variables (all optional for local demo)
 
-`backend/.env` is pre-configured for SQLite. External API keys are optional:
+`backend/.env` is **not** in the repository — `.env` is gitignored, so a fresh clone has
+none, and `config.py` declares `SECRET_KEY` with no default and will refuse to start
+without it. Create it before step 2 with the three lines below; that is the whole of the
+required configuration, and every external API key is optional on top of it:
 
 ```env
-# backend/.env (already set for you)
+# backend/.env — create this file
 DATABASE_URL=sqlite:///./supply_chain.db
 SECRET_KEY=dev-secret-key-2024-supply-chain
 DEBUG=true

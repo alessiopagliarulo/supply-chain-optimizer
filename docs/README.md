@@ -61,6 +61,9 @@ This page is the reading path so you don't have to open all of them.
 - **[BENCHMARK_VOLUME_CURVE.md](BENCHMARK_VOLUME_CURVE.md)** — traces a single
   headline benchmark number back to the volume sweep that produced it, and the
   freight-cost bug the investigation exposed.
+- **[DIVERSIFICATION_FRONTIER.md](DIVERSIFICATION_FRONTIER.md)** — how much tail
+  risk a second and third supplier actually buy, generated from
+  `diversification_frontier.json`.
 - **[IMPACT_FRAMING.md](IMPACT_FRAMING.md)** — how each dollar figure quoted
   elsewhere in the project is derived, and what each one does and does not
   license you to claim.
@@ -84,6 +87,12 @@ the index accounts for every file, but skip them on a first read:
   the manual UI checklist that stands in for an automated frontend test suite.
 - **[archive/SCENARIO_API.md](archive/SCENARIO_API.md)** — REST reference for
   the resilience scenario endpoints.
+- **[archive/MAINTENANCE-AND-KNOWN-ISSUES.md](archive/MAINTENANCE-AND-KNOWN-ISSUES.md)**
+  — what breaks on its own (the weekly collector vs. the model-CI gates, Render
+  free-tier limits), what is deliberately unfinished, and what each would cost.
+- **[archive/AWS-MIGRATION-NOTES.md](archive/AWS-MIGRATION-NOTES.md)** — how and
+  why this could be redeployed on ECS Fargate, as a learning exercise rather
+  than a hosting change.
 
 ## Not indexed above
 

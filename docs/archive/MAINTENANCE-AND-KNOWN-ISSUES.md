@@ -39,7 +39,7 @@ Retraining, if needed:
 cd backend && ./venv/bin/python -m seeds.train_ml_models
 ```
 
-Gotchas, both learned the hard way (see `LEARNINGS.md`):
+Gotchas, both learned the hard way:
 - The trainer **ignores argv** — `--help` starts a real retrain.
 - A killed run half-writes artifacts. Recover with
   `git checkout -- backend/data/ml_models backend/seeds/data`.

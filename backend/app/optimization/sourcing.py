@@ -431,6 +431,21 @@ def _feed_risk_obj_units(
     acled_surcharge = 0
 
     # GPR: Chinese-origin risk
+    #
+    # KNOWN AND DELIBERATELY UNCHANGED (2026-09-07): the value read here is the
+    # newest row of the published GPR file, and that row is dated **September
+    # 2021**. `/feeds/status` now says so — it reports the feed `stale` with the
+    # observation date rather than `live` — but this surcharge is computed from
+    # the value regardless of its age, so a 2021 reading still enters the CP-SAT
+    # objective on every solve.
+    #
+    # Gating it on `cache.gpr.observed_at` would be a one-line change and it is
+    # NOT made here on purpose: it would silently alter every published
+    # optimization figure and the committed benchmark artifacts they are diffed
+    # against, which is a re-benchmark, not a bug fix. Disclosed instead, and
+    # left as an explicit decision for whoever does that re-run. What must not
+    # happen in the meantime is the app describing this input as current — that
+    # part is fixed.
     if is_chinese_origin and getattr(cache, 'gpr', None) is not None and cache.gpr.data is not None:
         gpr_value = float(cache.gpr.data)  # typically 50-500
         gpr_normalized = max(0.0, min((gpr_value - 100) / 400, 1.0))

@@ -531,7 +531,7 @@ published below carries **no sampling error at all**.
 **And the same is now true of the plan itself.** Until 2026-08-27 only half of that
 sentence was earned: the support was enumerated for *scoring* while the plan was still
 *chosen* on the 200 draws. The optimizer therefore minimized a measure that resolved 10 of
-the 64 atoms — a 95% tail **four atoms wide against an exact 49–54** — and this document
+the 64 atoms — a 95% tail **four atoms wide against an exact 50–54** — and this document
 published the result against all 64. The asymmetry was not free: it put a **dominated
 point on the published frontier** (§4). `fit_scenario_set` now hands CP-SAT the enumerated
 support whenever its second stage fits the solver's variable budget, so choice and score

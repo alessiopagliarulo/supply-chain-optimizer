@@ -55,7 +55,15 @@ async def fetch_gpr_observation() -> "tuple[float, Optional[datetime]]":
             # T-03-08: only column B numeric values extracted; non-numeric skipped
             if row[1] is not None:
                 last_value = row[1]
-                last_date = _coerce_observation_date(row[0])
+                # Keep the last date that actually PARSED, not the last one
+                # attempted. Assigning unconditionally meant a single unreadable
+                # cell in the final row threw away 440 perfectly good ones and
+                # left the feed with no observation date at all -- which
+                # fails OPEN, back to "live". Freshness must not be one bad
+                # cell away from being unenforceable.
+                parsed = _coerce_observation_date(row[0])
+                if parsed is not None:
+                    last_date = parsed
         wb.close()
         if last_value is None:
             raise ValueError("GPR XLSX contained no valid GPR values in column B")
@@ -68,27 +76,57 @@ def _coerce_observation_date(cell: object) -> "Optional[datetime]":
     """Best-effort parse of the GPR sheet's date column.
 
     openpyxl usually hands back a datetime for a date-formatted cell, but the
-    sheet has historically also carried plain strings and YYYYMM integers, so all
-    three are handled. Anything else returns None rather than a guess — an
-    invented observation date would be worse than no observation date, because
-    the whole point of the field is to be trusted.
+    same column has to survive the publisher re-saving the file with a different
+    number format, which is exactly the kind of change nobody announces. So a
+    raw Excel date SERIAL (44440 -> 2021-09-01), a YYYYMM integer, and several
+    string spellings are all handled. Anything else returns None rather than a
+    guess — an invented observation date would be worse than no observation
+    date, because the whole point of the field is to be trusted.
+
+    NOTE THE FAILURE DIRECTION. None means "this feed publishes no observation
+    date I can read", and the caller then falls back to download recency, which
+    reports `live`. That is fail-OPEN, and it is a deliberate trade: reporting a
+    healthy feed as stale because we could not parse a cell would be its own
+    false claim. The mitigation is breadth here, not a different default — every
+    spelling this column has ever used is accepted, and the result is asserted in
+    `tests/test_feeds.py` so a regression in this function is visible.
+
+    Returns a NAIVE datetime. `feeds.py` compares against `datetime.utcnow()`,
+    which is naive, and subtracting an aware datetime from a naive one raises
+    TypeError — an exception in a status endpoint rather than a `stale`.
     """
     if isinstance(cell, datetime):
-        return cell
+        return cell.replace(tzinfo=None)
     if isinstance(cell, date):
         return datetime(cell.year, cell.month, cell.day)
     if isinstance(cell, (int, float)):
         raw = int(cell)
         if 190001 <= raw <= 299912:  # YYYYMM
             return datetime(raw // 100, raw % 100, 1)
+        # Excel serial date (1900 date system): day 1 is 1900-01-01, and Excel
+        # wrongly treats 1900 as a leap year, hence the -2 rather than -1.
+        if 1 <= raw <= 200000:
+            try:
+                return datetime(1900, 1, 1) + timedelta(days=raw - 2)
+            except (OverflowError, ValueError):
+                return None
         return None
     if isinstance(cell, str):
         text = cell.strip()
-        for fmt in ("%Y-%m-%d", "%Y-%m", "%Y%m", "%d/%m/%Y", "%m/%d/%Y"):
+        for fmt in (
+            "%Y-%m-%d", "%Y-%m", "%Y%m", "%d/%m/%Y", "%m/%d/%Y",
+            "%Y/%m/%d", "%b-%Y", "%B %Y", "%b %Y", "%Y-%m-%dT%H:%M:%S",
+        ):
             try:
-                return datetime.strptime(text, fmt)
+                return datetime.strptime(text, fmt).replace(tzinfo=None)
             except ValueError:
                 continue
+        # "2021M09" — the FRED/ALFRED monthly spelling.
+        if len(text) == 7 and text[4] in "Mm":
+            try:
+                return datetime(int(text[:4]), int(text[5:]), 1)
+            except ValueError:
+                return None
     return None
 
 
