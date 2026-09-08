@@ -55,6 +55,22 @@ on:
     branches: [main]
   workflow_dispatch:
 
+  # These two mirror ci.yml exactly, and they have to.
+  #
+  # The weekly collector commits with the default GITHUB_TOKEN, and GitHub raises
+  # no `push` event for such a commit — so neither workflow above could ever run
+  # on the one commit each week most likely to falsify a published figure.
+  # ci.yml now covers that. But deploy-render.yml refuses to deploy unless BOTH
+  # `CI` and `Model CI` are green **for that exact commit**, and it deliberately
+  # treats an absent Model CI run as a failure rather than a pass. So adding the
+  # triggers to ci.yml alone would have left every collector commit with a green
+  # CI, no Model CI run at all, and a red deploy every Monday.
+  workflow_run:
+    workflows: ["Collect lead-time panel"]
+    types: [completed]
+  schedule:
+    - cron: "0 8 * * 1"
+
 permissions:
   contents: read
 
