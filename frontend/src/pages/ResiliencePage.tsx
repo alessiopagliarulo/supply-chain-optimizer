@@ -23,6 +23,8 @@ import { CriticalitySweepTable } from '../components/CriticalitySweepTable';
 import { DualSourcingTable } from '../components/DualSourcingTable';
 import { TornadoChart } from '../components/TornadoChart';
 import { BomCostBreakdownTable } from '../components/BomCostBreakdownTable';
+import WakeNotice from '../components/WakeNotice';
+import { useElapsedSeconds } from '../services/warmup';
 
 const usd = (n: number) =>
   `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -495,6 +497,16 @@ export default function ResiliencePage() {
   const [usingDefaultBom, setUsingDefaultBom] = useState(false);
   const [distributors, setDistributors] = useState<Array<{ id: number; name: string }>>([]);
 
+  // The BOM every scenario on this page runs against has three distinct states, and
+  // the page used to render only one of them: a literal, static "Loading the BOM these
+  // scenarios run on…" keyed on `bomComponentIds.length === 0`. When the fetch failed
+  // that line never changed — no spinner, no error, no retry — so a cold-start failure
+  // was indistinguishable from a slow success, forever.
+  const [bomLoading, setBomLoading] = useState(true);
+  const [bomError, setBomError] = useState<string | null>(null);
+  const [bomStartedAt, setBomStartedAt] = useState<number | null>(null);
+  const bomSec = useElapsedSeconds(bomStartedAt);
+
   // Scenario 1: Distributor Failure
   const [selectedDistributorId, setSelectedDistributorId] = useState<number | null>(null);
   const [dfLoading, setDfLoading] = useState(false);
@@ -533,7 +545,10 @@ export default function ResiliencePage() {
   const [tornadoResult, setTornadoResult] = useState<SensitivityResponse | null>(null);
 
   // Load initial data (BOM from cart, distributors list)
-  useEffect(() => {
+  const loadInitialData = useCallback(async () => {
+    setBomLoading(true);
+    setBomError(null);
+    setBomStartedAt(performance.now());
     async function load() {
       try {
         // Fetch distributors list
@@ -566,6 +581,7 @@ export default function ResiliencePage() {
         const ids: number[] = [];
         const mpnMap: Record<number, string> = {};
         const qtyMap: Record<number, number> = {};
+        let catalogueFailed = false;
         const cartDistributorCounts = new Map<number, number>();
         try {
           const cart = await cartAPI.get();
@@ -677,8 +693,11 @@ export default function ResiliencePage() {
             // Pre-select the distributor whose failure this BOM is built to expose, so
             // "Simulate Failure" returns a real result on the first click.
             if (seededDistributorId != null) setSelectedDistributorId(seededDistributorId);
-          } catch {
-            // catalogue unavailable — leave the BOM empty rather than inventing one
+          } catch (e) {
+            // catalogue unavailable — leave the BOM empty rather than inventing one,
+            // and remember WHY it is empty so the page can say so.
+            console.error("Failed to load the catalogue for the default BOM:", e);
+            catalogueFailed = true;
           }
           setUsingDefaultBom(true);
         }
@@ -686,12 +705,31 @@ export default function ResiliencePage() {
         setBomComponentIds(ids);
         setMpnById(mpnMap);
         setQuantityById(qtyMap);
+        // An empty BOM is never a working page — but "the request failed" and "the
+        // catalogue is genuinely empty" are different sentences and get different ones.
+        if (ids.length === 0) {
+          setBomError(
+            catalogueFailed
+              ? "The component catalogue could not be loaded, so there is no BOM for these scenarios to run on. The API runs on a free tier and can take up to ~2 minutes to wake from sleep."
+              : "The cart is empty and the catalogue returned no components, so there is no BOM for these scenarios to run on."
+          );
+        }
       } catch (e) {
         console.error("Failed to load BOM:", e);
+        setBomError(
+          "Loading the BOM failed, so no scenario can run yet. The API runs on a free tier and can take up to ~2 minutes to wake from sleep."
+        );
+      } finally {
+        setBomLoading(false);
+        setBomStartedAt(null);
       }
     }
-    load();
+    await load();
   }, []);
+
+  useEffect(() => {
+    void loadInitialData();
+  }, [loadInitialData]);
 
   // Cleanup: cancel pending requests on unmount
   useEffect(() => {
@@ -967,14 +1005,42 @@ export default function ResiliencePage() {
               </div>
             )}
 
-            {/* Nothing to show and not loading: the BOM is still loading, or the
-                first solve errored (the error itself is rendered in the card above). */}
+            {/* Nothing to show and not loading: the BOM is still loading, the BOM
+                failed to load, or we are waiting on a click (the first solve's own
+                error is rendered in the card above). Three states, three messages —
+                the old single line claimed "loading" in all of them, permanently. */}
             {!dfResult && !dfLoading && !dfError && (
-              <div className="text-sm text-slate-500">
-                {bomComponentIds.length === 0
-                  ? 'Loading the BOM these scenarios run on…'
-                  : 'Pick a distributor to fail and run the scenario.'}
-              </div>
+              bomLoading ? (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                    Loading the BOM these scenarios run on{bomSec > 0 ? ` — ${bomSec}s` : '…'}
+                  </div>
+                  {bomSec >= 3 && (
+                    <div className="w-full max-w-xl">
+                      <WakeNotice requestSec={bomSec} />
+                    </div>
+                  )}
+                </div>
+              ) : bomError ? (
+                <div
+                  className="max-w-xl bg-red-900/20 border border-red-700/50 rounded-lg p-4"
+                  data-testid="bom-error"
+                >
+                  <div className="text-sm font-semibold text-red-300">No BOM to run these scenarios on</div>
+                  <div className="text-xs text-red-200/80 mt-1.5">{bomError}</div>
+                  <button
+                    onClick={() => { void loadInitialData(); }}
+                    className="mt-3 inline-flex items-center gap-1.5 bg-red-600/80 hover:bg-red-500 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-500">
+                  Pick a distributor to fail and run the scenario.
+                </div>
+              )
             )}
 
             <AnimatePresence>

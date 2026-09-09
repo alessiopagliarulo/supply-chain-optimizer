@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea } from 'recharts';
 import { RefreshCw, Zap, ShieldCheck, ShieldAlert, CheckCircle2, AlertTriangle, Settings } from 'lucide-react';
-import { componentsAPI, livePricesAPI, demandAPI } from '../services/api';
+import { componentsAPI, livePricesAPI, demandAPI, isTimeoutError } from '../services/api';
 import type { LivePriceResponse, DemandBenchmarkResponse, LiveSourceReport } from '../services/api';
+import { useElapsedSeconds } from '../services/warmup';
+import WakeNotice from '../components/WakeNotice';
 import { useCartStore } from '../store/cartStore';
 import {
   catalogueRiskTier, formatRiskIndex, formatRiskFactor,
@@ -514,6 +516,17 @@ export default function SchedulerPage() {
   // Errors get their own state: a success message may fade, a failure must not.
   const [addError, setAddError] = useState('');
   const [loading, setLoading] = useState(true);
+  // Set only when the catalogue request actually FAILED — never inferred from an
+  // empty list. Without it the page rendered its ordinary success layout over `[]`
+  // after any fetch error: "No components found", "0 of 0 components" and "Browse 0
+  // electronic components with real distributor pricing" — three confident zeros
+  // for a request that never came back, and no way to retry.
+  const [catalogueError, setCatalogueError] = useState<string | null>(null);
+  // Real elapsed time on the in-flight catalogue request, so a free-tier cold start
+  // can say so (same WakeNotice the login screen and the auth splash use) instead of
+  // showing a static "Loading components..." for up to two minutes.
+  const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
+  const loadSec = useElapsedSeconds(loadStartedAt);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [failedComponent, setFailedComponent] = useState<ComponentItem | null>(null);
@@ -533,19 +546,34 @@ export default function SchedulerPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
-  useEffect(() => {
-    Promise.all([
-      componentsAPI.list(),
-      componentsAPI.categories(),
-    ]).then(([cRes, catRes]) => {
+  const loadCatalogue = useCallback(async () => {
+    setLoading(true);
+    setCatalogueError(null);
+    setLoadStartedAt(performance.now());
+    try {
+      const [cRes, catRes] = await Promise.all([
+        componentsAPI.list(),
+        componentsAPI.categories(),
+      ]);
       setComponents(cRes.data);
       setCategories(catRes.data);
-      setLoading(false);
-    }).catch((err) => {
+    } catch (err: unknown) {
       console.error('Initial load failed:', err);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setComponents([]);
+      setCategories([]);
+      setCatalogueError(
+        isTimeoutError(err)
+          ? 'The backend did not respond in time. It runs on a free tier and can take up to ~2 minutes to wake from sleep.'
+          : `The catalogue request failed${status ? ` (HTTP ${status})` : ''}.`,
+      );
+    } finally {
       setLoading(false);
-    });
+      setLoadStartedAt(null);
+    }
   }, []);
+
+  useEffect(() => { void loadCatalogue(); }, [loadCatalogue]);
 
   const selectComponent = useCallback(async (comp: ComponentItem) => {
     setSelectedOfferId(null);
@@ -649,7 +677,13 @@ export default function SchedulerPage() {
   // broken", so the same rule is evaluated here and stated on the button.
   const outOfStock = !!selectedOffer && selectedOffer.stock === 0;
   const overStock = !!selectedOffer && selectedOffer.stock > 0 && qty > selectedOffer.stock;
-  const canAdd = !!selectedOffer && !outOfStock && !overStock && qty >= 1;
+  // The cart has no currency column and books every line as USD, so the API
+  // refuses a non-USD offer (422). Surfacing that as a disabled button with the
+  // reason on it beats letting them fill in a quantity and hit a wall.
+  const nonUsdOffer =
+    !!selectedOffer && (selectedOffer.currency || 'USD').trim().toUpperCase() !== 'USD';
+  const canAdd =
+    !!selectedOffer && !outOfStock && !overStock && !nonUsdOffer && qty >= 1;
 
   const handleAddToCart = async () => {
     if (!selected || !selectedOffer || !canAdd) return;
@@ -689,7 +723,25 @@ export default function SchedulerPage() {
     ? selected.offers.filter((o) => !domesticOnly || o.is_domestic)
     : [];
 
-  const cheapestOffer = filteredOffers.length > 0 ? filteredOffers[0] : null;
+  // The API orders offers by RAW price with no currency term, so for a part whose
+  // offers span currencies, index 0 is the smallest NUMBER — not the cheapest
+  // offer. Component 473 (INA2126U) shipped exactly that: an EUR 5.188 listing
+  // wore the green "Best Price" badge directly above a USD 5.464 one, and EUR
+  // 5.188 is ~USD 5.45-5.60 at any recent rate, i.e. at or ABOVE the offer under
+  // it. There are no FX rates in this repo and inventing one would be synthetic
+  // data, so the honest move is to decline the ranking and say why rather than
+  // publish a confident wrong order. Catalogue as served: 8,152 USD / 17 EUR /
+  // 4 GBP / 3 SGD. The `sameCurrency` guard above already covers the two "%"
+  // lines; these are the three claims it never reached.
+  const offerCurrencies = Array.from(
+    new Set(filteredOffers.map((o) => (o.currency || 'USD').trim().toUpperCase())),
+  );
+  const offersRankable = offerCurrencies.length <= 1;
+
+  // Still the lowest LISTED figure, and still correct to show with its own
+  // currency symbol — it just is not "the best price" unless it is rankable.
+  const lowestListedOffer = filteredOffers.length > 0 ? filteredOffers[0] : null;
+  const cheapestOffer = offersRankable ? lowestListedOffer : null;
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-slate-100">
@@ -719,7 +771,7 @@ export default function SchedulerPage() {
                 selectedCat === 'All' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
             >
-              All ({components.length})
+              {catalogueError ? 'All' : `All (${components.length})`}
             </button>
             {categories.map((cat) => (
               <button
@@ -736,7 +788,32 @@ export default function SchedulerPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loading && <div className="p-4 text-center text-slate-400 text-sm">Loading components...</div>}
+          {loading && (
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-center gap-2 text-slate-400 text-sm">
+                <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                Loading components{loadSec > 0 ? ` — ${loadSec}s` : '…'}
+              </div>
+              {loadSec >= 3 && <WakeNotice requestSec={loadSec} />}
+            </div>
+          )}
+
+          {/* The request failed: say so and offer a retry. Anything else here would
+              be a catalogue of zero parts that reads like a real answer. */}
+          {!loading && catalogueError && (
+            <div className="p-4" data-testid="catalogue-error">
+              <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4 text-center">
+                <div className="text-sm font-semibold text-red-300">Couldn&apos;t load the catalogue</div>
+                <div className="text-xs text-red-200/80 mt-1.5">{catalogueError}</div>
+                <button
+                  onClick={() => { void loadCatalogue(); }}
+                  className="mt-3 inline-flex items-center gap-1.5 bg-red-600/80 hover:bg-red-500 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
           {visible.map((comp) => (
             <button
               key={comp.id}
@@ -774,12 +851,14 @@ export default function SchedulerPage() {
               </div>
             </button>
           ))}
-          {!loading && visible.length === 0 && (
+          {!loading && !catalogueError && visible.length === 0 && (
             <div className="p-4 text-center text-slate-400 text-sm">No components found</div>
           )}
         </div>
         <div className="px-3 py-2 text-xs text-slate-400 border-t border-slate-700">
-          {visible.length} of {components.length} components
+          {catalogueError
+            ? 'Catalogue unavailable'
+            : `${visible.length} of ${components.length} components`}
         </div>
       </div>
 
@@ -814,8 +893,16 @@ export default function SchedulerPage() {
           <div className="h-full flex items-center justify-center text-slate-400">
             <div className="text-center">
               <Settings className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />
-              <div className="text-lg font-medium text-slate-400">Select a component</div>
-              <div className="text-sm mt-1">Browse {components.length} electronic components with real distributor pricing</div>
+              <div className="text-lg font-medium text-slate-400">
+                {catalogueError ? 'Catalogue unavailable' : 'Select a component'}
+              </div>
+              {/* Never "Browse 0 electronic components": the count is only a fact
+                  when the request that produced it succeeded. */}
+              <div className="text-sm mt-1">
+                {catalogueError
+                  ? 'The component list could not be loaded — retry from the panel on the left.'
+                  : `Browse ${components.length} electronic components with real distributor pricing`}
+              </div>
             </div>
           </div>
         )}
@@ -862,12 +949,16 @@ export default function SchedulerPage() {
                 <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
                   <div className="text-xs text-slate-400 mb-1">Price Range</div>
                   <div className="text-sm font-bold text-white">
-                    {selected.offers.length > 0
-                      ? `${fmtUnitPrice(selected.offers[0].price, selected.offers[0].currency)} – ${fmtUnitPrice(
-                          selected.offers[selected.offers.length - 1].price,
-                          selected.offers[selected.offers.length - 1].currency,
-                        )}`
-                      : 'N/A'}
+                    {selected.offers.length === 0
+                      ? 'N/A'
+                      : new Set(
+                            selected.offers.map((o) => (o.currency || 'USD').trim().toUpperCase()),
+                          ).size > 1
+                        ? 'Mixed currencies'
+                        : `${fmtUnitPrice(selected.offers[0].price, selected.offers[0].currency)} – ${fmtUnitPrice(
+                            selected.offers[selected.offers.length - 1].price,
+                            selected.offers[selected.offers.length - 1].currency,
+                          )}`}
                   </div>
                 </div>
               </div>
@@ -937,7 +1028,7 @@ export default function SchedulerPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            {i === 0 && (
+                            {i === 0 && offersRankable && (
                               <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded font-medium">
                                 Best Price
                               </span>
@@ -1145,16 +1236,32 @@ export default function SchedulerPage() {
                     {cheapestOffer && selectedOffer.id === cheapestOffer.id && (
                       <div className="text-xs text-green-400 mt-1">Best available price</div>
                     )}
+                    {!offersRankable && (
+                      <div className="text-xs text-amber-400 mt-1">
+                        Offers span {offerCurrencies.join(', ')} — not converted, so they are not
+                        rank-ordered.
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
-                    <div className="text-xs text-slate-400 mb-1">Best Available Price</div>
+                    <div className="text-xs text-slate-400 mb-1">
+                      {offersRankable ? 'Best Available Price' : 'Lowest Listed Price'}
+                    </div>
                     <div className="text-3xl font-bold text-white">
-                      {cheapestOffer ? fmtUnitPrice(cheapestOffer.price, cheapestOffer.currency) : '--'}
+                      {lowestListedOffer
+                        ? fmtUnitPrice(lowestListedOffer.price, lowestListedOffer.currency)
+                        : '--'}
                     </div>
                     <div className="text-slate-400 text-xs mt-0.5">
-                      {cheapestOffer ? `at ${cheapestOffer.distributor_name}` : 'per unit'}
+                      {lowestListedOffer ? `at ${lowestListedOffer.distributor_name}` : 'per unit'}
                     </div>
+                    {!offersRankable && lowestListedOffer && (
+                      <div className="text-xs text-amber-400 mt-1">
+                        Offers span {offerCurrencies.join(', ')} — not converted, so this is the
+                        lowest figure listed, not necessarily the cheapest.
+                      </div>
+                    )}
                     <div className="text-xs text-slate-400 mt-1">Select a distributor to order</div>
                   </>
                 )}
@@ -1198,11 +1305,25 @@ export default function SchedulerPage() {
                   <button
                     onClick={handleAddToCart}
                     disabled={adding || !canAdd}
-                    title={outOfStock ? `${selectedOffer.distributor_name} has no stock for this part` : undefined}
+                    title={
+                      outOfStock
+                        ? `${selectedOffer.distributor_name} has no stock for this part`
+                        : nonUsdOffer
+                          ? `This offer is priced in ${(selectedOffer.currency || 'USD').trim().toUpperCase()}; the cart books every line in USD and no conversion is available`
+                          : undefined
+                    }
                     className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-2.5 rounded-lg text-sm font-semibold transition-colors"
                     data-testid="add-to-cart"
                   >
-                    {adding ? 'Adding...' : outOfStock ? 'Out of Stock' : overStock ? 'Reduce Quantity' : 'Add to Cart'}
+                    {adding
+                      ? 'Adding...'
+                      : outOfStock
+                        ? 'Out of Stock'
+                        : overStock
+                          ? 'Reduce Quantity'
+                          : nonUsdOffer
+                            ? `Priced in ${(selectedOffer.currency || 'USD').trim().toUpperCase()} — USD only`
+                            : 'Add to Cart'}
                   </button>
 
                   {addError && (

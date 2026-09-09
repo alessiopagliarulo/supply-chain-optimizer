@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -1006,19 +1006,46 @@ export default function BenchmarkPage() {
   const [frontier, setFrontier] = useState<DiversificationFrontier | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<'empty' | 'error' | null>(null);
+  // The λ₂ curve is OPTIONAL and gets its own outcome. It used to share a
+  // Promise.all — and therefore a single .catch — with the summary, so one failed
+  // fiedler request replaced the whole page (retraction headline, resilience
+  // findings, frontier, Monte Carlo chart, per-BOM table) with a full-viewport
+  // "Benchmark summary unavailable", which was simply untrue in that case, and whose
+  // Retry button reissued the same coupled call.
+  const [fiedlerLoading, setFiedlerLoading] = useState(true);
+  const [fiedlerError, setFiedlerError] = useState(false);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
 
-  useEffect(() => {
-    Promise.all([benchmarkAPI.summary(), benchmarkAPI.fiedlerCurve()])
-      .then(([s, f]) => {
-        setSummary(s.data);
-        setFiedler(f.data);
-      })
-      .catch((err) => {
-        setError(err.response?.status === 404 ? 'empty' : 'error');
-      })
-      .finally(() => setLoading(false));
+  const loadSummary = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const s = await benchmarkAPI.summary();
+      setSummary(s.data);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(status === 404 ? 'empty' : 'error');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  const loadFiedler = useCallback(async () => {
+    setFiedlerError(false);
+    setFiedlerLoading(true);
+    try {
+      const f = await benchmarkAPI.fiedlerCurve();
+      setFiedler(f.data);
+    } catch {
+      setFiedler(null);
+      setFiedlerError(true);
+    } finally {
+      setFiedlerLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadSummary(); }, [loadSummary]);
+  useEffect(() => { void loadFiedler(); }, [loadFiedler]);
 
   // The frontier is fetched SEPARATELY and never blocks the page: it reads a
   // committed artifact, so a deployment that predates the artifact should lose
@@ -1066,14 +1093,7 @@ export default function BenchmarkPage() {
             Benchmark summary unavailable. Confirm the backend is running and optimization_runs has rows.
           </p>
           <button
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              Promise.all([benchmarkAPI.summary(), benchmarkAPI.fiedlerCurve()])
-                .then(([s, f]) => { setSummary(s.data); setFiedler(f.data); })
-                .catch((err) => setError(err.response?.status === 404 ? 'empty' : 'error'))
-                .finally(() => setLoading(false));
-            }}
+            onClick={() => { void loadSummary(); }}
             className="bg-slate-800 border border-slate-700 px-3 py-2 rounded text-sm text-slate-300 hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-950"
           >
             Retry Loading Benchmark
@@ -3114,7 +3134,26 @@ export default function BenchmarkPage() {
             )}
           </div>
 
-          {fiedler && fiedler.points.length > 0 ? (
+          {fiedlerLoading ? (
+            <div className="h-52 flex items-center justify-center gap-3 text-slate-400 text-sm">
+              <div className="w-5 h-5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+              Loading the λ₂ curve…
+            </div>
+          ) : fiedlerError ? (
+            /* The request failed — which is NOT the same claim as "not computed for
+               this run", the message this branch used to show either way. */
+            <div className="h-52 flex flex-col items-center justify-center gap-3 text-sm">
+              <p className="text-amber-400">
+                The λ₂ curve request failed — this section only. Everything above is live.
+              </p>
+              <button
+                onClick={() => { void loadFiedler(); }}
+                className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded text-xs text-slate-300 hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                Retry this chart
+              </button>
+            </div>
+          ) : fiedler && fiedler.points.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart

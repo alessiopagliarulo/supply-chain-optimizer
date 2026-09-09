@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useCartStore } from './store/cartStore';
 import NavBar from './components/NavBar';
@@ -45,8 +45,48 @@ function AuthSplash() {
   );
 }
 
+/**
+ * A stored token that GET /auth/me could not confirm — the free-tier backend was
+ * asleep or unreachable, NOT a 401.
+ *
+ * What used to happen instead: the store kept `isAuthenticated: true` with `user`
+ * null, so the app rendered as normal with no Logout control anywhere, a blank
+ * "Welcome back, " on the dashboard, and a map that drew markers and zero routes.
+ * Bouncing to /login would be the other lie — the session was never rejected — so
+ * this says exactly what is known and offers the two real options.
+ */
+function SessionUnverified({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="h-screen w-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-slate-800/60 border border-slate-700 rounded-xl p-5">
+        <h1 className="text-lg font-semibold text-slate-100">Couldn&apos;t reach the backend</h1>
+        <p className="text-sm text-slate-400 mt-2">
+          Your sign-in is still stored, but the server did not answer when we asked it to
+          confirm the session, so nothing below can be shown honestly. The API runs on
+          Render&apos;s free tier: it sleeps after ~15 minutes idle and a cold start takes
+          up to ~2 minutes.
+        </p>
+        <div className="flex items-center gap-3 mt-4">
+          <button
+            onClick={onRetry}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            Try again
+          </button>
+          <Link
+            to="/login"
+            className="text-sm text-slate-300 hover:text-white underline underline-offset-2"
+          >
+            Sign in again
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProtectedLayout() {
-  const { isAuthenticated, authResolved } = useAuthStore();
+  const { isAuthenticated, authResolved, sessionUnverified, retrySession } = useAuthStore();
   const { fetchCart } = useCartStore();
   const location = useLocation();
 
@@ -58,6 +98,8 @@ function ProtectedLayout() {
   // <Navigate to="/login"> here is what dumped logged-in users at the login screen on
   // every refresh and deep link — the redirect fired before the cookie was ever read.
   if (!authResolved) return <AuthSplash />;
+  // "We could not check" is a third state, distinct from signed-in and signed-out.
+  if (sessionUnverified) return <SessionUnverified onRetry={() => { void retrySession(); }} />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
