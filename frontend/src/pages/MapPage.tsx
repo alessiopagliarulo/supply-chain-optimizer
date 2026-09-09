@@ -448,7 +448,15 @@ export default function MapPage() {
       const feature = features[0];
       const stopIndex: number = feature.properties?.stopIndex ?? -1;
       if (stopIndex < 0 || !selectedRoute) return;
+      // The clicked feature can belong to a route that has since been replaced
+      // (switch routes and the old line survives a frame), so stopIndex may point
+      // past the end of the current tour. Indexing blind threw an uncaught
+      // TypeError that no boundary caught, and the popup silently never opened.
       const stop = selectedRoute.route[stopIndex];
+      if (!stop) {
+        setLegPopup(null);
+        return;
+      }
       setLegPopup({
         data: {
           distributorName: stop.distributor_name,

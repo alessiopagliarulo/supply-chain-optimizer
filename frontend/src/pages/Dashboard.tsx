@@ -260,9 +260,14 @@ export const Dashboard = () => {
     : 0;
   const domesticDists = distributors.filter((d) => d.is_domestic).length;
 
-  // Risk matrix data for scatter chart — risk_score vs num_offers
-  const riskMatrix = components.slice(0, 200).map((c) => ({
-    x: c.num_offers / Math.max(1, ...components.map((cc) => cc.num_offers)),
+  // Risk matrix data for scatter chart — risk_score vs num_offers.
+  // This plots the FULL catalogue on purpose. It used to plot `slice(0, 200)`,
+  // which is array order and not a sample: none of the `placeholderScored` cohort
+  // named in the caption below fell inside the first 200 rows, so the chart and
+  // the sentence under it described two different populations.
+  const maxOffers = Math.max(1, ...components.map((cc) => cc.num_offers));
+  const riskMatrix = components.map((c) => ({
+    x: c.num_offers / maxOffers,
     y: c.risk_score,
     z: c.min_price ? Math.log(c.min_price + 1) * 30 + 20 : 30,
     name: c.mpn,

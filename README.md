@@ -1,6 +1,6 @@
 # Electronics Supply Chain Optimizer
 
-[![CI](https://github.com/ApagPlayz/supply-chain-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/ApagPlayz/supply-chain-optimizer/actions/workflows/ci.yml)
+[![CI](https://github.com/alessiopagliarulo/supply-chain-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/alessiopagliarulo/supply-chain-optimizer/actions/workflows/ci.yml)
 
 A full-stack supply chain intelligence platform for electronic component procurement. Built on real market data: **791 components, 92 distributors, 8,176 price offers** — a static 2024 snapshot originally collected via the Nexar API (which aggregates Octopart), redistributed on HuggingFace under CC-BY-4.0. It is real, but it is a **frozen snapshot, not a live feed** ([docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)).
 

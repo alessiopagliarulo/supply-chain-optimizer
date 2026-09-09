@@ -150,7 +150,11 @@ function sourceStatusText(s: { status: string; offer_count: number; error: strin
   if (s.status === 'ok') return plural(s.offer_count, 'offer');
   if (s.status === 'not_configured') return 'not configured';
   if (s.status === 'skipped') return 'skipped';
-  return s.error ? s.error.slice(0, 48) : 'error';
+  // Never echo the upstream string here. It is a vendor billing/quota message
+  // ("Nexar: You have exceeded your part limit of 10...") and rendering it as a
+  // status badge reads as our own product failing at the user. The raw detail is
+  // still available: the call site puts it in `title` on hover.
+  return 'unavailable';
 }
 
 // ── Demand model panel ──────────────────────────────────────────────────────
