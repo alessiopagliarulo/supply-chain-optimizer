@@ -183,5 +183,5 @@ backend/
 - **Real data** — static 2024 snapshot (791 components, 8,176 offers), originally sourced via Nexar/Octopart, redistributed on HuggingFace under CC-BY-4.0; not synthetic, not a live feed
 - **Graph ML** — Fiedler algebraic connectivity measures network fragility
 - **Monte Carlo** — 1,000 ETA simulations → P10/P50/P90 confidence bands
-- **Multi-objective** — CP-SAT MILP solver, 4 Pareto-distinct strategies
+- **Multi-objective** — CP-SAT MILP solver, 4 strategies returning 3 distinct sourcing plans on the demo cart (fastest and balanced tie)
 - **Live feeds** — geopolitical risk, port congestion, freight indices
