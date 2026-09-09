@@ -424,6 +424,55 @@ export default function MapPage() {
 
   const routeGeoJSON = useMemo(() => buildRouteGeoJSON(roadPaths), [roadPaths]);
 
+  // Frame the solved route rather than leaving the camera parked where it started.
+  // INITIAL_VIEW is a fixed centre (-40, 30) at a fixed zoom: at 1440px that frames
+  // North America and Europe, and at 390px the horizontal span collapses to open
+  // ocean. The route was being drawn correctly the whole time and was simply
+  // off-screen, so on a phone the map read as broken and took every upstream result
+  // -- the CP-SAT solve, the Monte Carlo, the cross-dock consolidation -- down with it.
+  useEffect(() => {
+    if (!showRoutes || roadPaths.length === 0) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    let west = Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let north = -Infinity;
+    for (const path of roadPaths) {
+      for (const [lng, lat] of path.coordinates) {
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+        if (lng < west) west = lng;
+        if (lng > east) east = lng;
+        if (lat < south) south = lat;
+        if (lat > north) north = lat;
+      }
+    }
+    // A route whose legs all failed to resolve leaves the extent untouched; fitting
+    // an infinite box would throw and blank the map, so do nothing and keep the
+    // starting view.
+    if (!Number.isFinite(west) || !Number.isFinite(east)) return;
+
+    // The HUD runs along the bottom and the legend sits over the lower-left, so the
+    // usable window is not the viewport. Pad asymmetrically instead of centring the
+    // route underneath the overlays. maxZoom keeps a single-city route from zooming
+    // to street level.
+    const narrow = typeof window !== 'undefined' && window.innerWidth < 1024;
+    map.fitBounds(
+      [
+        [west, south],
+        [east, north],
+      ],
+      {
+        padding: narrow
+          ? { top: 96, bottom: 200, left: 24, right: 24 }
+          : { top: 80, bottom: 140, left: 300, right: 80 },
+        maxZoom: 7,
+        duration: 800,
+      },
+    );
+  }, [roadPaths, showRoutes]);
+
   const forwardGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
     features: routeGeoJSON.features.filter(
@@ -546,7 +595,14 @@ export default function MapPage() {
           mapStyle={MAP_STYLE}
           attributionControl={false}
           style={{ width: '100%', height: '100%' }}
-          interactiveLayerIds={showRoutes && roadPaths.length ? ['route-forward'] : []}
+          // 'route-forward-hit' is the transparent 20px-wide companion to the visible
+          // line. It existed and was never registered here, so the map only ever
+          // hit-tested the 1.5-5px painted line: clicking dead-centre opened the leg
+          // popup and +/-3px opened nothing. Both are listed because they share a
+          // source and therefore carry the same stopIndex property.
+          interactiveLayerIds={
+            showRoutes && roadPaths.length ? ['route-forward-hit', 'route-forward'] : []
+          }
           onClick={handleMapClick}
           cursor="grab"
         >
