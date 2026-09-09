@@ -2,5 +2,12 @@
   "version": 1,
   "autonomousBuildEnabled": false,
   "prCap": 3,
-  "ideaQueueCap": 25
+  "ideaQueueCap": 25,
+  "scout": {
+    "productSummary": "An electronics supply-chain optimizer for component procurement, built on a frozen 2024 market-data snapshot (791 components, 92 distributors, 8,176 price offers). Core is an OR-Tools CP-SAT sourcing MILP plus a two-stage stochastic program producing a cost-vs-CVaR-95 efficient frontier, with forecasting benchmarks and a 50-gate model CI suite. Every headline figure is produced by a command in the repo and written to a committed JSON artifact; tests regenerate the documents' GENERATED regions from those artifacts so published numbers cannot drift from the runs behind them.",
+    "currentGoals": [],
+    "offLimits": [],
+    "lenses": [],
+    "maxPerRun": 3
+  }
 }
