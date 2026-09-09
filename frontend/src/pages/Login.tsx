@@ -108,7 +108,7 @@ export const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-slate-800 rounded-lg shadow-2xl p-8">
         <h1 className="text-3xl font-bold text-white mb-2">Electronics Supply Chain Optimizer</h1>
-        <p className="text-slate-400 mb-8">791 components, 92 distributors, 8,176 real price offers.</p>
+        <p className="text-slate-400 mb-8">Real distributor pricing for electronic components &mdash; a static snapshot, not a live feed.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

@@ -395,7 +395,7 @@ export const Dashboard = () => {
             ) : (
               <span className="inline-flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-400 text-xs px-3 py-1.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                Real 2024 snapshot
+                Real market data
               </span>
             )}
           </div>
