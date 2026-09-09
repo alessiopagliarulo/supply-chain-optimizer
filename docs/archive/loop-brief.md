@@ -42,11 +42,22 @@ setting: when you spot one, propose the fix to this file in your next PR. Full d
 
 ## What this product is
 
-<!-- One paragraph a stranger could read and understand. What does it do, and for whom?
-     Then 3–6 bullets: the core surfaces/features, the stack, and where the real logic
-     lives (name the directories). -->
+An electronics supply-chain optimizer for component procurement, built on real market
+data: 791 components, 92 distributors and 8,176 price offers — a frozen 2024 snapshot
+originally collected via the Nexar API and redistributed on HuggingFace under CC-BY-4.0.
+It is real data, but a snapshot, not a live feed (`docs/DATA_PROVENANCE.md`). The point of
+the project is that every headline number is produced by a command in the repo and written
+to a committed JSON artifact anyone can open.
 
-_Not filled in yet._
+- **Optimisation core** — an OR-Tools CP-SAT sourcing MILP, plus a two-stage stochastic
+  program that produces a cost-vs-tail-risk (CVaR-95) efficient frontier.
+- **Forecasting benchmarks** and a 50-gate model CI suite that gates the claims.
+- **Figure integrity** — `tests/test_docs_match_artifacts.py` regenerates each document's
+  `<!-- GENERATED: -->` regions from its artifact and fails on any difference, so published
+  figures cannot silently diverge from the runs that produced them.
+- **Stack**: Python backend (`backend/`), a frontend (`frontend/`), analysis and helper
+  scripts (`scripts/`), metrics artifacts (`metrics/`), docs (`docs/`). Deployed via
+  Render (`render.yaml`), with `docker-compose.yml` for local work.
 
 ## Current goals
 
