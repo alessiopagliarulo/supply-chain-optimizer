@@ -1076,7 +1076,7 @@ export default function BenchmarkPage() {
         <div className="flex flex-col items-center justify-center h-96 gap-4">
           <h2 className="text-3xl font-semibold text-slate-300">No benchmark run found</h2>
           <p className="text-sm text-slate-400 text-center max-w-md">
-            Run <code className="bg-slate-800 px-1 rounded text-slate-300">python -m seeds.run_benchmark</code> to populate the optimization_runs table.
+            This deployment has no recorded benchmark runs yet, so there is nothing to compare.
           </p>
         </div>
       </div>
@@ -3255,7 +3255,8 @@ export default function BenchmarkPage() {
             </>
           ) : (
             <div className="h-52 flex items-center justify-center text-slate-400 text-sm">
-              Fiedler curve not computed for this run.
+              No connectivity curve recorded for this run. It tracks the Fiedler value &mdash; how hard
+              the distributor network is to fragment &mdash; as suppliers are removed.
             </div>
           )}
         </motion.div>

@@ -214,7 +214,7 @@ export default function CartPage() {
               </div>
               <div className="border-t border-slate-700 pt-3 flex items-center justify-between">
                 <div className="text-slate-300 text-sm">
-                  Optimize routes across distributor warehouses
+                  Choose distributors and build the pickup route for these lines.
                 </div>
                 <button
                   onClick={() => navigate('/checkout')}

@@ -912,7 +912,8 @@ export default function ResiliencePage() {
       >
         <h1 className="text-4xl font-bold text-white mb-2">Resilience Scenarios</h1>
         <p className="text-slate-400">
-          Explore supply chain trade-offs: what happens if a key distributor fails, risk spikes, or delivery accelerates?
+          What a disruption actually costs. Each scenario re-solves the plan against a real BOM and
+          reports the change in spend and fulfilment.
         </p>
         {/* Be explicit about which BOM the numbers below describe — an interviewer
             should never have to guess whether they're looking at their own cart. */}
@@ -1311,7 +1312,7 @@ export default function ResiliencePage() {
         {activeTab === 'recommendations' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <ScenarioCard title="Recommendation Engine" loading={recLoading} error={recError}>
+              <ScenarioCard title="Recommendations" loading={recLoading} error={recError}>
                 <div className="space-y-4">
                   <p className="text-sm text-slate-400">
                     Ranks network-wide single-source exposure, dual-sourcing payoff, and this

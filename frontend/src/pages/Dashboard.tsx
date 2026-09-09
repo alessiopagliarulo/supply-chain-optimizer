@@ -369,7 +369,7 @@ export const Dashboard = () => {
         >
           <div>
             <h1 className="text-3xl font-bold text-white tracking-tight">
-              Supply Chain Intelligence
+              Catalogue &amp; Risk Overview
             </h1>
             <p className="text-slate-400 mt-1 text-sm">
               Welcome back, <span className="text-white font-medium">{user?.factory_name}</span>
@@ -395,7 +395,7 @@ export const Dashboard = () => {
             ) : (
               <span className="inline-flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-400 text-xs px-3 py-1.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                Real Data
+                Real 2024 snapshot
               </span>
             )}
           </div>

@@ -670,7 +670,7 @@ export default function CheckoutPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold text-white">Route Optimization</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Compare strategies and select the best route for your supply chain</p>
+            <p className="text-sm text-slate-400 mt-0.5">Four sourcing strategies, each solved with CP-SAT on this cart. Two can land on the same plan &mdash; when they do, the table says so.</p>
           </div>
           <button onClick={() => navigate('/cart')} className="text-xs text-slate-400 hover:text-white min-h-[44px] px-2 transition-colors">
             ← Back to Cart
