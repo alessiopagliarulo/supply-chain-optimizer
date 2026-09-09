@@ -18,13 +18,35 @@
 # they never idle out while you are talking. The GitHub mobile app can start it,
 # so this works from your phone in a queue.
 #
-# WHY NOT JUST RUN IT ON A CRON FOREVER
-# -------------------------------------
-# Render's free tier bills instance-hours across the account, and holding TWO
-# services awake 24/7 would burn far more of that allowance than intermittent
-# use. This is deliberately on-demand: you pay the hours only when you actually
-# need the demo up. If you ever move to a paid plan, this file stops being
-# necessary at all — delete it rather than leaving a cron nobody remembers.
+# THE SCHEDULE, AND THE INSTANCE-HOUR MATH BEHIND IT
+# --------------------------------------------------
+# This file used to argue that a cron was unaffordable because it would hold
+# "TWO services awake 24/7". That reasoning was wrong on both counts; corrected
+# 2026-09-08 against the live Render API:
+#   - Static sites consume ZERO instance-hours. The UI is `runtime: static`
+#     (render.yaml:80-85), so it was never on the bill and never sleeps. Its
+#     root was measured at 0.279 s while the API was still asleep.
+#   - The account has exactly ONE free web service — the API. That is the only
+#     thing spending hours and the only thing that spins down.
+# So the real budget is 750 instance-hours/month against one service. Awake
+# 24/7 costs 720-744h: it fits, but with under 6 hours of headroom, and
+# overrunning SUSPENDS the API until the month rolls over. Not worth the risk.
+#
+# The cron below therefore covers waking hours only — every 10 minutes from
+# 12:00-23:59 UTC (08:00-19:59 US Eastern), ~12 h/day, ~365 h/month. That is
+# under half the allowance and it covers any career fair, interview, or cold
+# link click during the hours a human might actually open it. Outside that
+# window the service is allowed to sleep and the first visitor pays the wake.
+#
+# HONEST LIMIT: GitHub's scheduled workflows are routinely delayed 5-20 minutes
+# under load, so a 10-minute cron will sometimes miss the ~15-minute idle
+# window. This makes a cold start rare; it does not make it impossible. For a
+# hard guarantee, either run this manually before you need the link (see above)
+# or move the API to a paid Render instance — at which point this file stops
+# being necessary at all: delete it rather than leaving a cron nobody remembers.
+#
+# A SCHEDULED run does ONE ping round and exits (MINUTES=5 makes the loop break
+# after round 1). Only a MANUAL run holds the services awake for a whole window.
 #
 # It is also a genuine check, not a no-op: a non-2xx from either service fails
 # the run, so "the demo is awake" is something you have SEEN succeed rather than
@@ -39,6 +61,10 @@ on:
         description: "How long to keep it awake (minutes)"
         required: false
         default: "90"
+  schedule:
+    # Every 10 min, 12:00-23:59 UTC == 08:00-19:59 US Eastern. Read the
+    # instance-hour math in the header before widening this window.
+    - cron: "*/10 12-23 * * *"
 
 permissions:
   contents: read
@@ -55,7 +81,9 @@ jobs:
         env:
           API: https://supply-chain-api-qy8x.onrender.com
           UI: https://supply-chain-ui-bhwz.onrender.com
-          MINUTES: ${{ github.event.inputs.minutes }}
+          # Empty on a `schedule` event, so fall back to 5 — the loop then breaks
+          # after one round instead of pinning a runner for the 90-minute default.
+          MINUTES: ${{ github.event.inputs.minutes || '5' }}
         run: |
           set -uo pipefail
 
