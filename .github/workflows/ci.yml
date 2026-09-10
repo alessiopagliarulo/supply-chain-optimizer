@@ -24,9 +24,41 @@ on:
     - cron: "0 8 * * 1"
 
 jobs:
+  # SHARDED 2026-09-09. Measured, not modelled: the whole suite was run locally at
+  # every N from 1 to 6 and each configuration reproduced exactly 1331 passed +
+  # 3 skipped = 1334 — identical to the single-job run. Nothing is skipped,
+  # deselected or weakened; the same tests run, on four machines instead of one.
+  #
+  #   N=1 (before)  243.1 s local -> 23.2 min here
+  #   N=2           177.6 s       -> 17.3 min
+  #   N=3           155.2 s       -> 15.2 min
+  #   N=4           148.0 s       -> 14.6 min   <- this
+  #   N=6           144.4 s       -> 14.3 min   (0.3 min for 2 more jobs: no)
+  #
+  # THE FLOOR IS ~14.3 min AND SHARDING CANNOT BEAT IT. tests/test_mlflow_tracking.py
+  # is 137.5 s of the suite's 644.6 s on one core, and --dist loadfile cannot split a
+  # file. tests/test_lead_time_schema_contract.py (169.6 s, the real retrain) is the
+  # other half of the 48% those two files account for. Adding shards past 4 buys
+  # nothing; making those two files faster is the only remaining lever.
+  #
+  # Ordering the files longest-first was tried and MEASURED AT ZERO (242.3 s vs
+  # 243.1 s) — xdist's loadfile already dispatches dynamically. Don't re-try it.
+  #
+  # Caching the retrained artifact was REJECTED, and not for the obvious reason: a
+  # cache key can only cover the files it enumerates, so anything outside it changes
+  # behaviour without changing the key and you get a green gate certifying a retrain
+  # that never ran against the code under test — "no result" and "good result"
+  # becoming the same thing, which is the bug class model-ci.yml's own header warns
+  # about.
   backend:
-    name: Backend tests
+    name: Backend tests (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false      # one red shard must not hide the others' results
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      TEST_SHARDS: "4"
 
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +109,7 @@ jobs:
 
       # `-n auto --dist loadfile` — the SELECTION is unchanged. `-m "not slow"`
       # stays exactly as it was; nothing is skipped, deselected or weakened. The
-      # only difference is that the same 1,176 tests are spread over the runner's
+      # only difference is that the same tests (see the backend-census job) are spread over the runner's
       # cores instead of one.
       #
       # This is safe because tests/conftest.py already names the scratch database
@@ -107,9 +139,118 @@ jobs:
       # command line: test_newsvendor_docs_match_artifact.py shells out to
       # `pytest --collect-only -q` and parses the "N tests collected" line, which
       # xdist does not print.
+      # Runs in EVERY shard, so a partition bug fails four times over rather than
+      # silently dropping a file. Proven falsifiable: dropping a file from the glob,
+      # splitting the model_ci bundle, and adding a new model_ci file each turn this
+      # step red.
+      - name: The shard partition covers every test file exactly once
+        working-directory: backend
+        run: python tests/shard_tests.py --shards "$TEST_SHARDS" --verify
+
       - name: Run tests
         working-directory: backend
-        run: pytest tests/ -q --tb=short -m "not slow" -n auto --dist loadfile
+        # EXPLICIT bash. `pytest $FILES` relies on the shell word-splitting an
+        # unquoted variable into separate path arguments. bash does; zsh does NOT
+        # (no SH_WORD_SPLIT by default), and under zsh the whole list arrives as a
+        # single nonexistent path and pytest reports "no tests collected in 0.00s"
+        # — a green-looking run that tested nothing. GitHub's Linux default is bash
+        # already; this line means a runner-image change cannot silently break it.
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILES="$(python tests/shard_tests.py --shards "$TEST_SHARDS" --index "${{ matrix.shard }}")"
+          echo "shard ${{ matrix.shard }}/$TEST_SHARDS -> $(echo "$FILES" | wc -w) files"
+          pytest $FILES -q --tb=short -m "not slow" -n auto --dist loadfile \
+            --junitxml="shard-${{ matrix.shard }}.xml"
+
+      - name: Upload this shard's JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-shard-${{ matrix.shard }}
+          path: backend/shard-${{ matrix.shard }}.xml
+          retention-days: 7
+
+  # Independent answer to "how many tests SHOULD have run?", taken by collecting the
+  # whole suite in ONE process. Concurrent with the shards and collection costs ~1 s,
+  # so it is free in wall-clock terms. Without this, "the shards ran 1334 tests" is
+  # unfalsifiable — it is only a fact about the shards, not about the suite.
+  backend-census:
+    name: Backend test census
+    runs-on: ubuntu-latest
+    outputs:
+      expected: ${{ steps.census.outputs.expected }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Write .env
+        working-directory: backend
+        run: |
+          echo "DATABASE_URL=sqlite:///./supply_chain.db" >> .env
+          echo "SECRET_KEY=ci-test-secret-key-32chars-padding" >> .env
+          echo "DEBUG=true" >> .env
+      - name: Count what a WHOLE-suite collection sees
+        id: census
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          # No -n: xdist suppresses the collection listing. Counting node ids was
+          # verified against pytest's own summary line.
+          pytest tests/ --collect-only -q -m "not slow" -p no:cacheprovider > collect.txt
+          N="$(grep -c '::' collect.txt)"
+          test "$N" -gt 0
+          echo "the whole suite collects $N tests"
+          echo "expected=$N" >> "$GITHUB_OUTPUT"
+
+  # Keeps a single job named "Backend tests" alive after the matrix split, and turns
+  # the census into a real gate: the shards must between them have run every test the
+  # whole-suite collection can see, each exactly once.
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    needs: [backend, backend-census]
+    if: always()
+    steps:
+      - name: A shard that did not succeed fails this gate
+        if: needs.backend.result != 'success' || needs.backend-census.result != 'success'
+        run: |
+          echo "::error::backend shards=${{ needs.backend.result }} census=${{ needs.backend-census.result }}"
+          exit 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: junit-shard-*
+          path: junit
+
+      - name: Every collected test ran in exactly one shard
+        env:
+          EXPECTED: ${{ needs.backend-census.outputs.expected }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, sys, xml.etree.ElementTree as ET
+          seen, dupes = set(), []
+          for x in sorted(pathlib.Path("junit").rglob("*.xml")):
+              for tc in ET.parse(x).getroot().iter("testcase"):
+                  nid = f'{tc.get("classname")}::{tc.get("name")}'
+                  dupes.append(nid) if nid in seen else seen.add(nid)
+          expected = int(os.environ["EXPECTED"])
+          print(f"shards ran {len(seen)} distinct tests; whole-suite collection sees {expected}")
+          if dupes:
+              sys.exit(f"::error::{len(dupes)} tests ran in more than one shard, e.g. {dupes[:5]}")
+          if len(seen) != expected:
+              sys.exit(
+                  f"::error::the shards ran {len(seen)} tests but the suite collects {expected}. "
+                  "Sharding has dropped coverage -- do not merge."
+              )
+          PY
 
   backend-lint:
     name: Backend lint & type-check
