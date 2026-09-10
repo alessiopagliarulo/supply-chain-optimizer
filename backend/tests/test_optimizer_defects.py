@@ -552,3 +552,163 @@ def test_hub_metrics_report_the_distance_behind_their_carbon():
 from app.optimization.freight_hubs import get_hub as _get_hub  # noqa: E402
 
 _ANY_HUB = _get_hub(5)  # Hartsfield-Jackson Cargo, Atlanta GA
+
+
+# ── D5: the displayed legs described a heavier truck than the scored plan ────
+#
+# `solve.optimize_bom` built its route stops from a single `domestic_weight` —
+# the WHOLE order, charged to every leg, including the outbound one on which the
+# trailer is still empty. The optimizer's own scoring (`cross_dock.evaluate_direct`)
+# had always accrued weight per stop. So the legs rendered on the map and in the
+# checkout panel overstated the tour that ranked the four plans: measured on the
+# deployed demo cart, +19.3% on cost ($405.77 vs $339.99) and +57.2% on CO2e
+# (3.401 kg vs 2.163 kg). The display and the decision disagreed.
+#
+# Both now read from `cross_dock.pickup_tour_legs`, the one load model.
+
+def _truck_legs(alt):
+    """The truck-tour legs of an alternative, in order, return-to-depot last.
+
+    Air-freight consignments are appended after the tour and fly alone, so they
+    are not part of the accrual.
+    """
+    legs = []
+    for stop in alt.route:
+        legs.append(stop)
+        if stop.distributor_id == 0:  # "Factory (Depot)" closes the tour
+            break
+    return legs
+
+
+def test_the_outbound_leg_of_a_pickup_tour_is_driven_empty(domestic_bom):
+    """A pickup tour is not a delivery tour run backwards.
+
+    The truck leaves the depot with nothing aboard, so the FIRST leg carries
+    0 kg and — because EPA ton-mile factors attribute emissions to freight
+    carried — emits nothing. It still costs money: `transport_cost_usd` charges
+    the LTL base fee regardless of weight, which is correct, moving a truck has
+    a fixed cost. Before the fix this leg was charged the entire order.
+    """
+    from app.optimization.constants import LTL_BASE_FEE_USD
+
+    bom, offers, distributors, depot = domestic_bom
+    resp = optimize_bom(bom, offers, distributors, depot)
+
+    for alt in resp.alternatives:
+        legs = _truck_legs(alt)
+        assert len(legs) >= 2, f"{alt.id}: expected a domestic pickup tour"
+        outbound = legs[0]
+        # The published cost/carbon come first: they are what the site shows, and
+        # they are wrong on their own terms if the truck is billed for freight it
+        # has not collected yet.
+        assert outbound.leg_co2e_kg == 0.0, (
+            f"{alt.id}: the empty outbound leg to {outbound.distributor_name} is "
+            f"billed {outbound.leg_co2e_kg} kg CO2e of freight it is not carrying"
+        )
+        assert outbound.leg_cost_usd == pytest.approx(LTL_BASE_FEE_USD, abs=0.01), (
+            f"{alt.id}: the empty outbound leg costs ${outbound.leg_cost_usd:,.2f}, "
+            f"not the bare LTL base fee of ${LTL_BASE_FEE_USD:,.2f}"
+        )
+        assert outbound.leg_carried_kg == 0.0, (
+            f"{alt.id}: the outbound leg to {outbound.distributor_name} reports "
+            f"{outbound.leg_carried_kg} kg aboard before a single pickup"
+        )
+
+
+def test_displayed_leg_weights_accrue_stop_by_stop_up_to_the_full_order(domestic_bom):
+    """Weight only ever goes up along the tour, and the return leg carries it all.
+
+    This is the invariant the display path did not have: it applied one flat
+    weight to every leg, so the profile was constant rather than accruing.
+    """
+    from app.optimization.costs import AVG_COMPONENT_KG
+
+    bom, offers, distributors, depot = domestic_bom
+    resp = optimize_bom(bom, offers, distributors, depot)
+    order_kg = sum(line.quantity for line in bom) * AVG_COMPONENT_KG
+
+    # Weight per unit distance implied by the PUBLISHED carbon of each leg. This
+    # is derived from `leg_co2e_kg` and `distance_km` alone — fields that
+    # predate the fix — so the accrual is checked against what the site actually
+    # renders, not against a field the fix introduced.
+    unit = co2_kg(1.0, 1.0)
+
+    for alt in resp.alternatives:
+        legs = _truck_legs(alt)
+        implied = [round(leg.leg_co2e_kg / (unit * leg.distance_km), 3)
+                   for leg in legs]
+
+        assert implied[0] == 0.0, (
+            f"{alt.id}: the published carbon implies {implied[0]} kg aboard on "
+            f"the outbound leg"
+        )
+        assert implied != [implied[0]] * len(implied), (
+            f"{alt.id}: every leg's carbon implies the same load — the profile "
+            f"is flat, not accruing"
+        )
+        assert implied == sorted(implied), (
+            f"{alt.id}: implied load profile {implied} decreases along the tour"
+        )
+        assert implied[-1] == pytest.approx(order_kg, abs=0.01), (
+            f"{alt.id}: the return leg's carbon implies {implied[-1]} kg, not "
+            f"the whole {order_kg} kg order"
+        )
+
+        # ...and the weight the response REPORTS agrees with the weight its own
+        # carbon implies, so the two can never drift apart unnoticed again.
+        assert legs[-1].distributor_id == 0, f"{alt.id}: tour does not end at the depot"
+        carried = [leg.leg_carried_kg for leg in legs]
+        assert carried == pytest.approx(implied, abs=0.01)
+        assert legs[-1].leg_carried_kg == pytest.approx(order_kg, abs=1e-6)
+
+
+@pytest.mark.parametrize("fixture_name", ["domestic_bom", "mixed_bom"])
+def test_the_displayed_legs_sum_to_the_direct_tour_the_optimizer_scored(
+    fixture_name, request
+):
+    """The legs on screen must BE the direct pickup tour that was scored.
+
+    `cross_dock.direct_cost_usd` is the cost of the direct plan the hub decision
+    was measured against — the same tour `route` draws. When the two disagree,
+    the site is publishing one truck and deciding with another. They disagreed
+    by up to 19% before the load model was shared.
+    """
+    bom, offers, distributors, depot = request.getfixturevalue(fixture_name)
+    resp = optimize_bom(bom, offers, distributors, depot)
+
+    for alt in resp.alternatives:
+        assert alt.cross_dock is not None
+        assert alt.route_leg_cost_usd == pytest.approx(
+            alt.cross_dock.direct_cost_usd, abs=0.05
+        ), (
+            f"{alt.id}: legs sum to ${alt.route_leg_cost_usd:,.2f} but the direct "
+            f"tour that was scored cost ${alt.cross_dock.direct_cost_usd:,.2f}"
+        )
+
+
+@pytest.mark.parametrize("fixture_name", ["domestic_bom", "mixed_bom"])
+def test_a_direct_pickup_plan_publishes_the_numbers_it_was_ranked_on(
+    fixture_name, request
+):
+    """When cross-dock is NOT applied, the headline IS the tour, exactly.
+
+    `strategy_math.raw_objective_values` are the cost/carbon that went into the
+    weighted objective and the ranking. For a `direct_pickup_tour` alternative
+    the headline totals and the leg totals must both equal them — three views of
+    one plan. Pre-fix the leg totals were a fourth, heavier plan that nothing
+    had scored.
+    """
+    bom, offers, distributors, depot = request.getfixturevalue(fixture_name)
+    resp = optimize_bom(bom, offers, distributors, depot)
+
+    checked = 0
+    for alt in resp.alternatives:
+        if alt.transport_cost_basis != "direct_pickup_tour":
+            continue
+        checked += 1
+        raw = alt.strategy_math.raw_objective_values
+        assert alt.route_leg_cost_usd == pytest.approx(raw["cost"], abs=0.05)
+        assert alt.route_leg_co2e_kg == pytest.approx(raw["carbon"], abs=0.005)
+        assert alt.total_transport_cost_usd == pytest.approx(raw["cost"], abs=0.05)
+        assert alt.total_co2e_kg == pytest.approx(raw["carbon"], abs=0.005)
+    assert checked, "no direct_pickup_tour alternative in this fixture to check"

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Package, DollarSign, Leaf, Ruler, ChevronRight } from 'lucide-react';
+import { X, Package, DollarSign, Leaf, Ruler, ChevronRight, Weight } from 'lucide-react';
 
 export interface RouteLegData {
   distributorName: string;
@@ -9,6 +9,11 @@ export interface RouteLegData {
   country: string | null;
   legCostUsd: number;
   legCo2eKg: number;
+  // What the truck is carrying ON this leg. A pickup tour leaves the depot
+  // empty, so the outbound leg is 0 kg — which is why its CO₂ is 0 too, ton-mile
+  // factors billing emissions to freight carried. Undefined for responses from
+  // before the field existed.
+  legCarriedKg?: number;
   distanceKm: number;
   components: string[];
   legIndex: number;   // 1-based
@@ -98,7 +103,14 @@ export default function RouteLegPopup({ data, position, onClose, containerRef }:
             </div>
 
             {/* Metrics grid */}
-            <div className="grid grid-cols-3 gap-px bg-gray-700/30 m-3 rounded-lg overflow-hidden">
+            <div
+              /* 2x2 rather than a fourth column: this popup is only 288 px wide,
+                 and four money/mass/distance cells side by side overflow it as
+                 soon as a leg costs five figures. */
+              className={`grid ${
+                data.legCarriedKg === undefined ? 'grid-cols-3' : 'grid-cols-2'
+              } gap-px bg-gray-700/30 m-3 rounded-lg overflow-hidden`}
+            >
               <div className="bg-gray-800/80 px-3 py-2.5">
                 <div className="flex items-center gap-1 mb-1">
                   <DollarSign className="w-3 h-3 text-green-400" />
@@ -117,6 +129,17 @@ export default function RouteLegPopup({ data, position, onClose, containerRef }:
                   {data.legCo2eKg.toFixed(1)} kg
                 </div>
               </div>
+              {data.legCarriedKg !== undefined && (
+                <div className="bg-gray-800/80 px-3 py-2.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Weight className="w-3 h-3 text-amber-300" />
+                    <span className="text-[11px] text-gray-400">Load</span>
+                  </div>
+                  <div className="text-sm font-bold text-amber-300">
+                    {data.legCarriedKg.toFixed(1)} kg
+                  </div>
+                </div>
+              )}
               <div className="bg-gray-800/80 px-3 py-2.5">
                 <div className="flex items-center gap-1 mb-1">
                   <Ruler className="w-3 h-3 text-blue-400" />

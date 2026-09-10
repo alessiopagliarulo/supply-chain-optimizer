@@ -514,6 +514,7 @@ export default function MapPage() {
           country:         stop.country,
           legCostUsd:      stop.leg_cost_usd,
           legCo2eKg:       stop.leg_co2e_kg,
+          legCarriedKg:    stop.leg_carried_kg,
           distanceKm:      stop.distance_km,
           components:      stop.components,
           legIndex:        stopIndex + 1,
@@ -1400,6 +1401,8 @@ export default function MapPage() {
           open={timelineOpen}
           onClose={() => setTimelineOpen(false)}
           onFlyTo={handleFlyTo}
+          routeLegsNote={selectedRoute.route_legs_note}
+          transportCostBasis={selectedRoute.transport_cost_basis}
         />
       )}
     </div>

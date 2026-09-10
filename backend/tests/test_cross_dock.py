@@ -1,7 +1,9 @@
 """Tests for cross-dock hub enumeration + 5% threshold."""
+import pytest
+
 from app.optimization.cross_dock import (
     CROSS_DOCK_IMPROVEMENT_THRESHOLD, DistributorShipment, RouteMetrics,
-    evaluate_cross_dock, evaluate_direct, evaluate_hub,
+    evaluate_cross_dock, evaluate_direct, evaluate_hub, pickup_tour_legs,
 )
 from app.optimization.freight_hubs import FREIGHT_HUBS, get_hub
 from app.optimization.routing import GeoPoint, RoutingNode
@@ -146,3 +148,88 @@ def test_rate_class_is_a_property_of_the_tour_not_of_the_leg():
         prev = (n.lat, n.lng)
     naive_co2 += co2_kg(haversine_km(prev[0], prev[1], depot.lat, depot.lng), total)
     assert got.co2_kg < naive_co2
+
+
+# ── The shared load profile (`pickup_tour_legs`) ─────────────────────────────
+#
+# This helper exists because the load profile used to be modelled TWICE: once
+# here, to SCORE the direct tour, and once in `solve.optimize_bom`, to RENDER the
+# legs on the map and at checkout. The renderer charged the FULL order weight to
+# every leg, including the outbound one on which the trailer is still empty, so
+# the legs on screen described a heavier truck than the one the optimizer ranked
+# the four plans with. These tests pin the accrual itself.
+
+def test_pickup_tour_legs_accrue_weight_stop_by_stop():
+    """The truck leaves the depot EMPTY and is only fully laden on the way home.
+
+    Leg *i* carries what was collected at stops 1..i-1 — the pickup at stop *i*
+    happens on arrival and is carried onward, not backwards. Charging the whole
+    order to every leg (what the display path did) is the defect this pins.
+    """
+    depot, nodes, ships = _tour([120.0, 340.0, 80.0])
+    legs = pickup_tour_legs(
+        depot, nodes, {did: s.weight_kg for did, s in ships.items()}
+    )
+
+    # 3 pickups + the return-to-depot leg.
+    assert len(legs) == 4
+    assert [leg.node.id if leg.node else None for leg in legs] == [1, 2, 3, None]
+    assert [leg.carried_kg for leg in legs] == [0.0, 120.0, 460.0, 540.0]
+
+    # EPA ton-mile factors attribute emissions to freight CARRIED, so the
+    # outbound-empty leg emits nothing — and every later leg emits more than the
+    # one before it over comparable geometry.
+    assert legs[0].co2_kg == 0.0
+    assert legs[-1].carried_kg == sum(s.weight_kg for s in ships.values())
+
+    # ...but an empty leg still COSTS money: moving a truck has a fixed cost.
+    assert legs[0].cost_usd > 0.0
+
+
+def test_evaluate_direct_totals_are_exactly_the_sum_of_the_shared_legs():
+    """`evaluate_direct` must be a fold over `pickup_tour_legs`, nothing more.
+
+    If it ever recomputes cost or carbon on its own again, the plan that gets
+    SCORED and the legs that get DISPLAYED can drift apart without anything
+    failing — which is precisely how the display came to overstate the tour.
+    """
+    depot, nodes, ships = _tour([120.0, 340.0, 80.0])
+    legs = pickup_tour_legs(
+        depot, nodes, {did: s.weight_kg for did, s in ships.items()}
+    )
+    metrics = evaluate_direct(depot, nodes, ships)
+
+    # Exact to floating-point summation order, not merely "close".
+    assert metrics.cost_usd == pytest.approx(
+        sum(leg.cost_usd for leg in legs), rel=1e-12)
+    assert metrics.co2_kg == pytest.approx(
+        sum(leg.co2_kg for leg in legs), rel=1e-12)
+    assert metrics.distance_km == pytest.approx(
+        sum(leg.distance_km for leg in legs), rel=1e-12)
+
+
+def test_a_truckload_tour_pays_the_truckload_rate_on_its_empty_outbound_leg():
+    """Rate class is a property of the TOUR, not of the leg.
+
+    One truck is dispatched for the whole milk-run, so a tour heavy enough to
+    warrant a truckload rate pays it on every leg — including the ones where the
+    trailer is still filling up. Only the EMISSIONS fall on the light legs.
+    """
+    from app.optimization.costs import TL_THRESHOLD_KG, km_to_miles
+    from app.optimization.constants import TL_RATE_USD_PER_MILE
+
+    heavy = TL_THRESHOLD_KG / 2.0  # two stops clears the threshold together
+    depot, nodes, ships = _tour([heavy, heavy, heavy])
+    legs = pickup_tour_legs(
+        depot, nodes, {did: s.weight_kg for did, s in ships.items()}
+    )
+    outbound = legs[0]
+    assert outbound.carried_kg == 0.0
+    assert outbound.co2_kg == 0.0
+    assert outbound.cost_usd == km_to_miles(outbound.distance_km) * TL_RATE_USD_PER_MILE
+
+
+def test_pickup_tour_legs_of_an_empty_tour_is_empty():
+    """No domestic stops means no truck leaves the yard — not a phantom loop."""
+    depot = GeoPoint(34.85, -82.39)
+    assert pickup_tour_legs(depot, [], {}) == []

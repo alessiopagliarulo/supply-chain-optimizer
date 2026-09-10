@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Package, TrendingUp, Clock, DollarSign, Leaf, Factory, X, Route } from 'lucide-react';
+import { MapPin, Package, TrendingUp, Clock, DollarSign, Leaf, Factory, X, Route, Weight } from 'lucide-react';
 import type { RouteStop } from '../../store/optimizeStore';
 
 interface RouteTimelineProps {
@@ -10,6 +10,16 @@ interface RouteTimelineProps {
   open: boolean;
   onClose: () => void;
   onFlyTo: (lat: number, lng: number) => void;
+  /**
+   * The backend's own sentence explaining why the summary bar above the legs
+   * does not equal the sum of the legs below it. Under a cross-dock plan the
+   * charged cost / CO2e / ETA describe the hub-routed route, while `route`
+   * still lists the pre-consolidation pickup legs — they are what a map can
+   * draw. CheckoutPage has rendered this since it existed; the map panel showed
+   * the same two sets of numbers with nothing between them.
+   */
+  routeLegsNote?: string | null;
+  transportCostBasis?: string;
 }
 
 const containerVariants = {
@@ -37,6 +47,8 @@ export default function RouteTimeline({
   open,
   onClose,
   onFlyTo,
+  routeLegsNote,
+  transportCostBasis,
 }: RouteTimelineProps) {
   return (
     <AnimatePresence>
@@ -89,6 +101,19 @@ export default function RouteTimeline({
             </div>
           </div>
 
+          {/*
+            Why the summary bar above and the legs below can disagree. Rendered
+            only for a cross-dock plan, because that is the only case where they
+            genuinely describe different routes — on a direct pickup tour the
+            headline IS the sum of the legs and a caveat would be noise.
+            Same treatment as CheckoutPage's route panel.
+          */}
+          {routeLegsNote && transportCostBasis === 'cross_dock_consolidated' && (
+            <p className="text-xs text-slate-400 leading-relaxed px-5 py-3 border-b border-slate-700/50 border-l-2 border-l-amber-500/50">
+              {routeLegsNote}
+            </p>
+          )}
+
           {/* Timeline scroll area */}
           <div className="flex-1 overflow-y-auto">
             <motion.div
@@ -124,9 +149,19 @@ export default function RouteTimeline({
                         </div>
                       )}
 
-                      {/* Metrics row */}
-                      <div className="grid grid-cols-3 gap-1.5 mt-2 bg-slate-800/50 rounded-md p-2">
-                        <div>
+                      {/*
+                        `Load` is what the truck is actually carrying ON this
+                        leg, and it is why the outbound leg reads 0.0 kg CO₂: a
+                        pickup tour leaves the depot empty, and ton-mile factors
+                        bill emissions to freight carried. Without it the zero
+                        looks like a missing number rather than an empty trailer.
+                      */}
+                      <div
+                        className={`grid ${
+                          stop.leg_carried_kg === undefined ? 'grid-cols-3' : 'grid-cols-4'
+                        } gap-1.5 mt-2 bg-slate-800/50 rounded-md p-2`}
+                      >
+                        <div className="min-w-0">
                           <div className="flex items-center gap-0.5 mb-0.5">
                             <TrendingUp className="w-2.5 h-2.5 text-slate-500" />
                             <span className="text-[9px] text-slate-500">Cost</span>
@@ -135,7 +170,7 @@ export default function RouteTimeline({
                             ${stop.leg_cost_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           </span>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-0.5 mb-0.5">
                             <Leaf className="w-2.5 h-2.5 text-slate-500" />
                             <span className="text-[9px] text-slate-500">CO₂</span>
@@ -144,7 +179,18 @@ export default function RouteTimeline({
                             {stop.leg_co2e_kg.toFixed(1)}kg
                           </span>
                         </div>
-                        <div>
+                        {stop.leg_carried_kg !== undefined && (
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-0.5 mb-0.5">
+                              <Weight className="w-2.5 h-2.5 text-slate-500" />
+                              <span className="text-[9px] text-slate-500">Load</span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-amber-300">
+                              {stop.leg_carried_kg.toFixed(1)}kg
+                            </span>
+                          </div>
+                        )}
+                        <div className="min-w-0">
                           <div className="flex items-center gap-0.5 mb-0.5">
                             <Package className="w-2.5 h-2.5 text-slate-500" />
                             <span className="text-[9px] text-slate-500">Dist</span>

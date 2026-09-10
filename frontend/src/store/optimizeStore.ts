@@ -13,6 +13,11 @@ export interface RouteStop {
   distance_km: number;
   leg_cost_usd: number;
   leg_co2e_kg: number;
+  // Freight actually aboard while this leg is driven. A pickup tour leaves the
+  // depot empty, so the outbound leg is 0 and only the return leg carries the
+  // whole order — leg_cost_usd and leg_co2e_kg are derived from THIS, not from
+  // the order total. Optional because older cached responses lack it.
+  leg_carried_kg?: number;
 }
 
 export interface CostBreakdown {

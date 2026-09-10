@@ -42,11 +42,9 @@ from app.optimization.constants import AIR_FREIGHT_BASE_USD, AIR_FREIGHT_RATE_US
 from app.optimization.costs import (
     AVG_COMPONENT_KG,
     air_transit_days,
-    co2_kg,
     haversine_km,
     holding_cost_usd,
     ml_factory_lead_time_days,
-    transport_cost_usd,
 )
 from app.optimization.cross_dock import (
     CrossDockDecision,
@@ -54,6 +52,7 @@ from app.optimization.cross_dock import (
     RouteMetrics,
     evaluate_cross_dock,
     evaluate_direct,
+    pickup_tour_legs,
 )
 from app.optimization.freight_hubs import FREIGHT_HUBS
 from app.optimization.routing import (
@@ -580,49 +579,51 @@ def optimize_bom(
         intl_nodes_r: List[RoutingNode] = r["intl_nodes"]
         intl_transport_cost_r: float = r["intl_transport_cost"]
         stops: List[schemas.RouteStop] = []
-        domestic_weight = max(sum(
-            weight_by_did.get(n.id, 0.0) for n in ordered_nodes
-        ), 0.1)
         intl_count = len(intl_nodes_r)
         seq = 0
-        prev_lat, prev_lng = depot.lat, depot.lng
-        for node in ordered_nodes:
-            d = distributors[node.id]
-            dist_km = haversine_km(prev_lat, prev_lng, node.lat, node.lng)
-            leg_cost = transport_cost_usd(dist_km, domestic_weight)
-            leg_co2 = co2_kg(dist_km, domestic_weight)
-            seq += 1
-            stops.append(schemas.RouteStop(
-                order=seq,
-                distributor_id=node.id,
-                distributor_name=d.name,
-                city=d.city, state=d.state, country=d.country,
-                lat=d.lat, lng=d.lng,
-                components=components_by_did.get(node.id, []),
-                distance_km=round(dist_km, 1),
-                leg_cost_usd=round(leg_cost, 2),
-                leg_co2e_kg=round(leg_co2, 3),
-            ))
-            prev_lat, prev_lng = node.lat, node.lng
 
-        # Return-to-depot leg (truck tour)
-        if ordered_nodes:
-            last_node = ordered_nodes[-1]
-            ret_km = haversine_km(last_node.lat, last_node.lng, depot.lat, depot.lng)
-            ret_cost = transport_cost_usd(ret_km, domestic_weight)
-            ret_co2 = co2_kg(ret_km, domestic_weight)
+        # The load profile comes from `cross_dock.pickup_tour_legs` — the SAME
+        # function `evaluate_direct` scores the plan with. It used to be
+        # re-derived here as a flat `domestic_weight` (the whole order, charged
+        # to every leg including the outbound one on which the trailer is still
+        # empty), so the legs drawn on the map and listed at checkout overstated
+        # cost and CO2e against the very figures that ranked the four plans. The
+        # display and the decision now read from one model, not two.
+        shipments_by_did_r: Dict[int, DistributorShipment] = r["shipments_by_did"]
+        tour_legs = pickup_tour_legs(
+            depot, ordered_nodes,
+            {did: sh.weight_kg for did, sh in shipments_by_did_r.items()},
+        )
+        for leg in tour_legs:
             seq += 1
-            stops.append(schemas.RouteStop(
-                order=seq,
-                distributor_id=0,
-                distributor_name="Factory (Depot)",
-                city=None, state=None, country="USA",
-                lat=depot.lat, lng=depot.lng,
-                components=[],
-                distance_km=round(ret_km, 1),
-                leg_cost_usd=round(ret_cost, 2),
-                leg_co2e_kg=round(ret_co2, 3),
-            ))
+            if leg.node is not None:
+                d = distributors[leg.node.id]
+                stops.append(schemas.RouteStop(
+                    order=seq,
+                    distributor_id=leg.node.id,
+                    distributor_name=d.name,
+                    city=d.city, state=d.state, country=d.country,
+                    lat=d.lat, lng=d.lng,
+                    components=components_by_did.get(leg.node.id, []),
+                    distance_km=round(leg.distance_km, 1),
+                    leg_cost_usd=round(leg.cost_usd, 2),
+                    leg_co2e_kg=round(leg.co2_kg, 3),
+                    leg_carried_kg=round(leg.carried_kg, 3),
+                ))
+            else:
+                # Return-to-depot leg — the only fully laden leg of a pickup tour.
+                stops.append(schemas.RouteStop(
+                    order=seq,
+                    distributor_id=0,
+                    distributor_name="Factory (Depot)",
+                    city=None, state=None, country="USA",
+                    lat=depot.lat, lng=depot.lng,
+                    components=[],
+                    distance_km=round(leg.distance_km, 1),
+                    leg_cost_usd=round(leg.cost_usd, 2),
+                    leg_co2e_kg=round(leg.co2_kg, 3),
+                    leg_carried_kg=round(leg.carried_kg, 3),
+                ))
 
         # Air freight stops for international distributors (shown as separate legs)
         air_per_intl = intl_transport_cost_r / max(len(intl_nodes_r), 1)
@@ -647,6 +648,9 @@ def optimize_bom(
                 distance_km=round(af_dist_km, 1),
                 leg_cost_usd=round(af_cost, 2),
                 leg_co2e_kg=round(af_co2, 3),
+                # An air consignment flies alone: it carries its own weight for
+                # the whole flight, so there is no accrual to model here.
+                leg_carried_kg=round(w, 3),
             ))
 
         # ── Totals ───────────────────────────────────────────────────────────

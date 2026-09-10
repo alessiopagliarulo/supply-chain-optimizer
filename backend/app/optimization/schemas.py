@@ -47,6 +47,13 @@ class RouteStop(BaseModel):
     distance_km: float
     leg_cost_usd: float
     leg_co2e_kg: float
+    # Freight ACTUALLY ABOARD while this leg is driven, in kg. A pickup tour
+    # leaves the depot empty and accrues weight at each stop, so the outbound leg
+    # is 0.0 and only the return leg carries the whole order; `leg_cost_usd` and
+    # `leg_co2e_kg` are derived from THIS number, not from the order total. It is
+    # published so the accrual is checkable from the response instead of having
+    # to be taken on trust — the two used to disagree silently.
+    leg_carried_kg: float = 0.0
 
 
 class CostBreakdown(BaseModel):

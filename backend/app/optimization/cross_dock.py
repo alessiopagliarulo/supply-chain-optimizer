@@ -33,7 +33,7 @@ not a description of this file.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Mapping, Optional
 
 from app.optimization.costs import (
     HANDLING_DAYS_BY_TIER, HUB_DWELL_DAYS, HUB_HANDLING_FEE_USD,
@@ -183,25 +183,45 @@ def evaluate_hub(
     ).plus_parallel(parallel)
 
 
-def evaluate_direct(
+@dataclass(frozen=True)
+class PickupLeg:
+    """One leg of a depot -> d1 -> ... -> dn -> depot pickup tour.
+
+    ``carried_kg`` is what is ACTUALLY ABOARD while this leg is driven, which is
+    the whole point of this type existing: the truck leaves the depot empty and
+    only the return leg is fully laden.
+    """
+    # Destination of the leg. ``None`` marks the final return-to-depot leg.
+    node: Optional[RoutingNode]
+    distance_km: float
+    carried_kg: float
+    cost_usd: float
+    co2_kg: float
+    transit_days: int
+
+
+def pickup_tour_legs(
     depot: GeoPoint,
     ordered_nodes: List[RoutingNode],
-    shipments_by_did: dict,
-) -> RouteMetrics:
-    """
-    Compute cost/time/CO2 for the direct pickup tour.
+    weight_by_node_id: Mapping[int, float],
+) -> List[PickupLeg]:
+    """THE single source of truth for a pickup tour's load profile.
 
-    A single truck drives depot → d1 → d2 → ... → depot, PICKING UP as it goes.
-    We model this as a sequence of LTL-or-TL legs.
+    The truck leaves the depot EMPTY and accrues weight at each stop, so the leg
+    INTO stop *i* carries only what was collected at stops 1..i-1, and the return
+    leg carries the whole order.
 
-    Load profile: the truck leaves the depot EMPTY and accrues weight at each
-    stop, so the leg into stop *i* carries only what was collected at stops
-    1..i-1, and the return leg carries the whole order. This previously charged
-    the full cumulative weight on every leg including the outbound-empty one,
-    which overstated the direct tour's cost and CO2 — and since the cross-dock
-    plan is scored against exactly this number, it inflated the reported
-    ``savings_vs_direct_pct`` for consolidation. A pickup tour is not a delivery
-    tour run backwards; only the return leg is fully laden.
+    Both consumers must go through here:
+      * ``evaluate_direct`` below, which SCORES the direct plan (and therefore
+        decides whether cross-dock consolidation is worth taking);
+      * ``solve.optimize_bom``, which RENDERS the legs the map and the checkout
+        panel display.
+
+    They used to model the load independently, and the renderer charged the FULL
+    order weight to every leg including the empty outbound one — so the legs on
+    screen overstated cost and CO2e against the very numbers that ranked the
+    plans. Extracting the accrual here means the displayed legs cannot again
+    describe a different vehicle from the one that was scored.
 
     Rate class is a property of the TOUR, not of the leg. One truck is dispatched
     for the whole milk-run, so if the full order warrants a truckload rate you pay
@@ -222,12 +242,68 @@ def evaluate_direct(
         outside the accounting boundary this project cites.
     """
     if not ordered_nodes:
-        return RouteMetrics(0.0, 0.0, 0.0)
+        return []
 
-    total_cost = 0.0
-    total_co2 = 0.0
-    total_distance = 0.0
-    total_transit_days = 0.0
+    # One dispatch decision for the whole tour (see docstring).
+    tour_weight_kg = sum(weight_by_node_id.get(n.id, 0.0) for n in ordered_nodes)
+    tl_tour = tour_weight_kg >= TL_THRESHOLD_KG
+
+    def leg_cost(d_km: float, carried: float) -> float:
+        if tl_tour:
+            return km_to_miles(d_km) * TL_RATE_USD_PER_MILE
+        return transport_cost_usd(d_km, carried)
+
+    legs: List[PickupLeg] = []
+    prev_lat, prev_lng = depot.lat, depot.lng
+    carried_kg = 0.0  # the truck leaves the depot empty
+    for node in ordered_nodes:
+        d_km = haversine_km(prev_lat, prev_lng, node.lat, node.lng)
+        # Charged on what is ALREADY aboard for this leg — the pickup at `node`
+        # happens on arrival and is carried onward, not backwards.
+        legs.append(PickupLeg(
+            node=node,
+            distance_km=d_km,
+            carried_kg=carried_kg,
+            cost_usd=leg_cost(d_km, carried_kg),
+            co2_kg=co2_kg(d_km, carried_kg),
+            transit_days=transit_days(d_km),
+        ))
+        # RoutingNode.id IS the distributor_id (-1 for the depot).
+        carried_kg += weight_by_node_id.get(node.id, 0.0)
+        prev_lat, prev_lng = node.lat, node.lng
+
+    # Return leg to the depot — the only fully laden leg of a pickup tour.
+    d_km = haversine_km(prev_lat, prev_lng, depot.lat, depot.lng)
+    legs.append(PickupLeg(
+        node=None,
+        distance_km=d_km,
+        carried_kg=carried_kg,
+        cost_usd=leg_cost(d_km, carried_kg),
+        co2_kg=co2_kg(d_km, carried_kg),
+        transit_days=transit_days(d_km),
+    ))
+    return legs
+
+
+def evaluate_direct(
+    depot: GeoPoint,
+    ordered_nodes: List[RoutingNode],
+    shipments_by_did: dict,
+) -> RouteMetrics:
+    """
+    Compute cost/time/CO2 for the direct pickup tour.
+
+    A single truck drives depot → d1 → d2 → ... → depot, PICKING UP as it goes.
+    We model this as a sequence of LTL-or-TL legs.
+
+    The load profile and the rate class both live in ``pickup_tour_legs`` above —
+    read its docstring for the modelling and the citations. This function only
+    folds those legs into plan-level metrics, so the plan that gets SCORED here
+    and the legs that get DISPLAYED by ``solve.optimize_bom`` are by construction
+    the same vehicle carrying the same freight.
+    """
+    if not ordered_nodes:
+        return RouteMetrics(0.0, 0.0, 0.0)
 
     # Handling happens in parallel before the truck arrives — use the slowest
     # distributor tier across the pickup set (max, not sum).
@@ -236,37 +312,20 @@ def evaluate_direct(
         for s in shipments_by_did.values()
     )
 
-    # One dispatch decision for the whole tour (see docstring).
-    tour_weight_kg = sum(s.weight_kg for s in shipments_by_did.values())
-    tl_tour = tour_weight_kg >= TL_THRESHOLD_KG
+    legs = pickup_tour_legs(
+        depot, ordered_nodes,
+        {did: s.weight_kg for did, s in shipments_by_did.items()},
+    )
 
-    def leg_cost(d_km: float, carried: float) -> float:
-        if tl_tour:
-            return km_to_miles(d_km) * TL_RATE_USD_PER_MILE
-        return transport_cost_usd(d_km, carried)
-
-    prev = (depot.lat, depot.lng)
-    carried_kg = 0.0  # the truck leaves the depot empty
-    for node in ordered_nodes:
-        d_km = haversine_km(prev[0], prev[1], node.lat, node.lng)
-        # Charged on what is ALREADY aboard for this leg — the pickup at `node`
-        # happens on arrival and is carried onward, not backwards.
-        total_cost += leg_cost(d_km, carried_kg)
-        total_co2 += co2_kg(d_km, carried_kg)
-        total_distance += d_km
-        total_transit_days += transit_days(d_km)
-        # RoutingNode.id IS the distributor_id (-1 for the depot).
-        shipment = shipments_by_did.get(node.id)
-        if shipment is not None:
-            carried_kg += shipment.weight_kg
-        prev = (node.lat, node.lng)
-
-    # Return leg to the depot — the only fully laden leg of a pickup tour.
-    d_km = haversine_km(prev[0], prev[1], depot.lat, depot.lng)
-    total_cost += leg_cost(d_km, carried_kg)
-    total_co2 += co2_kg(d_km, carried_kg)
-    total_distance += d_km
-    total_transit_days += transit_days(d_km)
+    total_cost = 0.0
+    total_co2 = 0.0
+    total_distance = 0.0
+    total_transit_days = 0.0
+    for leg in legs:
+        total_cost += leg.cost_usd
+        total_co2 += leg.co2_kg
+        total_distance += leg.distance_km
+        total_transit_days += leg.transit_days
 
     total_time = max_handling + total_transit_days
     return RouteMetrics(
