@@ -337,6 +337,21 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
             "the unit of the column: dollars of tail per dollar spent.",
         ),
     ),
+    "LandingPage.tsx": (
+        (
+            "static 2024",
+            "the year the underlying Nexar/Octopart dataset was COLLECTED, recorded at "
+            "backend/seeds/seed_db.py `DATASET_COLLECTED` (\"2024 (per dataset card: 404 "
+            "general components + 387 telecom components)\"). A past-tense collection "
+            "date: the snapshot was gathered in 2024 and always will have been, so it "
+            "cannot drift. It is on the page precisely BECAUSE `distributor_offers` has "
+            "no date column of any kind -- freshness is unfalsifiable from the data, so "
+            "the page states the vintage instead of implying the offers are live. "
+            "`test_landing_data_contract.py::test_the_offers_are_never_described_as_live` "
+            "fails if that wording regresses, and also fails if a date column ever "
+            "appears (which would mean this justification needs revisiting).",
+        ),
+    ),
     "MapPage.tsx": (
         (
             "Top 10% (decile) by betweenness",

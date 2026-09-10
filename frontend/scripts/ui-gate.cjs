@@ -376,6 +376,119 @@ const AUDIT=()=>{
     ok(`API awake before the sweep (${Math.round((Date.now()-t0)/1000)}s)`, up, why);
   }
 
+  // ---------- public landing page `/` — UNAUTHENTICATED, before login ------
+  // `/` is the page a stranger actually lands on, and it exists specifically so
+  // that a cold or sleeping free-tier API never blocks a first impression: every
+  // number on it comes from `src/generated/landingData.ts`, a build-time file,
+  // not a fetch. This whole block runs before the demo login below on purpose —
+  // it is the one route in this file that must work with no session and no API.
+  {
+    const landingNav = await gotoRoute(L+'/', '/');
+    ok('/: navigable and mounts', landingNav);
+    if(landingNav){
+      // ── zero API requests while on `/` ─────────────────────────────────
+      // This is the entire point of the page. A "public landing page" that
+      // quietly fires /api/v1/... on mount is not zero-dependency, it only
+      // LOOKS zero-dependency while the free-tier instance happens to be warm
+      // — and it is asleep most of the time this project gets looked at cold.
+      // Count from `page.on('request')`, not from the readiness `inflight`
+      // map or the ctx.route proxy above: `ctx.route('**/api/v1/**', ...)`
+      // intercepts and re-fulfills matching requests, but the request event
+      // still fires for every request Chromium ISSUES regardless of what a
+      // route handler later does to it, so this sees a call the page made
+      // even though the proxy would have served it.
+      let landingApiCalls = 0;
+      const watchLandingApi = r => { if(/\/api\/v1|\/health/.test(r.url())) landingApiCalls++; };
+      p.on('request', watchLandingApi);
+      await settle(15000);
+      await p.waitForTimeout(2000);   // framer-motion `whileInView` etc. settling
+      p.off('request', watchLandingApi);
+      ok('/: zero API requests while rendering', landingApiCalls===0,
+         `saw ${landingApiCalls} request(s) matching /api/v1 or /health`);
+
+      // ── every published number actually rendered ───────────────────────
+      // Re-derive the numbers from the SAME generated file the page imports,
+      // read straight off disk — mirrors the regex-extraction approach in
+      // backend/tests/test_landing_data_contract.py so this and the backend
+      // contract test can never quietly disagree about how to parse the file.
+      // A blank or missing stat renders nothing, and `bodyText.includes()`
+      // on an empty/garbage string would silently pass — so the formatted
+      // value is asserted, not just the stat's existence.
+      const landingSrcPath = path.join(__dirname,'..','src','generated','landingData.ts');
+      const landingSrc = fs.readFileSync(landingSrcPath,'utf8');
+      const extractArray = name => {
+        const m = landingSrc.match(new RegExp(`export const ${name}: \\w+\\[\\] = (\\[[\\s\\S]*?\\n\\])\\n`));
+        if(!m) throw new Error(`ui-gate: could not find ${name} in ${landingSrcPath}`);
+        return JSON.parse(m[1]);
+      };
+      const landingStats = extractArray('landingStats');
+      const landingProofPoints = extractArray('landingProofPoints');
+      // Same rounding rule as formatStatValue() in LandingPage.tsx — duplicated
+      // here deliberately rather than imported, since this file is .cjs and the
+      // component is a .tsx ES module; drift between the two would show up as
+      // this check failing against a real rendered page, which is the point.
+      const formatStatValue = ({value,unit}) => {
+        const decimals = Number.isInteger(value) ? 0 : Math.abs(value)>=10 ? 1 : 2;
+        return `${value.toFixed(decimals)}${unit}`;
+      };
+      const bodyText = await p.evaluate(()=>document.body.innerText);
+      for(const stat of landingStats){
+        const disp = formatStatValue(stat);
+        ok(`/: stat "${stat.id}" renders its published value`, bodyText.includes(disp), disp);
+      }
+
+      // ── each stat shows its source path ─────────────────────────────────
+      // The whole pitch of this page is "every number traces to a committed
+      // artifact" — a stat with no visible source is an assertion, not a proof.
+      const isArtifactSource = s => /^docs\/.+\.json →/.test(s) || s==='backend/supply_chain.db';
+      const allSources = [...new Set([
+        ...landingStats.map(s=>s.source),
+        ...landingProofPoints.map(p=>p.source),
+      ])].filter(isArtifactSource);
+      const presentSources = allSources.filter(s=>bodyText.includes(s));
+      ok('/: at least 6 distinct artifact source paths are printed',
+         presentSources.length>=6,
+         `${presentSources.length}/${allSources.length}: ${JSON.stringify(presentSources)}`);
+
+      // ── the retracted 47.25% figure must not resurface ──────────────────
+      // Published once as the optimizer's edge, which it is not (it is a
+      // naive-global-catalogue comparison kept only for contrast — see
+      // `naiveBaselineCaveat` in landingData.ts). It must never appear
+      // unlabelled on the primary landing surface.
+      ok('/: the retracted 47.25% figure is not shown', !/47\.25/.test(bodyText), bodyText.match(/.{0,20}47\.25.{0,20}/)?.[0]||'');
+
+      // ── no horizontal overflow at phone / tablet / desktop ──────────────
+      // Reuses AUDIT, the same page.evaluate audit the authenticated sweep
+      // below runs on every route — a second, hand-rolled overflow check here
+      // could quietly diverge from it and give this one page a different bar.
+      for(const w of [390,768,1440]){
+        await p.setViewportSize({width:w,height:900});
+        await p.waitForTimeout(400);
+        const a = await p.evaluate(AUDIT);
+        ok(`/: no horizontal overflow @${w}`, a.overflow.length===0,
+           a.overflow.length?JSON.stringify(a.overflow.slice(0,3)):'');
+      }
+
+      // ── the CTA reaches a WORKING login, not a permanent spinner ────────
+      // `authResolved` starts false and is only set by `initializeAuth()`,
+      // which is deliberately skipped on `/`. An earlier version of this page
+      // left auth bootstrapping in `App()` with `[]` deps, so navigating
+      // `/` -> `/login` client-side left `PublicOnly` rendering `<AuthSplash/>`
+      // forever — a permanent spinner on the primary CTA that nothing above
+      // this would ever catch, since it only checks `/` in isolation. This is
+      // what catches that regression coming back.
+      await p.locator('a[href="/login"]').first().click();
+      await p.waitForURL('**/login',{timeout:15000}).catch(()=>{});
+      const onLogin = /\/login$/.test(new URL(p.url()).pathname);
+      ok('/: CTA click lands on /login', onLogin, p.url());
+      if(onLogin){
+        const pwVisible = await p.locator('input[type="password"]').first()
+          .isVisible({timeout:10000}).catch(()=>false);
+        ok('/: /login renders a real form (not a permanent AuthSplash spinner)', pwVisible);
+      }
+    }
+  }
+
   // ---------- document head ----------
   // Through gotoRoute like every other navigation, so that "the site is not
   // there" is a FAIL with a name on it rather than an unhandled throw.

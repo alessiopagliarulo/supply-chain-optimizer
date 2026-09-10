@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useCartStore } from './store/cartStore';
 import NavBar from './components/NavBar';
 import ErrorBoundary from './components/ErrorBoundary';
 import WakeNotice from './components/WakeNotice';
-import { useElapsedSeconds } from './services/warmup';
+import { startWarmup, useElapsedSeconds } from './services/warmup';
 import { Login } from './pages/Login';
+import LandingPage from './pages/LandingPage';
 import Register from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import MapPage from './pages/MapPage';
@@ -124,19 +125,51 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function App() {
-  const { initializeAuth } = useAuthStore();
+/**
+ * Resolves the session — but never on the public landing page.
+ *
+ * This CANNOT be a plain effect in App(): App() renders <Router>, so it has no router
+ * context, and a `window.location` check there reads the pathname exactly once, at
+ * mount. That is the trap. A visitor who lands on "/" and then clicks through to the
+ * app navigates client-side, App() never re-mounts, the effect never re-runs, and
+ * `authResolved` stays false for the life of the tab — so PublicOnly and ProtectedLayout
+ * both render <AuthSplash /> forever. The CTA would spin and never resolve.
+ *
+ * Living inside <Router> means useLocation() re-evaluates on every navigation, so the
+ * session resolves the moment the visitor leaves "/" — and not one request before.
+ */
+function AuthBootstrap() {
+  const { initializeAuth, authResolved } = useAuthStore();
+  const location = useLocation();
+  const started = useRef(false);
 
   useEffect(() => {
-    initializeAuth();
-  }, []);
+    // "/" stays offline: no auth probe, no warmup, nothing.
+    if (location.pathname === '/') return;
+    if (started.current || authResolved) return;
+    started.current = true;
 
+    // The visitor has committed to the app, so start waking the API now rather than
+    // after the auth call fails — main.tsx skipped this if they entered via "/".
+    startWarmup();
+    initializeAuth();
+  }, [location.pathname, authResolved, initializeAuth]);
+
+  return null;
+}
+
+function App() {
   return (
     // Root boundary: the last line of defence. Anything the per-page boundary
     // cannot catch (nav bar, router, layout) lands here instead of a white screen.
     <ErrorBoundary scope="The app">
       <Router>
+        <AuthBootstrap />
         <Routes>
+          {/* Public, no-login landing page. Deliberately NOT wrapped in PublicOnly
+              (which renders AuthSplash while auth resolves) and NOT inside
+              ProtectedLayout — it must never depend on auth state or NavBar. */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           <Route element={<ProtectedLayout />}>
@@ -166,7 +199,6 @@ function App() {
               did no re-optimization, and rendered fields the API never returned.
               Resilience covers the same ground with real Monte Carlo + CVaR. */}
           <Route path="/digital-twin" element={<Navigate to="/resilience" replace />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
     </ErrorBoundary>
