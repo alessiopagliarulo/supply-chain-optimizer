@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sqlite3
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -236,6 +238,43 @@ def test_the_retracted_naive_baseline_figure_is_not_published_as_the_edge(genera
             f"stat {stat['id']} publishes the retracted naive-baseline figure"
         )
     assert "naive" in generated["caveat"].lower()
+
+
+
+def test_the_generator_is_deterministic_and_the_committed_file_is_current():
+    """Regenerating must reproduce the committed file byte for byte.
+
+    Two failures in one assertion:
+
+    * NONDETERMINISM. The generator briefly wrote a `Generated: <now>` line, so every
+      `npm run build` dirtied the tree for a diff carrying no information. That is not
+      cosmetic in this repo — artifacts stamp `provenance.git.dirty`, and one
+      regenerated after a build would have recorded itself irreproducible because of a
+      comment.
+    * STALENESS. If an artifact moves and nobody reruns the generator, the committed
+      module still holds the old numbers. The other tests here compare the COMMITTED
+      module against the artifacts, so they catch that too — but this one names it
+      precisely, and points at the command that fixes it.
+    """
+    script = REPO / "frontend" / "scripts" / "build-landing-data.mjs"
+    if not shutil.which("node"):
+        pytest.skip("node not available")
+
+    before = GENERATED.read_text()
+    proc = subprocess.run(
+        ["node", str(script)], cwd=REPO / "frontend",
+        capture_output=True, text=True, timeout=120,
+    )
+    assert proc.returncode == 0, f"generator failed: {proc.stderr[-500:]}"
+    after = GENERATED.read_text()
+
+    if before != after:
+        GENERATED.write_text(before)  # leave the tree as we found it
+        pytest.fail(
+            "regenerating landingData.ts changed it. Either the generator is not "
+            "deterministic, or an artifact moved and the committed file was never "
+            "refreshed. Run: cd frontend && node scripts/build-landing-data.mjs"
+        )
 
 
 def test_every_published_number_names_its_source(generated):

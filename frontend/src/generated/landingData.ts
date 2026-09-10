@@ -6,7 +6,6 @@
 // exactly the failure this file exists to prevent, and the backend contract test
 // (backend/tests/test_landing_data_contract.py) will fail if you do.
 //
-// Generated: 2026-09-09T23:15:14.092Z
 // Catalogue counts read from: sqlite3
 
 export interface LandingStat {
