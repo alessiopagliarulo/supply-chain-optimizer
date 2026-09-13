@@ -61,26 +61,38 @@ to a committed JSON artifact anyone can open.
 
 ## Current goals
 
-<!-- What the owner is trying to achieve over the next few weeks, most important first.
-     Be concrete enough that an agent can tell whether an idea serves a goal or not.
-     Delete goals when they are met — a stale goal steers the loop wrong for weeks. -->
-
-_Not filled in yet._
+1. **Every published number matches its committed artifact.** Wrong today: README leakage R² vs
+   `docs/leakage_progression.json`, `INTERMITTENT_DEMAND.md` §9 ("not built"; it is), the landing hero
+   crediting Prophet for Chronos's result.
+2. **Fix anything broken**, live-demo path first (the printed demo login 403s on the cart), then the
+   rest (e.g. arbitrary price tier at `cart.py:148`; fractional quantities dropped at `optimize.py:68`).
+3. **Guards on published numbers must be able to fail, and must run:** CI deselects `slow` pin tests
+   (`ci.yml:163`); deploy ships the branch tip, not the gated SHA; one page test ends in `or True`.
+4. **Publish the newsvendor result** (`docs/newsvendor.json` has no doc), always with its baseline:
+   36.26% cheaper vs the all-zero forecast MASE ranks first, 4.01% vs `scarf_minmax`.
+5. **New ideas** that let an OR, forecasting or supply-chain recruiter try the strongest true results.
+6. **Resume figures** (387 solves, $4.27 per $1, Brier 0.393, rank 1.66): a proposal that moves one is
+   allowed, but its title starts with `[resume-figure]` and its body has a before/after table.
 
 ## Off-limits areas
 
-<!-- Where agents must not propose or make changes, and why. Typical entries: payment or
-     billing code, auth, anything touching production data or credentials, a subsystem
-     mid-rewrite, a vendor integration under contract, design/branding decisions.
-     "Why" matters — an agent that understands the reason can spot the edge cases. -->
-
-_Not filled in yet._
+- **Hand-edited numbers:** `GENERATED` regions, `docs/*.json`, `metrics.joblib`, provenance stamps.
+  Tests diff them against their generators, so fix the generator and rerun it from a clean tree.
+- **Synthetic, fabricated or live data** replacing the frozen 2024 snapshot (`DATA_PROVENANCE.md`),
+  reseeding, or drift in `backend/seeds/data/`. If data is missing, say so.
+- **Loosening a gate to go green** (skip, `slow` mark, wider hatch). Fix the cause; stricter is fine.
+- **Do-not-claim lists** (`PROJECT_OVERVIEW.md`, `CVAR_EFFICIENT_FRONTIER.md` §10); no bare percentages.
+- **Loop machinery:** `claude-*.yml`, `loop-metrics.*`, `loop-config.json`, this file's path (the
+  Scout and Builder gates read it). Managed from the Loop Dashboard template.
+- **Hosting, money, secrets:** Render free tier stays; no AWS move, key rotation, force-push, or secrets
+  in issues (public repo). Leave `CLAUDE.md`, `LEARNINGS.md`, `.claude/`, `LICENSE`, CC-BY credit alone.
 
 ## How the owner works
 
-<!-- How to pitch to this person. For example: how technical they are; how much detail
-     they want in a proposal; what evidence convinces them (file:line? a screenshot? a
-     number?); what they have repeatedly said no to; how quickly they triage; whether
-     they prefer several small changes or one big one. -->
-
-_Not filled in yet._
+- A student directing (not coding) a portfolio piece aimed at OR, forecasting and supply-chain roles.
+- **Proposals:** one outcome each, plain English, a title that states the consequence, judgeable in
+  one read (no approve/decline history yet).
+- **Evidence:** `path:line`, and re-derive each number from its source (artifact, live endpoint, SQL),
+  never another doc. Show a check going red; green ticks alone have misled before.
+- **Owner's call:** money, credentials, live optimizer output, resume figures. Give 2–3 options, a
+  pick, and what the owner must do (ideally nothing). Done means live (`/version` matches HEAD).
