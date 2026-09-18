@@ -77,8 +77,11 @@ export default function RoutePlanPage() {
 
   // Only the latest pick may land: a slow response for an earlier choice is dropped.
   const latestPick = useRef(0);
+  // A solve lands only if the instance and fleet it was run on are still the ones loaded.
+  const latestSolve = useRef(0);
   const loadInstance = useCallback((id: string) => {
     const pick = ++latestPick.current;
+    latestSolve.current += 1;
     setInstanceId(id);
     setLoadingInstance(true);
     setLoadError(null);
@@ -126,6 +129,7 @@ export default function RoutePlanPage() {
     }
     setCsvErrors([]);
     latestPick.current += 1;
+    latestSolve.current += 1;
     setInstanceId('');
     const count = parsed.nodes.length - 1;
     const totalDemand = parsed.nodes.reduce((s, n) => s + n.demand, 0);
@@ -140,6 +144,7 @@ export default function RoutePlanPage() {
 
   const setFleet = (field: 'num_vehicles' | 'vehicle_capacity', raw: string) => {
     if (!loaded) return;
+    latestSolve.current += 1;
     const value = Math.max(0, Math.floor(Number(raw) || 0));
     setLoaded({ ...loaded, [field]: value });
     setSolution(null);
@@ -154,6 +159,7 @@ export default function RoutePlanPage() {
 
   const solve = async () => {
     if (!loaded) return;
+    const run = ++latestSolve.current;
     setSolving(true);
     setSolveError(null);
     const instance: PlanInstance = {
@@ -163,10 +169,11 @@ export default function RoutePlanPage() {
     };
     try {
       const result = await routingApi.solve({ ...instance, method, time_limit_seconds: timeLimitValue });
+      if (run !== latestSolve.current) return;
       setSolution(result);
       setPlan({ label: loaded.label, instance, solution: result });
     } catch (err) {
-      setSolveError(errorMessage(err));
+      if (run === latestSolve.current) setSolveError(errorMessage(err));
     } finally {
       setSolving(false);
     }

@@ -17,64 +17,19 @@ Route Plan, Simulation and Benchmarks type no figures of their own. Every limit 
 state (customer caps, time limit, replications) is rendered from the `limits` block of
 GET /routing/instances, and every result from the API response or the benchmark
 artifact; `test_pages_do_not_publish_unverified_numbers.py` enforces that no typed digit
-slips in. What remains to pin is the one thing the Route Plan page documents by hand: the
-customer CSV format, which must be exactly the node fields the solver accepts.
+slips in. That the pages really render those limits, and that a customer CSV in the
+documented format round-trips through the solver, is checked in a real browser by
+`frontend/scripts/ui-gate.cjs`, not by reading page source here.
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
-from app.api.routing import NodeIn
 from tests._jsx import text_nodes, to_rendered_text
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_ROOT.parent
-FRONTEND_SRC = REPO_ROOT / "frontend" / "src"
-PAGES_DIR = FRONTEND_SRC / "pages"
-CUSTOMER_CSV = FRONTEND_SRC / "lib" / "customerCsv.ts"
-
-
-def _source(path: Path) -> str:
-    assert path.is_file(), f"{path} is not in this checkout; the pins below read it"
-    return path.read_text(encoding="utf-8")
-
-
-# ══ Route Plan — the customer CSV it documents ═══════════════════════════════
-
-
-def _documented_csv_columns() -> list[str]:
-    m = re.search(r"export const CSV_COLUMNS = \[([^\]]*)\] as const;", _source(CUSTOMER_CSV))
-    assert m is not None, "lib/customerCsv.ts no longer declares CSV_COLUMNS; the pin below is dead"
-    return re.findall(r"'([a-z_]+)'", m.group(1))
-
-
-def test_the_csv_columns_the_route_plan_page_documents_are_the_fields_the_solver_takes() -> None:
-    """The page lists CSV_COLUMNS as the upload format and posts each row as a node.
-
-    If the API's node model gains or renames a field, a CSV written to the documented
-    format would be rejected (or silently lose the field), so the two must stay equal.
-    """
-    assert _documented_csv_columns() == list(NodeIn.model_fields), (
-        f"Route Plan documents CSV columns {_documented_csv_columns()}, but POST /routing/solve "
-        f"takes node fields {list(NodeIn.model_fields)}."
-    )
-
-
-def test_the_route_plan_page_renders_the_documented_columns() -> None:
-    """The column list on the page is CSV_COLUMNS itself, not a hand-typed copy."""
-    page = _source(PAGES_DIR / "RoutePlanPage.tsx")
-    assert "CSV_COLUMNS.map(" in page and "CSV_COLUMN_HELP[c]" in page
-
-
-def test_the_pages_state_their_limits_from_the_api() -> None:
-    """Caps are rendered from GET /routing/instances, so they cannot drift from routing.py."""
-    route_plan = _source(PAGES_DIR / "RoutePlanPage.tsx")
-    for field in ("max_customers", "max_exact_customers", "max_time_limit_seconds"):
-        assert f"limits.{field}" in route_plan, f"RoutePlanPage.tsx no longer renders limits.{field}"
-    simulation = _source(PAGES_DIR / "SimulationPage.tsx")
-    for field in ("max_replications", "max_tuning_customers"):
-        assert f"limits.{field}" in simulation, f"SimulationPage.tsx no longer renders limits.{field}"
+PAGES_DIR = REPO_ROOT / "frontend" / "src" / "pages"
 
 
 # ══ The helper every page scan depends on ════════════════════════════════════

@@ -539,6 +539,52 @@ const AUDIT=()=>{
   const simulated=await p.getByText('On-time rate',{exact:true}).first().waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
   ok('/simulation: the solved plan simulates and shows its KPIs', simulated);
 
+  // ── the limits the pages state are the API's ──────────────────────────────
+  // No page types a cap of its own; each is rendered from GET /routing/instances.
+  // Read the caps from the API and find them in the rendered words.
+  let limits=null;
+  try{ limits=(await (await ctx.request.fetch(API+'/api/v1/routing/instances',{timeout:60000})).json()).limits; }
+  catch(e){ ok('GET /routing/instances returns the limits', false, String(e).split('\n')[0]); }
+  if(limits){
+    await visit('/simulation','/simulation (limits)');
+    const simText=await p.evaluate(()=>document.body.innerText);
+    ok('/simulation: states the replication cap from the API', simText.includes(`Up to ${limits.max_replications}.`),
+       `max_replications=${limits.max_replications}`);
+    await visit('/route-plan','/route-plan (limits)');
+    const planText=await p.evaluate(()=>document.body.innerText);
+    ok('/route-plan: states the time-limit cap from the API', planText.includes(`Up to ${limits.max_time_limit_seconds} seconds.`),
+       `max_time_limit_seconds=${limits.max_time_limit_seconds}`);
+    await p.getByRole('radio',{name:'Upload CSV'}).click().catch(()=>{});
+    const csvText=await p.evaluate(()=>document.body.innerText);
+    ok('/route-plan: states the customer cap from the API', csvText.includes(`At most ${limits.max_customers} customers.`),
+       `max_customers=${limits.max_customers}`);
+  }
+
+  // ── a customer CSV in the documented format solves ────────────────────────
+  // Download a built-in instance as CSV, upload that file back, and solve it. If
+  // the documented columns ever drift from the node fields the solver takes, the
+  // upload is rejected or the solve fails, and this goes red.
+  await visit('/route-plan','/route-plan (CSV round trip)');
+  const csvDownload=await Promise.all([
+    p.waitForEvent('download',{timeout:15000}),
+    p.getByRole('button',{name:/Download this instance as CSV/}).click(),
+  ]).then(([d])=>d,()=>null);
+  ok('/route-plan: a loaded instance downloads as CSV', !!csvDownload);
+  if(csvDownload){
+    const csvPath=await csvDownload.path();
+    const csvName=csvDownload.suggestedFilename();
+    await p.getByRole('radio',{name:'Upload CSV'}).click();
+    await p.locator('input[type=file]').setInputFiles({name:csvName,mimeType:'text/csv',buffer:fs.readFileSync(csvPath)});
+    const accepted=await p.getByText(`Plan for ${csvName}`,{exact:true}).waitFor({state:'visible',timeout:15000}).then(()=>true,()=>false);
+    ok('/route-plan: the downloaded CSV uploads without errors', accepted,
+       accepted?'':(await p.evaluate(()=>document.body.innerText)).match(/That file can't be used[\s\S]{0,200}/)?.[0]||'');
+    if(accepted){
+      await p.getByRole('button',{name:/^Solve$/}).click().catch(()=>{});
+      const csvSolved=await p.getByText('Route 1',{exact:true}).first().waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
+      ok('/route-plan: the uploaded CSV solves and draws its routes', csvSolved);
+    }
+  }
+
   // ── the nav AT its own label breakpoint ───────────────────────────────────
   // Nav overflow has shipped from this repo three times; the rule written down
   // after the third is to measure AT the breakpoint and one pixel either side.
