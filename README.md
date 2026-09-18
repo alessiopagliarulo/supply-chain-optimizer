@@ -11,6 +11,9 @@ A full-stack supply chain intelligence platform for electronic component procure
 > [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1)
 > (`git checkout archive/sourcing-v1`). The pickup-TSP (`optimization/routing.py`) and
 > cross-dock (`optimization/cross_dock.py`) modules are kept for the rebuild.
+> The new routing engine lives in [`backend/app/vrp/`](backend/app/vrp/__init__.py): one
+> CVRPTW data model, three solver paths (CP-SAT exact, Clarke-Wright savings, OR-Tools
+> routing) and one shared solution validator.
 
 ## Headline results
 
@@ -368,6 +371,7 @@ GET  /api/v1/ml/model-info                   # served lead-time artifact provena
 GET  /api/v1/demand/benchmark                # intermittent-demand method benchmark (Croston/SBA/TSB, CRPS+MASE, Monash car parts)
 GET  /api/v1/feeds/status                    # feed freshness: download date, plus observation date where the feed publishes one (today: GPR)
 GET  /api/v1/benchmark/fiedler-curve         # sequential-removal Fiedler λ₂ curve
+POST /api/v1/routing/solve                   # CVRPTW route plan (CP-SAT exact, Clarke-Wright, OR-Tools routing), validated
 ```
 
 Full API reference (live Swagger UI): **https://supply-chain-api-qy8x.onrender.com/docs** — or http://localhost:8000/docs when running locally  
