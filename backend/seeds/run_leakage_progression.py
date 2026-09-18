@@ -95,6 +95,7 @@ import json
 import logging
 import platform
 import sys
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -324,11 +325,39 @@ def _served_champion() -> Optional[str]:
         return None
 
 
-def _sha256(path: Path) -> Optional[str]:
+def _served_training_sha() -> Optional[str]:
+    """sha256 of the panel bytes the served model was trained on, per the persisted metrics.
+
+    Read-only, and ``None`` when the artifact is absent or records no hash.
+    """
     try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
-    except OSError:
+        import joblib
+
+        from app.ml import model_store
+        metrics = joblib.load(model_store.path("metrics"))
+        sha = (metrics.get("provenance") or {}).get("training_data_sha256")
+        return str(sha) if sha else None
+    except Exception:  # noqa: BLE001 — no artifact is a normal state, not an error
         return None
+
+
+def served_panel_prefix(live: bytes, training_sha: str) -> Optional[bytes]:
+    """The head of the live panel file that hashes to ``training_sha``, or ``None``.
+
+    The weekly ``collect-lead-times`` workflow only APPENDS to the panel CSV, so the
+    exact bytes the served model was trained on stay the head of the live file until
+    the next retrain. This finds that head, cut at a row boundary, so the
+    progression keeps describing the served model's dataset (the interlock in
+    ``test_docs_match_artifacts.py``) instead of whatever the collector added since.
+    """
+    digest = hashlib.sha256()
+    end = 0
+    for line in live.splitlines(keepends=True):
+        digest.update(line)
+        end += len(line)
+        if digest.copy().hexdigest() == training_sha:
+            return live[:end]
+    return None
 
 
 def _library_versions() -> Dict[str, str]:
@@ -643,9 +672,35 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     from app.ml.lead_time_collector import PANEL_PATH
 
-    panel = load_observed_panel()
-    if panel is None:
+    if not PANEL_PATH.is_file():
         logger.error("no observed lead-time panel at %s — nothing to measure", PANEL_PATH)
+        return 1
+    # Measure the rows the SERVED model was trained on, not the whole live file:
+    # the weekly collector appends snapshots that no model has been fitted on yet.
+    live_bytes = PANEL_PATH.read_bytes()
+    training_sha = _served_training_sha()
+    if training_sha is None:
+        logger.warning("no served model records its training panel; measuring the whole live panel")
+        panel_bytes = live_bytes
+    else:
+        prefix = served_panel_prefix(live_bytes, training_sha)
+        if prefix is None:
+            logger.error(
+                "the served model was trained on panel bytes %s, which are not the head of "
+                "%s — the panel was rewritten since the last retrain. Retrain first "
+                "(python -m seeds.train_ml_models).", training_sha[:16], PANEL_PATH)
+            return 1
+        panel_bytes = prefix
+    panel_sha256 = hashlib.sha256(panel_bytes).hexdigest()
+    logger.info(
+        "panel: first %d of %d bytes of %s (the served model's training cut)",
+        len(panel_bytes), len(live_bytes), PANEL_PATH.name)
+    with tempfile.TemporaryDirectory() as tmp:
+        panel_file = Path(tmp) / PANEL_PATH.name
+        panel_file.write_bytes(panel_bytes)
+        panel = load_observed_panel(panel_file)
+    if panel is None:
+        logger.error("could not read the observed lead-time panel at %s", PANEL_PATH)
         return 1
 
     design = build_training_design(panel)
@@ -783,7 +838,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "feature_cols": list(feature_cols),
             "feature_exclusions": design.exclusions,
             "panel_path": str(PANEL_PATH.relative_to(REPO_ROOT)),
-            "panel_sha256": _sha256(PANEL_PATH),
+            "panel_sha256": panel_sha256,
             "champion_selection_regime": CHAMPION_SELECTION_REGIME,
             "persists_artifacts": False,
             "notes": [
@@ -826,6 +881,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ]
         },
     )
+
+    # The input measured is a head of the live file, so record ITS hash and length:
+    # the artifact pin re-reads exactly that many bytes and checks this hash.
+    payload["provenance"]["inputs"]["lead_time_panel"].update(
+        sha256=panel_sha256, bytes=len(panel_bytes), live_file_bytes=len(live_bytes))
 
     DOCS.mkdir(parents=True, exist_ok=True)
     (DOCS / "leakage_progression.json").write_text(json.dumps(payload, indent=2) + "\n")
