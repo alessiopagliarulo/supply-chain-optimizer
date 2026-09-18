@@ -133,7 +133,7 @@ interface RouteLegendProps {
 /** One row per route: its colour, stops, load against capacity, and distance. */
 export function RouteLegend({ reports, capacity }: RouteLegendProps) {
   return (
-    <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-1.5 text-sm" aria-label="Routes">
+    <ul className="grid grid-cols-1 gap-y-1.5 text-sm" aria-label="Routes">
       <li className="flex items-center gap-2 min-w-0">
         <span className="w-3 h-3 shrink-0 bg-slate-50 border border-slate-900" aria-hidden="true" />
         <span className="text-slate-200 font-medium">Depot</span>
@@ -142,7 +142,7 @@ export function RouteLegend({ reports, capacity }: RouteLegendProps) {
         <li key={i} className="flex items-center gap-2 min-w-0">
           <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: routeColor(i) }} aria-hidden="true" />
           <span className="text-slate-200 font-medium whitespace-nowrap">{`Route ${i + 1}`}</span>
-          <span className="text-slate-400 truncate">
+          <span className="text-slate-400 min-w-0">
             {`${rep.customers.length} stops · load ${rep.load}/${capacity} · distance ${rep.distance}`}
           </span>
         </li>
