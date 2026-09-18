@@ -35,7 +35,7 @@ from app.vrp.validate import build_solution
 METHOD = "ortools"
 
 
-def solve_ortools(instance: VrpInstance, time_limit_seconds: float = 5.0, seed: int = 42) -> VrpSolution:
+def solve_ortools(instance: VrpInstance, time_limit_seconds: float = 5.0) -> VrpSolution:
     """Solve ``instance`` with the OR-Tools routing library."""
     t0 = time.perf_counter()
     if instance.num_customers == 0:
