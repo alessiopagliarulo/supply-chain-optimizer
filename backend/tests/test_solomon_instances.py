@@ -203,7 +203,7 @@ class TestBenchmarkRunner:
         with pytest.raises(SystemExit):
             benchmark_solomon.main(["--instances", "Z999", "--output", "/dev/null"])
 
-    @pytest.mark.parametrize("limit", ["0", "-1"])
+    @pytest.mark.parametrize("limit", ["0", "-1", "nan", "inf"])
     def test_rejects_non_positive_time_limit(self, limit, tmp_path):
         out = tmp_path / "out.json"
         with pytest.raises(SystemExit) as exc:
