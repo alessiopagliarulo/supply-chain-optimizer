@@ -71,7 +71,7 @@ export function MonteCarloChart({
             }}
             itemStyle={{ color: "#e2e8f0" }}
             labelStyle={{ color: "#e2e8f0" }}
-            formatter={(value: any) => `${((value as number) * 100).toFixed(1)}%`}
+            formatter={(value) => `${(Number(value) * 100).toFixed(1)}%`}
           />
           <Legend />
           <Area

@@ -89,7 +89,7 @@ function ProtectedLayout() {
 
   useEffect(() => {
     if (isAuthenticated) fetchCart();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchCart]);
 
   // Until initializeAuth() has resolved we know NOTHING about the session. Rendering
   // <Navigate to="/login"> here is what dumped logged-in users at the login screen on

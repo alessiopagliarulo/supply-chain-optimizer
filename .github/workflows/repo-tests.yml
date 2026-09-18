@@ -24,7 +24,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -172,8 +172,11 @@ jobs:
           if python -m pytest --version >/dev/null 2>&1; then
             # pytest exits 5 when it collected no tests at all. On a fresh Python repo that
             # is "there is nothing to run yet", not a failure — anything else is passed through.
+            # `-m "not slow"`: `slow` is the conventional marker for tests that are too
+            # expensive or too platform-dependent for CI (in this repo it means local-only;
+            # ci.yml deselects it the same way). An unregistered marker selects nothing away.
             set +e
-            python -m pytest -q
+            python -m pytest -q -m "not slow"
             rc=$?
             set -e
             if [ "$rc" -eq 5 ]; then

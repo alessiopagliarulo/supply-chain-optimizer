@@ -47,8 +47,9 @@ export default function Register() {
       // invented `id: 0`, which no record ever has).
       await loginWithToken(response.data.access_token);
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed');
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Registration failed');
     } finally {
       setLoading(false);
     }
