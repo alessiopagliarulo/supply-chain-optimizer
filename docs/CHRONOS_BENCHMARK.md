@@ -111,24 +111,24 @@ Against the FAIR comparator the cold-start win **disappears**: Prophet trend-onl
 
 ## Cost / timing (measured this run, not quoted)
 
-**Hardware:** macOS-26.5-arm64-arm-64bit-Mach-O · arm · Python 3.13.5 · torch 2.12.1 (4 threads) · device `cpu` · CUDA available: False.
+**Hardware:** macOS-26.6.2-arm64-arm-64bit-Mach-O · arm · Python 3.13.15 · torch 2.12.1 (3 threads) · device `cpu` · CUDA available: False.
 
-**Chronos startup:** `import torch` + `import chronos` **2.68 s** · `from_pretrained` **0.4 s** (weights already in the HF cache: **True** — a cold machine must first download ~33 MB) · model size **8.65 M** parameters.
+**Chronos startup:** `import torch` + `import chronos` **5.19 s** · `from_pretrained` **2.74 s** (weights already in the HF cache: **False** — a cold machine must first download ~33 MB) · model size **8.65 M** parameters.
 
-**Warm-up:** the first forward pass costs **73 ms** (lazy init). It is timed separately and EXCLUDED from the steady-state numbers below — reporting it inside a single wall-clock, as this benchmark used to, is what made the old "0.01 s inference" figure impossible to interpret.
+**Warm-up:** the first forward pass costs **68 ms** (lazy init). It is timed separately and EXCLUDED from the steady-state numbers below — reporting it inside a single wall-clock, as this benchmark used to, is what made the old "0.01 s inference" figure impossible to interpret.
 
 Per-call cost over the walk-forward origins (warm-up excluded; the trend-only row is the short-context cold-start run and is timed separately so the medians are not mixed):
 
 | Model | Calls | Context (pts) | Median / call | Mean | Min | Max | What one call does |
 |---|---:|---:|---:|---:|---:|---:|---|
-| Chronos (zero-shot) | 3 | 162–186 | **2.2 ms** | 2.3 ms | 2.2 ms | 2.5 ms | frozen forward pass, H=12 |
-| Prophet (seasonal) | 3 | 162–186 | **22.4 ms** | 30.5 ms | 22.4 ms | 46.8 ms | full Stan fit + predict |
-| Prophet (trend-only, cold-start ctx) | 3 | 6 | **22.4 ms** | 24.0 ms | 20.9 ms | 28.7 ms | full Stan fit + predict |
+| Chronos (zero-shot) | 3 | 162–186 | **5.8 ms** | 6.3 ms | 5.3 ms | 7.8 ms | frozen forward pass, H=12 |
+| Prophet (seasonal) | 3 | 162–186 | **36.0 ms** | 58.5 ms | 34.7 ms | 104.7 ms | full Stan fit + predict |
+| Prophet (trend-only, cold-start ctx) | 3 | 6 | **37.4 ms** | 36.8 ms | 31.4 ms | 41.4 ms | full Stan fit + predict |
 | Seasonal-naive | 3 | 162–186 | **0.0 ms** | 0.0 ms | 0.0 ms | 0.0 ms | array indexing |
 
-**Chronos steady-state latency** (the walk-forward is only 3 calls — not a latency sample): the same forward pass repeated **20×** on the full 198-point context, after a discarded warm-up → median **2.24 ms**, mean 2.24 ms, p95 2.43 ms, range 2.07–2.43 ms (H=12, batch 1). An 8.65 M-parameter encoder-decoder doing ONE non-autoregressive forward pass over ~200 tokens really is single-digit milliseconds on this CPU — the number is small, but it is not a stub: dropping `chronos-forecasting` makes this script fail loudly and write "pending" rather than produce figures.
+**Chronos steady-state latency** (the walk-forward is only 3 calls — not a latency sample): the same forward pass repeated **20×** on the full 198-point context, after a discarded warm-up → median **5.40 ms**, mean 5.57 ms, p95 6.88 ms, range 5.11–6.88 ms (H=12, batch 1). An 8.65 M-parameter encoder-decoder doing ONE non-autoregressive forward pass over ~200 tokens really is single-digit milliseconds on this CPU — the number is small, but it is not a stub: dropping `chronos-forecasting` makes this script fail loudly and write "pending" rather than produce figures.
 
-Chronos's per-forecast cost is **10× cheaper than Prophet's** here — but that compares a frozen forward pass against a full Stan fit, which is exactly the point: the TSFM's cost is the ~2 GB torch install and the one-off weight load, not the inference. (Horizon 12, single series, batch size 1, n=3 calls — this is NOT a throughput benchmark, and with so few calls the median is indicative, not a stable percentile.)
+Chronos's per-forecast cost is **6× cheaper than Prophet's** here — but that compares a frozen forward pass against a full Stan fit, which is exactly the point: the TSFM's cost is the ~2 GB torch install and the one-off weight load, not the inference. (Horizon 12, single series, batch size 1, n=3 calls — this is NOT a throughput benchmark, and with so few calls the median is indicative, not a stable percentile.)
 
 ## Honest take (model selection)
 
@@ -149,14 +149,14 @@ python -m seeds.run_chronos_benchmark --as-of 2026-08-16 \
     --compare-vintage 2026-07-10
 ```
 
-Timings are machine-specific (hardware stated above) and will differ on yours; the WAPE/RMSE figures are deterministic given the same series vintage — which is why `--as-of` is not optional if you want to reproduce them. Run recorded: `2026-09-05T19:38:55+00:00`.
+Timings are machine-specific (hardware stated above) and will differ on yours; the WAPE/RMSE figures are deterministic given the same series vintage — which is why `--as-of` is not optional if you want to reproduce them. Run recorded: `2026-09-18T15:47:41+00:00`.
 
 
 ## Provenance
 
-- **Generated:** 2026-09-05T19:38:55Z (UTC)
+- **Generated:** 2026-09-18T15:47:41Z (UTC)
 - **Generator:** `seeds.run_chronos_benchmark`
-- **Commit:** `5c462d4b8e553f69d5eada90834e3d7ce474dc69` (clean tree)
+- **Commit:** `a2db4223b0b60bf34f7e87f145303cd568feca68` (clean tree)
 - **Input `demand_series`:** `backend/seeds/data/a34sno_vintages/a34sno_20260816.csv` · sha256 `b5e61299781f39ea…`
 - **Data vintage pin:** `2026-08-16`
-- **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
+- **Python:** 3.13.15 · macOS-26.6.2-arm64-arm-64bit-Mach-O

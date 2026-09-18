@@ -1,6 +1,6 @@
 # The part-family leakage collapse, measured
 
-Generated `2026-09-10T04:34:38Z` by `python -m seeds.run_leakage_progression` (backend/, venv active). Machine-readable: [`leakage_progression.json`](leakage_progression.json).
+Generated `2026-09-18T15:48:10Z` by `python -m seeds.run_leakage_progression` (backend/, venv active). Machine-readable: [`leakage_progression.json`](leakage_progression.json).
 
 **Every number below is produced by that one command.** Earlier revisions of `MODEL_CI.md` and `RESEARCH_TECHNIQUES.md` quoted two different progressions from memory; this artifact is now the only source either of them cites.
 
@@ -51,7 +51,7 @@ Every baseline is scored on exactly the folds above, so the comparison is paired
 | `ridge` | +0.774 | -0.401 | -2.845 |
 | `random_forest` | +0.903 | +0.014 | -0.807 |
 | `gradient_boosting` *(champion)* | +0.839 | +0.080 | -0.706 |
-| `mlp` | +0.914 | -1.008 | -9.030 |
+| `mlp` | +0.914 | -0.998 | -9.052 |
 | `train_mean` *(baseline)* | -0.002 | -0.525 | -2.114 |
 | `always_210d` *(baseline)* | -0.367 | -1.794 | -5.409 |
 | `category_mean` *(baseline)* | +0.207 | -0.413 | -1.509 |
@@ -112,9 +112,9 @@ This is the table that got conflated with the progression. `base_product` explai
 
 ### Environment
 
-- hardware `arm64 / Darwin 25.5.0`, python `3.13.5`
-- scikit-learn 1.8.0, numpy 2.4.4, pandas 2.3.3, scipy 1.17.1
-- wall time 399.3s
+- hardware `arm64 / Darwin 25.6.0`, python `3.13.15`
+- scikit-learn 1.8.0, numpy 2.4.4, pandas 2.3.3, scipy 1.18.1
+- wall time 799.6s
 
 ## Reproduce
 
@@ -125,10 +125,10 @@ python -m seeds.run_leakage_progression
 
 ## Provenance
 
-- **Generated:** 2026-09-10T04:41:17Z (UTC)
+- **Generated:** 2026-09-18T16:01:30Z (UTC)
 - **Generator:** `seeds.run_leakage_progression`
-- **Commit:** `10002b76bce4554908fa5e5aba388c17557166f8` (clean tree)
+- **Commit:** `a2db4223b0b60bf34f7e87f145303cd568feca68` (clean tree)
 - **Input `lead_time_panel`:** `backend/seeds/data/lead_time_panel/observed_lead_times.csv` · sha256 `d94df904635a732c…`
-- **Python:** 3.13.5 · macOS-26.5-arm64-arm-64bit-Mach-O
+- **Python:** 3.13.15 · macOS-26.6.2-arm64-arm-64bit-Mach-O
 
 

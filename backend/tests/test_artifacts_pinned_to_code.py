@@ -260,9 +260,10 @@ def _resolve_repo_python_path() -> None:
 LEAKAGE_JSON = DOCS / "leakage_progression.json"
 
 LEAKAGE_REGENERATE = (
-    "Re-run `cd backend && ./venv/bin/python -m seeds.run_leakage_progression` "
-    "(~215 s) and commit docs/leakage_progression.json + docs/LEAKAGE_PROGRESSION.md "
-    "(README.md and RESEARCH_TECHNIQUES.md quote this artifact)."
+    "Re-run `seeds.run_leakage_progression` through the regenerate-reference-artifacts "
+    "workflow (GitHub macOS runner, the reference platform; a local run on another chip "
+    "differs in the MLP arm) and commit docs/leakage_progression.json + "
+    "docs/LEAKAGE_PROGRESSION.md (README.md and RESEARCH_TECHNIQUES.md quote this artifact)."
 )
 
 
@@ -772,8 +773,9 @@ def test_forecast_backtest_prophet_arms_reproduce_from_the_live_harness():
 CHRONOS_JSON = DOCS / "chronos_benchmark.json"
 
 CHRONOS_REGENERATE = (
-    "Re-run `cd backend && ./venv/bin/python -m seeds.run_chronos_benchmark --offline` "
-    "(needs requirements-ml.txt: torch + chronos-forecasting) and commit "
+    "Re-run `seeds.run_chronos_benchmark --offline` through the "
+    "regenerate-reference-artifacts workflow (GitHub macOS runner, the reference "
+    "platform; Chronos forecasts differ by chip) and commit "
     "docs/chronos_benchmark.json + docs/CHRONOS_BENCHMARK.md."
 )
 

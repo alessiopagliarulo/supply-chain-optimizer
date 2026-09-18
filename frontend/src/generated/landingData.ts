@@ -45,10 +45,10 @@ export const landingStats: LandingStat[] = [
   },
   {
     "id": "latency",
-    "value": 2.24,
+    "value": 5.4,
     "unit": " ms",
     "label": "median inference, 8.65M-parameter forecaster",
-    "detail": "p95 is 2.43 ms. Steady state, after warm-up.",
+    "detail": "p95 is 6.88 ms. Steady state, after warm-up.",
     "source": "docs/chronos_benchmark.json → chronos.steady_state.median_ms"
   }
 ]

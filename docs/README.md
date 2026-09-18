@@ -89,6 +89,14 @@ generated data files (`*.json` alongside their corresponding `*.md` — e.g.
 reading material — each is linked from its corresponding `.md` file where
 relevant.
 
+**Reference platform for `leakage_progression.json` and `chronos_benchmark.json`.**
+These two are reference results produced on GitHub's macOS/arm64 runner by the
+[`regenerate-reference-artifacts`](../.github/workflows/regenerate-reference-artifacts.yml)
+workflow, the same runner image on which the `python` job of `repo-tests.yml` checks them
+strictly. Their MLP arm and Chronos forecasts depend on the CPU, so a local run on a
+different Apple chip (for example an M5) can differ around the 4th decimal. Regenerate them
+with that workflow, not locally.
+
 ---
 
 All of the internal working notes above live under [`archive/`](archive/README.md), kept for provenance rather than as reading material.
