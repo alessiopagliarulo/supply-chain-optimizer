@@ -94,8 +94,11 @@ These two are reference results produced on GitHub's macOS/arm64 runner by the
 [`regenerate-reference-artifacts`](../.github/workflows/regenerate-reference-artifacts.yml)
 workflow, the same runner image on which the `python` job of `repo-tests.yml` checks them
 strictly. Their MLP arm and Chronos forecasts depend on the CPU, so a local run on a
-different Apple chip (for example an M5) can differ around the 4th decimal. Regenerate them
-with that workflow, not locally.
+different Apple chip (for example an M5) can differ around the 4th decimal. CI is
+authoritative: a local failure of exactly those two pins
+(`test_leakage_progression_reproduces_from_the_live_lead_time_model` and
+`test_chronos_zero_shot_forecasts_reproduce_from_the_cached_weights`) is expected on such a
+machine. Regenerate them with that workflow, not locally.
 
 ---
 

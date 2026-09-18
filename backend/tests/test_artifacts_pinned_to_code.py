@@ -227,6 +227,14 @@ def test_newsvendor_primary_reproduces_from_the_live_evaluation():
 #   2. SETUP THE LINUX CI DOES NOT DO — the Chronos arm reads a Hugging Face
 #      weight cache offline; `repo-tests.yml` downloads it before the suite.
 #
+# REFERENCE PLATFORM. `leakage_progression.json` and `chronos_benchmark.json` are
+# generated on GitHub's macOS/arm64 runner (the regenerate-reference-artifacts
+# workflow), and the `python` job of `repo-tests.yml` is AUTHORITATIVE for them.
+# Their MLP arm and Chronos forecasts use chip-dependent kernels, so on another
+# Mac (for example an M5) the leakage-progression and Chronos zero-shot pins can
+# differ in the last decimals: a local failure of exactly those two pins is
+# expected and is not a reason to regenerate locally or loosen the tolerance.
+#
 # What is NOT confined here: the deterministic seasonal-naive arm of each demand
 # artifact. Those are unmarked and are CI's only artifact-vs-code coverage.
 #
