@@ -8,6 +8,7 @@
 //   npm run build && npx vite preview --port 4173 &
 //   node scripts/ui-gate.cjs                                       # local build
 //   BASE=https://supply-chain-ui-bhwz.onrender.com node scripts/ui-gate.cjs   # live
+//   API=http://localhost:8000 node scripts/ui-gate.cjs             # local build, local API
 //
 // It lives under frontend/ and is .cjs on purpose: it uses require(), and Node
 // resolves modules from the SCRIPT's directory upward — so it must sit beside the
@@ -55,10 +56,13 @@
 // the bug lived in the gap between a breakpoint and the width content needs.
 // Test AT the breakpoints, not around them.
 //
-// The nav's collapse point is checked SEPARATELY, at the bottom of this file, at
-// 1399/1400/1401 on a single route. It is a global component, so sweeping three
-// extra widths across all ten routes would buy nothing and cost thirty page loads
-// on a gate that fronts a ~26-minute pipeline.
+// The nav's label breakpoint (`sm`, 640px) is checked SEPARATELY, at the bottom of
+// this file, at 639/640/641 on a single route. It is a global component, so
+// sweeping extra widths across every route would buy nothing.
+//
+// Since issue #16 the app is three pages (Route Plan, Simulation, Benchmarks) plus
+// the landing page, with no login. Every other path, including the removed
+// sourcing-era pages, must render the 404 page; that is asserted too.
 
 // Final pre-push gate. Drives a real browser against a LOCAL build with the live
 // API proxied in, across every route and viewport, and asserts the specific
@@ -67,16 +71,16 @@ const { chromium } = require('playwright');
 const fs=require('fs'), path=require('path');
 const axeSource = fs.readFileSync(require.resolve('axe-core/axe.min.js'),'utf8');
 const L=process.env.BASE||'http://localhost:4173';
-const API='https://supply-chain-api-qy8x.onrender.com';
+const API=process.env.API||'https://supply-chain-api-qy8x.onrender.com';
 // The proxy must outlast the slowest endpoint the UI fires on mount, or it aborts
 // a request that was going to SUCCEED and the page renders a failure that is the
 // gate's own fault. `/newsvendor/evaluation` measured 259.9s on the deployed
 // instance; 180s cut it off, so it is 300s.
 const PROXY_TIMEOUT=300000;
-const ROUTES=['/dashboard','/components','/cart','/resilience','/model-card','/newsvendor'];
+const ROUTES=['/route-plan','/simulation','/benchmarks'];
+// Pages the app used to have. Each must now be an honest 404, not a crash or a redirect.
+const REMOVED_ROUTES=['/login','/register','/dashboard','/components','/cart','/resilience','/model-card','/newsvendor'];
 let pass=0, fail=0;
-// "Jul 2026" — what a published data vintage has to look like.
-const MONTH_YEAR=/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(19|20)\d{2}\b/;
 const ok=(n,c,d='')=>{c?pass++:fail++; console.log(`${c?'PASS':'FAIL'}  ${n}${d?'\n        '+d:''}`)};
 
 const AUDIT=()=>{
@@ -303,17 +307,10 @@ const AUDIT=()=>{
     return false;
   };
 
-  // How long each route's own solver is allowed to take before "still loading"
-  // becomes a FAILURE. Sized from measurement, per route, so that a route which
-  // hangs cannot cost the run 5 minutes and a route which legitimately takes 4
-  // minutes is not called broken. `lru_cache` on the server means only the first
-  // visit to /newsvendor pays the full price; the other three viewports are ~0.1s.
-  // /newsvendor's 300000 cap was sized for the 259.9s recompute. Since 2026-08-30 all 72
-  // reachable evaluations are served from docs/newsvendor.json in <4ms, so the cap is now
-  // 30s -- generous for a page load, but tight enough that a regression BACK to recomputing
-  // fails the gate instead of hiding inside a five-minute budget. Do not raise it to make a
-  // slow page pass; a slow page IS the defect.
-  const SETTLE_CAP={'/newsvendor':30000};
+  // How long a route may take to finish loading before "still loading" is a
+  // FAILURE. Every page's first request is a cheap GET; solving, simulating and
+  // tuning only happen on a click, so no route has a reason to be slow on mount.
+  const SETTLE_CAP={};
   const capFor=r=>SETTLE_CAP[r]||60000;
 
   // Readiness = no request in flight AND no spinner still turning, held for
@@ -374,12 +371,11 @@ const AUDIT=()=>{
     ok(`API awake before the sweep (${Math.round((Date.now()-t0)/1000)}s)`, up, why);
   }
 
-  // ---------- public landing page `/` — UNAUTHENTICATED, before login ------
+  // ---------- public landing page `/` ----------------------------------------
   // `/` is the page a stranger actually lands on, and it exists specifically so
-  // that a cold or sleeping free-tier API never blocks a first impression: every
-  // number on it comes from `src/generated/landingData.ts`, a build-time file,
-  // not a fetch. This whole block runs before the demo login below on purpose —
-  // it is the one route in this file that must work with no session and no API.
+  // that a cold or sleeping free-tier API never blocks a first impression: it
+  // is static text and three links, no fetch. It is the one route in this file
+  // that must work with no API at all.
   {
     const landingNav = await gotoRoute(L+'/', '/');
     ok('/: navigable and mounts', landingNav);
@@ -399,54 +395,17 @@ const AUDIT=()=>{
       const watchLandingApi = r => { if(/\/api\/v1|\/health/.test(r.url())) landingApiCalls++; };
       p.on('request', watchLandingApi);
       await settle(15000);
-      await p.waitForTimeout(2000);   // framer-motion `whileInView` etc. settling
+      await p.waitForTimeout(2000);
       p.off('request', watchLandingApi);
       ok('/: zero API requests while rendering', landingApiCalls===0,
          `saw ${landingApiCalls} request(s) matching /api/v1 or /health`);
 
-      // ── every published number actually rendered ───────────────────────
-      // Re-derive the numbers from the SAME generated file the page imports,
-      // read straight off disk — mirrors the regex-extraction approach in
-      // backend/tests/test_landing_data_contract.py so this and the backend
-      // contract test can never quietly disagree about how to parse the file.
-      // A blank or missing stat renders nothing, and `bodyText.includes()`
-      // on an empty/garbage string would silently pass — so the formatted
-      // value is asserted, not just the stat's existence.
-      const landingSrcPath = path.join(__dirname,'..','src','generated','landingData.ts');
-      const landingSrc = fs.readFileSync(landingSrcPath,'utf8');
-      const extractArray = name => {
-        const m = landingSrc.match(new RegExp(`export const ${name}: \\w+\\[\\] = (\\[[\\s\\S]*?\\n\\])\\n`));
-        if(!m) throw new Error(`ui-gate: could not find ${name} in ${landingSrcPath}`);
-        return JSON.parse(m[1]);
-      };
-      const landingStats = extractArray('landingStats');
-      const landingProofPoints = extractArray('landingProofPoints');
-      // Same rounding rule as formatStatValue() in LandingPage.tsx — duplicated
-      // here deliberately rather than imported, since this file is .cjs and the
-      // component is a .tsx ES module; drift between the two would show up as
-      // this check failing against a real rendered page, which is the point.
-      const formatStatValue = ({value,unit}) => {
-        const decimals = Number.isInteger(value) ? 0 : Math.abs(value)>=10 ? 1 : 2;
-        return `${value.toFixed(decimals)}${unit}`;
-      };
+      // ── a link to each of the three pages ──────────────────────────────
       const bodyText = await p.evaluate(()=>document.body.innerText);
-      for(const stat of landingStats){
-        const disp = formatStatValue(stat);
-        ok(`/: stat "${stat.id}" renders its published value`, bodyText.includes(disp), disp);
+      for(const route of ROUTES){
+        const n = await p.locator(`a[href="${route}"]`).count();
+        ok(`/: links to ${route}`, n>0);
       }
-
-      // ── each stat shows its source path ─────────────────────────────────
-      // The whole pitch of this page is "every number traces to a committed
-      // artifact" — a stat with no visible source is an assertion, not a proof.
-      const isArtifactSource = s => /^docs\/.+\.json →/.test(s) || s==='backend/supply_chain.db';
-      const allSources = [...new Set([
-        ...landingStats.map(s=>s.source),
-        ...landingProofPoints.map(p=>p.source),
-      ])].filter(isArtifactSource);
-      const presentSources = allSources.filter(s=>bodyText.includes(s));
-      ok('/: every artifact source path is printed',
-         allSources.length>0 && presentSources.length===allSources.length,
-         `${presentSources.length}/${allSources.length}: ${JSON.stringify(presentSources)}`);
 
       // ── the retracted 47.25% figure must not resurface ──────────────────
       // Published once as the (since-archived) sourcing optimizer's edge, which it
@@ -466,22 +425,16 @@ const AUDIT=()=>{
            a.overflow.length?JSON.stringify(a.overflow.slice(0,3)):'');
       }
 
-      // ── the CTA reaches a WORKING login, not a permanent spinner ────────
-      // `authResolved` starts false and is only set by `initializeAuth()`,
-      // which is deliberately skipped on `/`. An earlier version of this page
-      // left auth bootstrapping in `App()` with `[]` deps, so navigating
-      // `/` -> `/login` client-side left `PublicOnly` rendering `<AuthSplash/>`
-      // forever — a permanent spinner on the primary CTA that nothing above
-      // this would ever catch, since it only checks `/` in isolation. This is
-      // what catches that regression coming back.
-      await p.locator('a[href="/login"]').first().click();
-      await p.waitForURL('**/login',{timeout:15000}).catch(()=>{});
-      const onLogin = /\/login$/.test(new URL(p.url()).pathname);
-      ok('/: CTA click lands on /login', onLogin, p.url());
-      if(onLogin){
-        const pwVisible = await p.locator('input[type="password"]').first()
-          .isVisible({timeout:10000}).catch(()=>false);
-        ok('/: /login renders a real form (not a permanent AuthSplash spinner)', pwVisible);
+      // ── each link reaches a working page, client-side ───────────────────
+      // `/` stays offline and main.tsx skips the warm-up there, so the app must
+      // still work when the visitor navigates on without a reload.
+      for(const route of ROUTES){
+        await gotoRoute(L+'/', '/');
+        await p.locator(`a[href="${route}"]`).first().click();
+        await p.waitForURL('**'+route,{timeout:15000}).catch(()=>{});
+        const landed = new URL(p.url()).pathname===route;
+        const is404 = await p.evaluate(()=>/doesn't exist/.test(document.body.innerText));
+        ok(`/: the ${route} link lands on a real page`, landed && !is404, p.url());
       }
     }
   }
@@ -489,7 +442,7 @@ const AUDIT=()=>{
   // ---------- document head ----------
   // Through gotoRoute like every other navigation, so that "the site is not
   // there" is a FAIL with a name on it rather than an unhandled throw.
-  if(!await gotoRoute(L+'/login','/login')){
+  if(!await gotoRoute(L+'/route-plan','/route-plan')){
     console.log(`\n════ ${pass} passed, ${fail} failed ════`);
     await b.close(); process.exit(1);
   }
@@ -500,42 +453,12 @@ const AUDIT=()=>{
   ok('head: meta description', !!head.desc);
   ok('head: open graph tags', head.og.length>=3, head.og.join(','));
 
-  // Login is a navigation too, and it died here once (`waitForURL: Timeout
-  // 180000ms exceeded` waiting for **/dashboard) for the same reason: the login
-  // POST was queued behind a starved API. Retry the NAVIGATION, three times, and
-  // if it still will not happen say so as a FAIL — every assertion below this
-  // point is authenticated, so continuing would only manufacture 200 vacuous
-  // failures that hide the one real one.
-  let loggedIn=false;
-  for(let i=1;i<=3&&!loggedIn;i++){
-    try{
-      await p.getByRole('button',{name:/demo login/i}).click({timeout:30000});
-      await p.waitForURL('**/dashboard',{timeout:120000});
-      loggedIn=true;
-    }catch(e){
-      console.log(`RETRY  demo login attempt ${i}/3: ${String(e).split('\n')[0]}`);
-      await p.waitForTimeout(3000*i);
-      await gotoRoute(L+'/login','/login');
-    }
-  }
-  ok('demo login reaches /dashboard', loggedIn);
-  // Let the LANDING dashboard finish before the sweep starts asserting. Login
-  // drops us on /dashboard, which immediately fires /components, /distributors,
-  // /cart and /feeds/status; the old code navigated away a second later and
-  // cancelled all four, so nothing on the API's side was ever warmed and the
-  // sweep's first route then sat 60s on those same four calls — measured twice,
-  // both times only on the FIRST load, every later load under a second. Absorb
-  // that once, out loud, and unasserted: this is the same kind of warm-up as the
-  // /version wake above. The readiness assertion itself is untouched and still
-  // runs on all forty loads of the sweep.
-  {
-    const st=await settle(120000);
-    console.log(`WARM   post-login dashboard settled=${st.ready} in ${Math.round(st.ms/1000)}s`+
-                (st.ready?'':` — pending=${JSON.stringify(st.pending)}`));
-  }
-  if(!loggedIn){
-    console.log(`\n════ ${pass} passed, ${fail} failed ════`);
-    await b.close(); process.exit(1);
+  // ── removed pages are an honest 404 ───────────────────────────────────────
+  for(const route of REMOVED_ROUTES){
+    if(!await gotoRoute(L+route,route)) continue;
+    await p.waitForTimeout(500);
+    const t=await p.evaluate(()=>document.body.innerText);
+    ok(`${route}: removed page renders the 404 page`, /404/.test(t) && /doesn't exist/.test(t), t.slice(0,80));
   }
 
   const report={};
@@ -599,104 +522,54 @@ const AUDIT=()=>{
       }catch{}
     }
   }
-  // ── /model-card: the same figure, the same rule ───────────────────────────
-  // The model card is the page a reader lands on to check whether a number is
-  // trustworthy, so it is the last place a probability may appear undated. The
-  // observation month is rendered at the SAME font size as the percentage, on
-  // the same line — this asserts that, in pixels, rather than trusting a class
-  // name. A vintage set in smaller print than its claim has shipped from this
-  // repo before and is the specific regression being guarded.
+  // ── the main flow actually works ──────────────────────────────────────────
+  // Every check above passes on a page that renders but cannot do anything. So
+  // solve the first built-in instance, then simulate the plan it produced.
   await p.setViewportSize({width:1440,height:900});
-  await visit('/model-card','/model-card (vintage)');
-  await p.waitForTimeout(6000);
-  {
-    const figs=await p.locator('[data-testid="stress-figure"]').count();
-    ok('/model-card: the macro stress figure renders', figs===1,
-       'without it every vintage assertion below would be vacuous');
-    if(figs===1){
-      const v=await p.evaluate(()=>{
-        const px=e=>e?parseFloat(getComputedStyle(e).fontSize):null;
-        const f=document.querySelector('[data-testid="stress-probability"]');
-        const d=document.querySelector('[data-testid="stress-vintage"]');
-        return {claim:(f&&f.innerText||'').trim(), claimPx:px(f),
-                vintage:(d&&d.innerText||'').trim(), vintagePx:px(d),
-                visible:!!(d&&d.getClientRects().length)};
-      });
-      ok('/model-card: the stress probability is printed with a visible vintage',
-         v.visible, JSON.stringify(v));
-      if(/\d/.test(v.claim)){
-        ok('/model-card: the vintage names the observation month',
-           MONTH_YEAR.test(v.vintage), JSON.stringify(v));
-        ok('/model-card: the vintage is not smaller print than the figure it qualifies',
-           v.vintagePx!==null && v.claimPx!==null && v.vintagePx>=v.claimPx, JSON.stringify(v));
-      }
-    }
-  }
+  await visit('/route-plan','/route-plan (solve)');
+  await p.getByRole('button',{name:/^Solve$/}).click().catch(()=>{});
+  // `waitFor`, not `isVisible`: isVisible() answers immediately and ignores its timeout.
+  const drawn=await p.getByText('Route 1',{exact:true}).first().waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
+  ok('/route-plan: Solve draws the routes and their legend', drawn);
+  const plotted=await p.evaluate(()=>document.querySelectorAll('svg[role=img] polyline').length);
+  ok('/route-plan: one polyline per route on the x/y plot', plotted>0, `polylines=${plotted}`);
+  await p.getByRole('link',{name:/Simulate this plan/}).click().catch(()=>{});
+  await p.waitForURL('**/simulation',{timeout:15000}).catch(()=>{});
+  await p.getByRole('button',{name:/^Run simulation$/}).click().catch(()=>{});
+  const simulated=await p.getByText('On-time rate',{exact:true}).first().waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
+  ok('/simulation: the solved plan simulates and shows its KPIs', simulated);
 
-  // ── the nav AT its own collapse point ─────────────────────────────────────
-  // Nav overflow has shipped from this repo three times, and the
-  // rule written down after the third was: measure AT the breakpoint and one
-  // pixel either side. That rule was being followed against the WRONG NUMBER.
-  // The viewport list above brackets 1280 — Tailwind's `xl`, where the nav used
-  // to collapse — but `NavBar.tsx:142` now collapses at `min-[1400px]`. So the
-  // gate was pinned to the location of an already-fixed bug and never touched
-  // the band where the full row has to fit. A fourth recurrence would have been
-  // invisible to it.
+  // ── the nav AT its own label breakpoint ───────────────────────────────────
+  // Nav overflow has shipped from this repo three times; the rule written down
+  // after the third is to measure AT the breakpoint and one pixel either side.
+  // Three links always fit, so there is no hamburger: below `sm` (640px) the
+  // labels drop and only the icons remain. Asserted per width: the labels are
+  // shown on the correct side of the boundary, the bar does not scroll, and no
+  // descendant paints past the viewport.
   //
-  // Measured on the live site when this check was added (2026-09-04): 1399 ->
-  // the desktop row is display:none and the hamburger is up; 1400 -> flex at
-  // 936px inside a 1400px bar. Benign today, with 464px of headroom. The point
-  // is that the next link added to the nav is now caught here instead of in
-  // production.
-  //
-  // Asserted per width: the row's display flips on the correct side of the
-  // boundary, the row does not overflow itself, the bar does not scroll, and no
-  // descendant extends past the viewport. `scrollWidth > clientWidth` on the bar
-  // alone is not enough — a flex child can paint outside its parent without ever
-  // making the parent scroll, which is how 1371px-in-1280px looked clean.
-  //
-  // IF NavBar's BREAKPOINT MOVES AGAIN, MOVE THESE THREE WIDTHS WITH IT.
-  const NAV_BREAKPOINT = 1400;
+  // IF NavBar's BREAKPOINT MOVES, MOVE THESE THREE WIDTHS WITH IT.
+  const NAV_BREAKPOINT = 640;
   for(const w of [NAV_BREAKPOINT-1, NAV_BREAKPOINT, NAV_BREAKPOINT+1]){
     await p.setViewportSize({width:w,height:900});
-    await visit('/dashboard',`/dashboard (nav @ ${w}px)`);
-    await p.waitForTimeout(3000);
+    await visit('/benchmarks',`/benchmarks (nav @ ${w}px)`);
     const n=await p.evaluate(()=>{
-      const bar=document.querySelector('nav')||document.querySelector('header');
+      const bar=document.querySelector('nav[aria-label="Main"]');
       if(!bar) return {err:'no nav element'};
-      const row=[...bar.querySelectorAll('*')]
-        .find(e=>String(e.className||'').includes('min-[1400px]:flex'));
+      const label=bar.querySelector('a span.hidden');
       const over=[...bar.querySelectorAll('*')]
-        .filter(e=>{const r=e.getBoundingClientRect();
-                    return r.width>0 && r.right>window.innerWidth+1;})
-        .map(e=>`${e.tagName}.${String(e.className||'').slice(0,40)}@${Math.round(e.getBoundingClientRect().right)}`);
-      return {
-        found:!!row,
-        display: row?getComputedStyle(row).display:null,
-        rowScrollW: row?row.scrollWidth:0,
-        rowClientW: row?row.clientWidth:0,
-        barScrollW: bar.scrollWidth,
-        barClientW: bar.clientWidth,
-        past: over.slice(0,3),
-        nPast: over.length,
-      };
+        .filter(e=>{const r=e.getBoundingClientRect(); return r.width>0 && r.right>window.innerWidth+1;})
+        .map(e=>`${e.tagName}@${Math.round(e.getBoundingClientRect().right)}`);
+      return {found:!!label, display: label?getComputedStyle(label).display:null,
+              barScrollW: bar.scrollWidth, barClientW: bar.clientWidth, past: over.slice(0,3), nPast: over.length};
     });
-    ok(`nav @ ${w}px: the desktop link row is still locatable`, n.found===true,
-       'the min-[1400px]:flex class is how this check finds the row — if the class '+
-       'changed, this whole block went vacuous rather than red: '+JSON.stringify(n));
+    ok(`nav @ ${w}px: the link labels are locatable`, n.found===true, JSON.stringify(n));
     if(n.found){
       const shouldShow = w >= NAV_BREAKPOINT;
-      ok(`nav @ ${w}px: the row is ${shouldShow?'expanded':'collapsed'} on the correct side of ${NAV_BREAKPOINT}`,
+      ok(`nav @ ${w}px: labels ${shouldShow?'shown':'hidden'} on the correct side of ${NAV_BREAKPOINT}`,
          shouldShow ? n.display!=='none' : n.display==='none', JSON.stringify(n));
-      if(shouldShow){
-        ok(`nav @ ${w}px: the expanded row fits without overflowing itself`,
-           n.rowScrollW<=n.rowClientW+1, JSON.stringify(n));
-      }
     }
-    ok(`nav @ ${w}px: the bar itself does not scroll horizontally`,
-       n.barScrollW<=n.barClientW+1, JSON.stringify(n));
-    ok(`nav @ ${w}px: nothing in the bar paints past the viewport`,
-       n.nPast===0, JSON.stringify(n.past));
+    ok(`nav @ ${w}px: the bar itself does not scroll horizontally`, n.barScrollW<=n.barClientW+1, JSON.stringify(n));
+    ok(`nav @ ${w}px: nothing in the bar paints past the viewport`, n.nPast===0, JSON.stringify(n.past));
   }
   await p.setViewportSize({width:1440,height:900});
 

@@ -1,8 +1,8 @@
 {
-  "last_run_utc": "2026-09-05T13:55:49.102Z",
+  "last_run_utc": "2026-09-18T19:48:55.694Z",
   "last_run_was_partial": false,
-  "base_url": "https://supply-chain-ui-bhwz.onrender.com",
-  "commit": "4088e8ff26313a6722866888df0568f40f09474a",
+  "base_url": "http://localhost:4173",
+  "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
   "viewport_desktop": {
     "width": 1440,
     "height": 900
@@ -12,54 +12,34 @@
     "height": 844
   },
   "distinct_commits_in_folder": [
-    "4088e8ff26313a6722866888df0568f40f09474a"
+    "0c11eafc2605cbc4a4becbb6a403a336dadfa922"
   ],
   "mixed_vintage": false,
   "shots": {
-    "01-login": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
+    "01-landing": {
+      "captured_at_utc": "2026-09-18T19:48:55.694Z",
+      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
+      "base_url": "http://localhost:4173"
     },
-    "02-dashboard": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
+    "02-route-plan": {
+      "captured_at_utc": "2026-09-18T19:48:55.694Z",
+      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
+      "base_url": "http://localhost:4173"
     },
-    "03a-scheduler-list": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
+    "03-simulation": {
+      "captured_at_utc": "2026-09-18T19:48:55.694Z",
+      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
+      "base_url": "http://localhost:4173"
     },
-    "05a-cart": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
+    "04-benchmarks": {
+      "captured_at_utc": "2026-09-18T19:48:55.694Z",
+      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
+      "base_url": "http://localhost:4173"
     },
-    "08a-resilience": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
-    },
-    "10-model-card": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
-    },
-    "12-newsvendor": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
-    },
-    "13a-mobile-dashboard": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
-    },
-    "13c-mobile-resilience": {
-      "captured_at_utc": "2026-09-05T13:55:49.102Z",
-      "commit": "4088e8ff26313a6722866888df0568f40f09474a",
-      "base_url": "https://supply-chain-ui-bhwz.onrender.com"
+    "05-mobile-route-plan": {
+      "captured_at_utc": "2026-09-18T19:48:55.694Z",
+      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
+      "base_url": "http://localhost:4173"
     }
   },
   "problems_this_run": []
