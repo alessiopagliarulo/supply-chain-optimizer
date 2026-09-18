@@ -703,6 +703,18 @@ export const mlAPI = {
   }) => api.get<LeadTimePrediction>('/ml/lead-time', { params }),
 };
 
+// Turn a timeout or an abort into a readable message; rethrow anything else unchanged.
+function rethrowRequestError(error: unknown): never {
+  const { code, message } = (error ?? {}) as { code?: string; message?: string };
+  if (code === 'ECONNABORTED' || message?.includes('timeout')) {
+    throw new Error('Request timeout — please try again');
+  }
+  if (message?.includes('aborted')) {
+    throw new Error('Request cancelled');
+  }
+  throw error;
+}
+
 export const resilienceAPI = {
   distributorFailure: async (
     req: DistributorFailureRequest,
@@ -714,14 +726,8 @@ export const resilienceAPI = {
         signal
       );
       return response.data;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        throw new Error('Request timeout — please try again');
-      }
-      if (error.message?.includes('aborted')) {
-        throw new Error('Request cancelled');
-      }
-      throw error;
+    } catch (error) {
+      rethrowRequestError(error);
     }
   },
 
@@ -735,14 +741,8 @@ export const resilienceAPI = {
         signal
       );
       return response.data;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        throw new Error('Request timeout — please try again');
-      }
-      if (error.message?.includes('aborted')) {
-        throw new Error('Request cancelled');
-      }
-      throw error;
+    } catch (error) {
+      rethrowRequestError(error);
     }
   },
 
@@ -756,14 +756,8 @@ export const resilienceAPI = {
         signal
       );
       return response.data;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        throw new Error('Request timeout — please try again');
-      }
-      if (error.message?.includes('aborted')) {
-        throw new Error('Request cancelled');
-      }
-      throw error;
+    } catch (error) {
+      rethrowRequestError(error);
     }
   },
 
@@ -777,14 +771,8 @@ export const resilienceAPI = {
         signal
       );
       return response.data;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        throw new Error('Request timeout — please try again');
-      }
-      if (error.message?.includes('aborted')) {
-        throw new Error('Request cancelled');
-      }
-      throw error;
+    } catch (error) {
+      rethrowRequestError(error);
     }
   },
 
@@ -798,14 +786,8 @@ export const resilienceAPI = {
         signal
       );
       return response.data;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        throw new Error('Request timeout — please try again');
-      }
-      if (error.message?.includes('aborted')) {
-        throw new Error('Request cancelled');
-      }
-      throw error;
+    } catch (error) {
+      rethrowRequestError(error);
     }
   },
 
@@ -819,14 +801,8 @@ export const resilienceAPI = {
         signal
       );
       return response.data;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        throw new Error('Request timeout — please try again');
-      }
-      if (error.message?.includes('aborted')) {
-        throw new Error('Request cancelled');
-      }
-      throw error;
+    } catch (error) {
+      rethrowRequestError(error);
     }
   },
 };

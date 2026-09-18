@@ -214,7 +214,7 @@ function R2Chart({ models, baselines }: { models: ModelMetrics[]; baselines: Mod
           <LabelList
             dataKey="r2"
             position="right"
-            formatter={(v: any) => Number(v).toFixed(3)}
+            formatter={(v) => Number(v).toFixed(3)}
             style={{ fill: '#cbd5e1', fontSize: 11 }}
           />
         </Bar>
@@ -244,7 +244,7 @@ function BrierChart({ stress }: { stress: StressResponse }) {
           {rows.map((r, i) => (
             <Cell key={i} fill={r.primary ? SERVED_COLOR : BASELINE_COLOR} />
           ))}
-          <LabelList dataKey="value" position="right" formatter={(v: any) => Number(v).toFixed(BRIER_DIGITS)} style={{ fill: '#cbd5e1', fontSize: 11 }} />
+          <LabelList dataKey="value" position="right" formatter={(v) => Number(v).toFixed(BRIER_DIGITS)} style={{ fill: '#cbd5e1', fontSize: 11 }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

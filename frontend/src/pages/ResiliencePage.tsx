@@ -555,7 +555,7 @@ export default function ResiliencePage() {
         const response = await distributorsAPI.list();
         const dists = response.data || [];
         setDistributors(
-          dists.map((d: any) => ({
+          dists.map((d: { id: number; name: string }) => ({
             id: d.id,
             name: d.name,
           }))

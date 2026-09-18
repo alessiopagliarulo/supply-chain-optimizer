@@ -144,7 +144,19 @@ const FEED_POLL_LABEL = FEED_POLL_INTERVAL_MS % 60_000 === 0
   : `${FEED_POLL_INTERVAL_MS / 1000} seconds`;
 
 // ── Custom Scatter Tooltip ────────────────────────────────────────────────────
-function RiskTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+// One point of the risk-matrix scatter (built as `riskMatrix` in Dashboard).
+interface RiskPoint {
+  x: number;
+  y: number;
+  z: number;
+  name: string;
+  category: string;
+  price: number | null;
+  offers: number;
+  factors: string[] | null;
+}
+
+function RiskTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: RiskPoint }> }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   const tier = catalogueRiskTier(d.factors, d.y);
@@ -266,7 +278,7 @@ export const Dashboard = () => {
   // named in the caption below fell inside the first 200 rows, so the chart and
   // the sentence under it described two different populations.
   const maxOffers = Math.max(1, ...components.map((cc) => cc.num_offers));
-  const riskMatrix = components.map((c) => ({
+  const riskMatrix: RiskPoint[] = components.map((c) => ({
     x: c.num_offers / maxOffers,
     y: c.risk_score,
     z: c.min_price ? Math.log(c.min_price + 1) * 30 + 20 : 30,
@@ -512,7 +524,7 @@ export const Dashboard = () => {
                       </Pie>
                       <Tooltip
                         contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
-                        formatter={(v: any, n: any, p: any) => [v, p?.payload?.full ?? n]}
+                        formatter={(v, n, p) => [v, p?.payload?.full ?? n]}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -620,15 +632,15 @@ export const Dashboard = () => {
                       <LabelList
                         dataKey="Risk index"
                         position="right"
-                        formatter={(v: any) => formatRiskIndex(Number(v), 3)}
+                        formatter={(v) => formatRiskIndex(Number(v), 3)}
                         style={{ fill: '#cbd5e1', fontSize: 12 }}
                       />
                     </Bar>
                     <Tooltip
                       cursor={{ fill: '#1e293b66' }}
                       contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
-                      labelFormatter={(label: any, p: any) => p?.[0]?.payload?.full ?? label}
-                      formatter={(v: any, name: any, p: any) => [
+                      labelFormatter={(label, p) => p?.[0]?.payload?.full ?? label}
+                      formatter={(v, name, p) => [
                         `${formatRiskIndex(Number(v), 3)} ${RISK_INDEX_SCALE} · ${p?.payload?.n ?? 0} parts`,
                         name,
                       ]}

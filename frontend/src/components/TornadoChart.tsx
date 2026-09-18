@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   LabelList,
+  type LabelProps,
 } from 'recharts';
 import { type TornadoBar } from '../services/api';
 
@@ -42,9 +43,12 @@ interface ChartRow {
 // stacked dataKey) so it is correct regardless of which side — low or high —
 // landed at the start of the visible span.
 function makeStartLabel(rows: ChartRow[], metric: string) {
-  return function StartLabel(props: any) {
-    const { x, y, width, height, index } = props;
-    const row = rows[index];
+  return function StartLabel(props: LabelProps) {
+    const x = Number(props.x);
+    const y = Number(props.y);
+    const width = Number(props.width);
+    const height = Number(props.height);
+    const row = props.index === undefined ? undefined : rows[props.index];
     if (!row) return null;
     return (
       <text x={x + width - 6} y={y + height / 2} dy={4} fontSize={11} fill="#94a3b8" textAnchor="end">
@@ -56,9 +60,12 @@ function makeStartLabel(rows: ChartRow[], metric: string) {
 
 // Custom label at the far (high) end of the visible span.
 function makeEndLabel(rows: ChartRow[], metric: string) {
-  return function EndLabel(props: any) {
-    const { x, y, width, height, index } = props;
-    const row = rows[index];
+  return function EndLabel(props: LabelProps) {
+    const x = Number(props.x);
+    const y = Number(props.y);
+    const width = Number(props.width);
+    const height = Number(props.height);
+    const row = props.index === undefined ? undefined : rows[props.index];
     if (!row) return null;
     return (
       <text x={x + width + 6} y={y + height / 2} dy={4} fontSize={11} fill="#cbd5e1" textAnchor="start">
@@ -148,7 +155,7 @@ export function TornadoChart({ baselineOutput, metric, bars }: TornadoChartProps
                 border: '1px solid #475569',
                 borderRadius: '8px',
               }}
-              formatter={(_value: any, _name: any, props: any) => {
+              formatter={(_value, _name, props) => {
                 const row: ChartRow | undefined = props?.payload;
                 if (!row) return ['', ''];
                 return [
