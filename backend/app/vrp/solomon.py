@@ -32,6 +32,7 @@ referenced by academic convention.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -39,78 +40,90 @@ from app.vrp.model import Node, VrpInstance
 
 
 def parse_solomon_file(path: Path) -> Tuple[List[Tuple[float, float]], List[Node], int, int]:
-    """Parse a Solomon instance file.
+    """Parse a Solomon instance file (SINTEF format).
 
     Returns (coordinates, nodes, num_vehicles, vehicle_capacity).
     The depot is always node 0. Coordinates are in original (float) units;
     callers use from_coordinates with scale to convert to integers.
 
-    Solomon format:
+    Solomon/SINTEF format:
       Line 0: problem name
-      Line 1-3: header lines (may contain VEHICLES and CAPACITY)
-      Line 4+: customer data (customer_id x y demand ready due service)
+      Line 1: blank or header
+      Line 2: "VEHICLE" or "VEHICLES"
+      Line 3: "NUMBER     CAPACITY"
+      Line 4: number and capacity values
+      Line 5+: blank or headers
+      Then customer data
     """
-    with open(path) as f:
-        lines = f.read().strip().split("\n")
+    with open(path, "r") as f:
+        lines = f.readlines()
 
-    # Find VEHICLES and CAPACITY in header lines
+    # Find VEHICLES/CAPACITY line
     num_vehicles = None
     vehicle_capacity = None
 
-    for line in lines[:4]:
-        if "VEHICLES" in line.upper():
-            parts = line.split()
-            for i, p in enumerate(parts):
-                if p.upper() == "VEHICLES" and i + 1 < len(parts):
-                    try:
-                        num_vehicles = int(parts[i + 1])
-                    except ValueError:
-                        pass
-        if "CAPACITY" in line.upper():
-            parts = line.split()
-            for i, p in enumerate(parts):
-                if p.upper() == "CAPACITY" and i + 1 < len(parts):
-                    try:
-                        vehicle_capacity = int(parts[i + 1])
-                    except ValueError:
-                        pass
+    for i, line in enumerate(lines[:20]):
+        parts = line.split()
+        # Look for a line with two numbers (NUMBER CAPACITY value)
+        if len(parts) >= 2:
+            try:
+                val1 = int(parts[0])
+                val2 = int(parts[1])
+                # If both are numbers, this might be the vehicle/capacity line
+                if val1 > 0 and val2 > 0 and val1 < 1000 and val2 < 10000:
+                    num_vehicles = val1
+                    vehicle_capacity = val2
+                    break
+            except ValueError:
+                pass
 
     if num_vehicles is None or vehicle_capacity is None:
         raise ValueError(f"Could not parse VEHICLES or CAPACITY from {path}")
 
     coords = []
     nodes = []
+    customer_idx = 0
 
-    for i, line in enumerate(lines[4:]):
-        fields = line.split()
-        if len(fields) < 7:
+    # Find where customer data starts (after "CUST NO." header)
+    start_idx = 0
+    for i, line in enumerate(lines):
+        if "CUST NO." in line:
+            start_idx = i + 2  # skip "CUST NO." line and blank line
+            break
+
+    # Parse customer data
+    for line in lines[start_idx:]:
+        parts = line.split()
+        if len(parts) < 7:
             continue
 
         try:
-            x = float(fields[1])
-            y = float(fields[2])
-            demand = int(fields[3])
-            ready = int(fields[4])
-            due = int(fields[5])
-            service = int(fields[6])
+            cust_id = int(parts[0])
+            x = float(parts[1])
+            y = float(parts[2])
+            demand = int(parts[3])
+            ready = int(parts[4])
+            due = int(parts[5])
+            service = int(parts[6])
         except (ValueError, IndexError):
             continue
 
         coords.append((x, y))
-        if i == 0:
+        if customer_idx == 0:
             # Depot: demand and service_time must be 0
             nodes.append(Node(demand=0, ready=ready, due=due, service_time=0))
         else:
             nodes.append(Node(demand=demand, ready=ready, due=due, service_time=service))
+        customer_idx += 1
 
     return coords, nodes, num_vehicles, vehicle_capacity
 
 
-def load_solomon(family: str, num_customers: int) -> VrpInstance:
-    """Load a Solomon instance by family and customer count.
+def load_solomon(instance_name: str, num_customers: int) -> VrpInstance:
+    """Load a Solomon instance by name and customer count.
 
     Args:
-        family: one of "C1", "C2", "R1", "R2", "RC1", "RC2"
+        instance_name: specific instance name like "C101", "R205", "RC108" (case-insensitive)
         num_customers: 25, 50, or 100
 
     Returns:
@@ -120,21 +133,22 @@ def load_solomon(family: str, num_customers: int) -> VrpInstance:
         FileNotFoundError if the instance file is not found.
         ValueError if family or num_customers is invalid.
     """
-    if family not in ("C1", "C2", "R1", "R2", "RC1", "RC2"):
-        raise ValueError(f"unknown Solomon family {family!r}")
     if num_customers not in (25, 50, 100):
         raise ValueError(f"num_customers must be 25, 50, or 100, got {num_customers}")
 
-    # Instance filename: C101.txt for C1/25, C1_50.txt for C1/50, C1_100.txt for C1/100
-    # For 25-customer instances, the convention is C101, C201, R101, etc. (not C1.txt)
-    if num_customers == 25:
-        # 25-customer instances: C1 -> C101, C2 -> C201, R1 -> R101, etc.
-        instance_id = family + "01"
-    else:
-        # 50 and 100-customer instances: C1_50, C1_100, etc.
-        instance_id = f"{family}_{num_customers}"
+    # Normalize to lowercase
+    instance_lower = instance_name.lower()
 
-    filename = f"{instance_id}.txt"
+    # Instance filename convention:
+    # 25-customer: c101_25.txt
+    # 50-customer: c101_50.txt
+    # 100-customer: c101.txt (no suffix)
+    if num_customers == 25:
+        filename = f"{instance_lower}_25.txt"
+    elif num_customers == 50:
+        filename = f"{instance_lower}_50.txt"
+    else:  # 100
+        filename = f"{instance_lower}.txt"
     path = Path(__file__).parent / "data" / "solomon" / filename
 
     coords, nodes, num_vehicles, vehicle_capacity = parse_solomon_file(path)
@@ -145,7 +159,7 @@ def load_solomon(family: str, num_customers: int) -> VrpInstance:
         num_vehicles=num_vehicles,
         vehicle_capacity=vehicle_capacity,
         scale=1,  # Solomon instances use unit Euclidean distance
-        name=f"solomon_{family}_{num_customers}",
+        name=f"solomon_{instance_name}_{num_customers}",
     )
     return instance
 
