@@ -73,7 +73,7 @@ const API='https://supply-chain-api-qy8x.onrender.com';
 // gate's own fault. `/newsvendor/evaluation` measured 259.9s on the deployed
 // instance; 180s cut it off, so it is 300s.
 const PROXY_TIMEOUT=300000;
-const ROUTES=['/dashboard','/map','/components','/cart','/optimize','/benchmark','/resilience','/frontier','/model-card','/newsvendor'];
+const ROUTES=['/dashboard','/components','/cart','/resilience','/model-card','/newsvendor'];
 let pass=0, fail=0;
 // "Jul 2026" — what a published data vintage has to look like.
 const MONTH_YEAR=/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(19|20)\d{2}\b/;
@@ -263,14 +263,12 @@ const AUDIT=()=>{
   // This gate could not finish a run for four consecutive attempts, and the
   // cause was measured, not guessed. Every route was navigated with
   // `waitUntil:'networkidle'`, which resolves only after 500ms with ZERO
-  // in-flight requests. Two routes auto-fire a solver on mount and therefore
+  // in-flight requests. A route that auto-fires a slow computation on mount
   // cannot reach that state in any useful time:
   //
   //   GET /api/v1/newsvendor/evaluation  reports `wall_seconds: 259.897` on the
   //     deployed free-tier instance. /newsvendor fires it on mount. The gate
   //     waited 180s, gave up, and threw — a FATAL, not a FAIL.
-  //   POST /api/v1/stochastic/frontier and POST /api/v1/optimize/vrp push
-  //     /frontier and /optimize to ~13s and ~11s before they first go quiet.
   //
   // The API is ONE uvicorn worker on a 0.5-CPU instance (`render.yaml`:
   // `python -m uvicorn app.main:app`), so that 260-second computation starves
@@ -315,7 +313,7 @@ const AUDIT=()=>{
   // 30s -- generous for a page load, but tight enough that a regression BACK to recomputing
   // fails the gate instead of hiding inside a five-minute budget. Do not raise it to make a
   // slow page pass; a slow page IS the defect.
-  const SETTLE_CAP={'/newsvendor':30000,'/frontier':180000,'/optimize':120000};
+  const SETTLE_CAP={'/newsvendor':30000};
   const capFor=r=>SETTLE_CAP[r]||60000;
 
   // Readiness = no request in flight AND no spinner still turning, held for
@@ -446,15 +444,14 @@ const AUDIT=()=>{
         ...landingProofPoints.map(p=>p.source),
       ])].filter(isArtifactSource);
       const presentSources = allSources.filter(s=>bodyText.includes(s));
-      ok('/: at least 6 distinct artifact source paths are printed',
-         presentSources.length>=6,
+      ok('/: every artifact source path is printed',
+         allSources.length>0 && presentSources.length===allSources.length,
          `${presentSources.length}/${allSources.length}: ${JSON.stringify(presentSources)}`);
 
       // ── the retracted 47.25% figure must not resurface ──────────────────
-      // Published once as the optimizer's edge, which it is not (it is a
-      // naive-global-catalogue comparison kept only for contrast — see
-      // `naiveBaselineCaveat` in landingData.ts). It must never appear
-      // unlabelled on the primary landing surface.
+      // Published once as the (since-archived) sourcing optimizer's edge, which it
+      // was not (it was a naive-global-catalogue comparison). It must never
+      // reappear on the primary landing surface.
       ok('/: the retracted 47.25% figure is not shown', !/47\.25/.test(bodyText), bodyText.match(/.{0,20}47\.25.{0,20}/)?.[0]||'');
 
       // ── no horizontal overflow at phone / tablet / desktop ──────────────
@@ -602,95 +599,6 @@ const AUDIT=()=>{
       }catch{}
     }
   }
-  // ── /optimize solver options: the flags must reach the API ────────────────
-  // Until 2026-08-28 `optimizeAPI.vrp()` posted NO BODY, so `us_only` and
-  // `graph_aware` were unreachable from the UI — the endpoint parsed two flags
-  // that nothing could ever set, and every plan the site ever showed was solved
-  // with both off. These assertions watch the WIRE, not the page text: a toggle
-  // that renders "On" while sending nothing is precisely the failure being
-  // guarded, and no amount of markup checking would catch it.
-  //
-  // The last assertion is the honest-UI one. A re-run must visibly resolve: the
-  // cards change, or the page says the answer did not change, or it reports an
-  // error. Silently returning the same screen is not an allowed outcome —
-  // `graph_aware` genuinely is a no-op on some carts (raw betweenness runs small
-  // across this catalogue) and the page has to say so rather than look broken.
-  await p.setViewportSize({width:1440,height:900});
-  await visit('/optimize','/optimize (solver options)');
-  await p.waitForTimeout(6000);
-  ok('/optimize: solver options panel renders',
-     await p.locator('[data-testid="solver-options"]').count()===1);
-  const usOnly=p.locator('[data-testid="toggle-us-only"]');
-  const graphAware=p.locator('[data-testid="toggle-graph-aware"]');
-  ok('/optimize: both solver flags default to off',
-     (await usOnly.getAttribute('aria-pressed'))==='false' &&
-     (await graphAware.getAttribute('aria-pressed'))==='false',
-     'defaults must match the historical run — nothing published may move on load');
-  const beforeCards=await p.locator('[data-testid="route-cards"]').innerText().catch(()=>'');
-  const vrpBodies=[];
-  const watchVrp=r=>{if(r.url().includes('/optimize/vrp')&&r.method()==='POST')vrpBodies.push(r.postData()||'')};
-  p.on('request',watchVrp);
-  await usOnly.click();
-  await p.waitForTimeout(2500);
-  ok('/optimize: toggling a flag re-solves', vrpBodies.length>=1, JSON.stringify(vrpBodies));
-  ok('/optimize: the POST body carries us_only=true',
-     /"us_only"\s*:\s*true/.test(vrpBodies.join('')), JSON.stringify(vrpBodies));
-  await p.waitForFunction(()=>!/Solving sourcing MILP/i.test(document.body.innerText),
-                          null,{timeout:180000});
-  await p.waitForTimeout(2000);
-  p.off('request',watchVrp);
-  ok('/optimize: the toggle reflects the run it produced',
-     (await usOnly.getAttribute('aria-pressed'))==='true');
-  const afterCards=await p.locator('[data-testid="route-cards"]').innerText().catch(()=>'');
-  const saidNoChange=await p.locator('[data-testid="solver-options-no-change"]').count();
-  const saidError=await p.locator('[data-testid="optimize-error"]').count();
-  ok('/optimize: a re-run resolves visibly (new plans, "same answer", or an error)',
-     (beforeCards!==afterCards)||saidNoChange>0||saidError>0,
-     `cardsChanged=${beforeCards!==afterCards} noChangeNotice=${saidNoChange} error=${saidError}`);
-
-  // ── the macro stress banner must publish its DATA VINTAGE ─────────────────
-  // The percentage in this banner is scored from ONE row of a MONTHLY feature
-  // frame and prices a real stock-out surcharge into the plan above it. Until
-  // 2026-08-28 it was rendered with no date at all, so a reading describing a
-  // month already two months gone read as the state of the world right now.
-  // Asserted only when a probability is actually on screen — when the regime
-  // model is unavailable the banner prints "unavailable" and there is no claim
-  // to qualify, and a check that cannot fail is worse than no check.
-  {
-    const sv=await p.evaluate(()=>{
-      const px=e=>e?parseFloat(getComputedStyle(e).fontSize):null;
-      const c=document.querySelector('[data-testid="stress-claim"]');
-      const v=document.querySelector('[data-testid="stress-vintage"]');
-      const n=document.querySelector('[data-testid="stress-vintage-note"]');
-      return {present:!!document.querySelector('[data-testid="macro-stress-banner"]'),
-              claim:(c&&c.innerText||'').trim(), claimPx:px(c),
-              vintage:(v&&v.innerText||'').trim(), vintagePx:px(v),
-              note:(n&&n.innerText||'').trim(), notePx:px(n),
-              vintageVisible:!!(v&&v.getClientRects().length)};
-    });
-    if(sv.present && /\d/.test(sv.claim)){
-      ok('/optimize: the macro stress banner names the observation month',
-         sv.vintageVisible && MONTH_YEAR.test(sv.vintage), JSON.stringify(sv));
-      ok('/optimize: the stress vintage is not smaller print than the % it qualifies',
-         sv.vintagePx!==null && sv.claimPx!==null && sv.vintagePx>=sv.claimPx, JSON.stringify(sv));
-      ok('/optimize: the banner says the surcharge is priced off that observation month',
-         /observation month/i.test(sv.note) && sv.notePx>=sv.claimPx, JSON.stringify(sv));
-    }
-  }
-  {
-    const a=await p.evaluate(AUDIT);
-    ok('/optimize after toggling a flag: no horizontal overflow', a.overflow.length===0,
-       JSON.stringify(a.overflow.slice(0,3)));
-    await p.addScriptTag({content:axeSource});
-    const ax=await p.evaluate(async()=>{const r=await window.axe.run(document,
-      {runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}});
-      return r.violations.map(v=>({id:v.id,impact:v.impact,n:v.nodes.length,
-        first:(v.nodes[0]&&v.nodes[0].html||'').slice(0,90)}))});
-    const serious=ax.filter(v=>v.impact==='serious'||v.impact==='critical');
-    ok('/optimize after toggling a flag: no serious/critical axe violations',
-       serious.length===0, serious.map(v=>`${v.id}(${v.n}) ${v.first}`).join(' || '));
-  }
-
   // ── /model-card: the same figure, the same rule ───────────────────────────
   // The model card is the page a reader lands on to check whether a number is
   // trustworthy, so it is the last place a probability may appear undated. The

@@ -22,7 +22,6 @@ Three jobs, in descending order of how much they are worth.
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 import numpy as np
@@ -238,17 +237,11 @@ def test_overage_is_the_repos_own_holding_cost_function_not_a_reimplementation()
     assert costs.overage_usd == pytest.approx(holding_cost_usd(12.0, 2.0 * nv.DAYS_PER_MONTH))
 
 
-def test_expedite_premium_matches_the_sourcing_and_simulation_constants():
+def test_expedite_premium_matches_the_simulation_constant():
     """Duplicated for import hygiene, pinned by a test so the duplicate cannot drift."""
     from app.graph.simulation import EMERGENCY_COST_PREMIUM
 
     assert nv.EXPEDITE_PREMIUM == EMERGENCY_COST_PREMIUM
-    try:
-        from app.optimization.sourcing import EMERGENCY_REPROCURE_PREMIUM, STOCKOUT_PENALTY_MULTIPLE
-    except ImportError as exc:  # pragma: no cover - only if the CP-SAT stack is unavailable
-        pytest.skip(f"app.optimization.sourcing not importable: {exc}")
-    assert nv.EXPEDITE_PREMIUM == EMERGENCY_REPROCURE_PREMIUM
-    assert nv.STOCKOUT_ESCALATION_MULTIPLE == STOCKOUT_PENALTY_MULTIPLE
 
 
 def test_line_down_mode_carries_its_resolution_warning():

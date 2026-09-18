@@ -122,11 +122,6 @@ def intermittent() -> Dict[str, Any]:
     return _json("intermittent_demand.json")
 
 
-@pytest.fixture(scope="module")
-def cvar() -> Dict[str, Any]:
-    return _json("cvar_frontier.json")
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. 467 family GROUPING KEYS vs 360 BASE PRODUCTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -406,7 +401,7 @@ def test_impact_framing_retracts_the_fully_data_derived_claim():
     assert "betweenness centrality" in text, (
         "the retraction must name what the probability side actually is"
     )
-    # The probability side is calibrated now (stochastic.py anchors to a cited
+    # The probability side is calibrated now (app/graph/disruption.py anchors to a cited
     # base rate), so naming the calibration is required — and so is keeping the
     # residual assumption visible. Both, or this drifts back into an overclaim.
     assert "calibrated" in text, (
@@ -496,41 +491,7 @@ def test_the_scored_and_panel_counts_are_the_ones_the_docs_use(intermittent):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. "$4.27 per $1" is conditional on 60,000 units
-# ─────────────────────────────────────────────────────────────────────────────
-
-def test_the_knee_ratio_exists_only_at_the_top_volume(cvar):
-    primary = cvar["primary"]
-    assert primary["x100"]["knee"] is None
-    assert primary["x1000"]["knee"] is None
-    knee = primary["x10000"]["knee"]
-    assert knee is not None
-    ratio = knee["vs_risk_neutral"]["usd_of_cvar_removed_per_usd_of_expected_cost"]
-    assert round(ratio, 2) == 4.27, f"the artifact's knee ratio is now {ratio}"
-    assert primary["x10000"]["total_units"] == 60000
-
-
-@pytest.mark.parametrize("doc", ["PROJECT_OVERVIEW.md", "archive/ML_API_PUSH_PLAN.md"])
-def test_every_quote_of_the_knee_ratio_carries_its_volume_condition(doc):
-    """A summary may quote $4.27 only in a sentence that also states the volume."""
-    text = _doc(doc)
-    for paragraph in _paragraphs(text):
-        if "4.27" not in paragraph:
-            continue
-        assert "60,000" in paragraph or "60000" in paragraph, (
-            f"{doc} quotes $4.27 without the 60,000-unit condition:\n{paragraph}"
-        )
-        assert re.search(r"knee`? is `?null|no trade-off|frontier is flat", paragraph), (
-            f"{doc} quotes $4.27 without saying the knee vanishes at lower volume:"
-            f"\n{paragraph}"
-        )
-        assert "CVAR_EFFICIENT_FRONTIER.md" in paragraph, (
-            f"{doc} quotes $4.27 without pointing at the fuller disclosure:\n{paragraph}"
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. INTERMITTENT_DEMAND.md is generated, and still matches its generator
+# 5. INTERMITTENT_DEMAND.md is generated, and still matches its generator
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_the_generated_regions_are_byte_identical_to_the_generator_output(intermittent):
@@ -580,7 +541,7 @@ def test_curated_prose_in_the_demand_doc_still_matches_the_artifact(intermittent
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. Provenance is stamped, and dirtiness is loud
+# 6. Provenance is stamped, and dirtiness is loud
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize(
@@ -620,20 +581,11 @@ def test_the_demand_artifact_no_longer_hides_dirtiness_in_a_sha_suffix(intermitt
 #: Every generated doc paired with the artifact it renders. Verified 2026-09-05:
 #: each of these renders its artifact's full commit SHA, and its dirty banner
 #: agrees with its artifact's `dirty` flag in both directions.
-#:
-#: KNOWN GAP, not an oversight: `DIVERSIFICATION_FRONTIER.md` is deliberately
-#: absent. Its artifact (`diversification_frontier.json`, dirty at 247cd343f1)
-#: renders NEITHER its generating commit NOR the dirty banner, so adding it here
-#: would make the suite red on arrival. Fixing that doc is a separate change;
-#: this comment exists so the omission is recorded rather than silent.
 _DOC_ARTIFACT_PAIRS = [
     ("LEAKAGE_PROGRESSION.md", "leakage_progression.json"),
     ("INTERMITTENT_DEMAND.md", "intermittent_demand.json"),
-    ("BENCHMARK_RESULTS.md", "benchmark_results.json"),
-    ("BENCHMARK_VOLUME_CURVE.md", "volume_sweep.json"),
     ("CHRONOS_BENCHMARK.md", "chronos_benchmark.json"),
     ("FORECAST_BACKTEST.md", "forecast_backtest.json"),
-    ("CVAR_EFFICIENT_FRONTIER.md", "cvar_frontier.json"),
 ]
 
 
@@ -672,7 +624,7 @@ def test_the_doc_renders_the_commit_its_artifact_recorded(doc, artifact):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8. EVERY generated artifact must come from a clean tree — not just one
+# 7. EVERY generated artifact must come from a clean tree — not just one
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # `test_the_leakage_artifact_was_generated_from_a_clean_tree` (above) states the

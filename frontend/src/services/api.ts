@@ -181,54 +181,6 @@ export const cartAPI = {
   clear: () => api.delete('/cart'),
 };
 
-// ── Optimization ──────────────────────────────────────────────────────────────
-
-/**
- * The body `POST /optimize/vrp` accepts (`backend/app/api/optimize.py`, `VrpRequest`).
- *
- * This call used to send NO body at all, so every plan the live site has ever
- * produced was solved at `us_only=false, graph_aware=false` — the endpoint parsed
- * two flags that nothing could ever set. Both still default to `false` here, so an
- * `optimizeAPI.vrp()` with no argument is byte-identical to the old behaviour.
- */
-export interface VrpOptions {
-  /**
-   * Drop non-domestic distributors from the supplier pool. `solve.py` ORs this with
-   * each strategy's own `us_only_sourcing`, and three of the four strategies
-   * (fastest / greenest / balanced) are already domestic-only — so in practice this
-   * only changes the "Lowest Cost" plan, the one strategy that sources globally.
-   */
-  us_only?: boolean;
-  /**
-   * Add the graph-concentration surcharge terms to the CP-SAT objective
-   * (`sourcing.py:854-867`): each offer's quantity is charged an extra
-   * betweenness x recourse-cost term, biasing the plan away from highly central
-   * distributors. Contributes exactly zero when no GraphState is loaded.
-   */
-  graph_aware?: boolean;
-}
-
-export const optimizeAPI = {
-  vrp: (options?: VrpOptions) => api.post('/optimize/vrp', options ?? {}),
-  hubs: () => api.get('/optimize/hubs'),
-};
-
-export interface HubOut {
-  id: number;
-  name: string;
-  operator: string | null;
-  hub_type: string | null;
-  city: string | null;
-  state: string | null;
-  latitude: number;
-  longitude: number;
-}
-
-export async function getCrossDockHubs(): Promise<HubOut[]> {
-  const { data } = await api.get('/optimize/hubs');
-  return data as HubOut[];
-}
-
 // ── Feeds ─────────────────────────────────────────────────────────────────────
 export const feedsAPI = {
   getStatus: () => api.get('/feeds/status'),
@@ -299,25 +251,6 @@ export const livePricesAPI = {
   bom: (items: Array<{ mpn: string; quantity?: number }>) =>
     api.post<BomPriceResponse>('/live-prices/bom', { items }),
   sync: (mpn: string) => api.post<SyncPricesResponse>(`/live-prices/${encodeURIComponent(mpn)}/sync`),
-};
-
-// ── Graph ──────────────────────────────────────────────────────────────────────
-export const graphAPI = {
-  metrics: () => api.get('/graph/metrics'),
-  simulate: (bom_component_ids: number[]) =>
-    api.post('/graph/simulate', { bom_component_ids }),
-};
-
-// ── Benchmark ─────────────────────────────────────────────────────────────────
-export const benchmarkAPI = {
-  summary: (runId?: number) =>
-    api.get('/benchmark/summary', runId !== undefined ? { params: { run_id: runId } } : {}),
-  fiedlerCurve: () =>
-    api.get('/benchmark/fiedler-curve'),
-  cascadeHeatmap: () =>
-    api.get('/benchmark/cascade-heatmap'),
-  singleSourceComponents: () =>
-    api.get('/benchmark/single-source-components'),
 };
 
 // ── Demand Benchmark ────────────────────────────────────────────────────────────

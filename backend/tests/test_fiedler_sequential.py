@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 from app.graph import get_graph_state, set_graph_state
 from app.graph.builder import build_graph_state

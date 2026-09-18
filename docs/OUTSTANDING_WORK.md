@@ -1,5 +1,10 @@
 # Outstanding work
 
+> **Sourcing work archived.** The sourcing optimizer this document refers to (CP-SAT
+> sourcing MILP, two-stage stochastic program / CVaR frontier, MILP-vs-greedy benchmark)
+> and the docs/artifacts it cites were removed from `main` and are preserved at git tag
+> `archive/sourcing-v1`. The repo is being rebuilt as a logistics/routing engine.
+
 Live backlog. Every item was found by a verification pass against the deployed
 site and the artifacts, not from a wishlist. Ordered by **published-claim risk**:
 a false published claim outranks a correctness bug, which outranks polish.

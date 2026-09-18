@@ -9,8 +9,7 @@ Target variable (Route A — real, no leakage):
     target_days = observed lead_time_weeks × 7
 where ``lead_time_weeks`` is the FACTORY lead time a distributor published for
 the part on the snapshot date — i.e. how long it takes to *replenish* that part,
-not how long it takes to ship one that is already on the shelf. See
-``app/optimization/solve.py`` for why that distinction matters downstream.
+not how long it takes to ship one that is already on the shelf.
 
 ONE AUTHORITATIVE FEATURE BUILDER (fixed 2026-08-15)
 ----------------------------------------------------

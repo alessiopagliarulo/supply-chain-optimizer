@@ -13,7 +13,7 @@ Three endpoints over `app/optimization/newsvendor.py`:
 
 WHY THE ASSUMPTIONS ENDPOINT EXISTS
 ------------------------------------
-Same reason `/stochastic/calibration` exists. The weakest input in this subsystem is not
+The weakest input in this subsystem is not
 the forecast, it is the COST ASYMMETRY: an expedite premium and a holding rate, each cited
 but each an industry average rather than a measurement of any part this app sells. The
 entire answer is a monotone function of their ratio. Burying that behind a confident order
@@ -74,8 +74,7 @@ SO NOTHING IS COMPUTED AT REQUEST TIME AT ALL. `docs/newsvendor.json` holds the 
 evaluation for every one of the 72 reachable configurations -- the four SERVABLE named runs
 Section 3.4 quotes (the fifth, `negative_control_permuted`, answers no request and is never
 indexed) plus a `grid` of the remaining 68 -- and `_artifact_evaluation` below serves those
-blocks directly, the same committed-artifact pattern `app/api/benchmark.py` uses for
-`docs/volume_sweep.json`. The served numbers are not an approximation of the computation:
+blocks directly (a committed-artifact pattern). The served numbers are not an approximation of the computation:
 `tests/test_newsvendor_evaluation_is_served_from_the_artifact.py` asserts every reachable
 configuration is served and re-runs `run_panel_evaluation` the slow way on a sample of them,
 comparing every leaf; `tests/test_artifacts_pinned_to_code.py` pins the primary block to
@@ -85,7 +84,7 @@ artifact is absent (the local `backend/Dockerfile` has build context `backend/`,
 bootstrap count, different protocol constants, a different panel checksum. It can be slow,
 or it can be wrong, and it is never wrong.
 
-Public, no auth -- consistent with `/demand/benchmark` and `/stochastic/*`, which likewise
+Public, no auth -- consistent with `/demand/benchmark`, which likewise
 serve aggregate model results derived from committed data and no user data.
 """
 from __future__ import annotations
@@ -163,11 +162,10 @@ EVALUATION_SEED = 0
 
 # ── The committed evaluation artifact ────────────────────────────────────────
 #
-# Repo root: app/api/newsvendor.py -> app -> backend -> <repo>. Identical to
-# `app/api/benchmark.py::_REPO_ROOT`, which resolves `docs/volume_sweep.json` and
-# `docs/diversification_frontier.json` this way on the deployed instance today --
-# `render.yaml` uses `runtime: python` with `rootDir: backend`, which sets the working
-# directory but still checks out the whole repository, so `../docs` is on disk.
+# Repo root: app/api/newsvendor.py -> app -> backend -> <repo>. `../docs` resolves on
+# the deployed instance because `render.yaml` uses `runtime: python` with
+# `rootDir: backend`, which sets the working directory but still checks out the whole
+# repository, so `../docs` is on disk.
 #
 # If it is NOT on disk (the local `backend/Dockerfile` has build context `backend/`, so a
 # container built that way loses it) nothing breaks and nothing is faked: `_artifact_index`
@@ -535,7 +533,7 @@ def get_assumptions(
             "expedite_premium": {
                 "value": nv.EXPEDITE_PREMIUM,
                 "source": "the emergency-reprocurement premium already used by "
-                          "app/optimization/sourcing.py and app/graph/simulation.py",
+                          "app/graph/simulation.py",
                 "justification": "A spare part that is out of stock is not a lost sale. The "
                                  "demand does not evaporate; the unit is re-procured on an "
                                  "emergency footing. The cost of the shortage is therefore the "
@@ -545,8 +543,7 @@ def get_assumptions(
             "stockout_escalation_multiple": {
                 "value": nv.STOCKOUT_ESCALATION_MULTIPLE,
                 "source": "Snyder & Daskin (2005), Reliable Facility Location Models, "
-                          "Transportation Science 39(3):400-416 -- via "
-                          "app/optimization/sourcing.py::STOCKOUT_PENALTY_MULTIPLE",
+                          "Transportation Science 39(3):400-416",
                 "applies_when": "shortage_mode='line_down': a single-sourced part with no "
                                 "substitutable offer, where the recourse is a line-down or "
                                 "respin event rather than an expedite.",

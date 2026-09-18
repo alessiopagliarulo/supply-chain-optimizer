@@ -29,7 +29,6 @@ WHAT THIS MUST NOT DO
 Nothing the API returns may change. Several call sites degrade *silently* when their
 process global is still None:
 
-    app/optimization/sourcing.py   macro_stress -> 0.0, graph_aware -> no graph
     app/optimization/costs.py      factory lead time -> available=False
     app/api/ml.py                  null metrics
     app/api/graph.py, benchmark.py 503
@@ -269,8 +268,8 @@ def _run(steps: Dict[str, _Step]) -> None:
     Sequential on purpose: the deployed worker has 0.5 of a CPU, so running the
     betweenness computation and the sklearn import concurrently would only trade
     wall-clock for peak RSS on a 512 MB instance. Graph goes first because it is
-    the shorter job and gates more endpoints (/graph, /benchmark, /resilience,
-    /stochastic) than the ML load does.
+    the shorter job and gates more endpoints (/graph, /benchmark, /resilience)
+    than the ML load does.
     """
     total = time.perf_counter()
     for name in STEPS:

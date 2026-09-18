@@ -28,7 +28,7 @@ from app.optimization.recommendations import (
     compute_dual_sourcing_plan,
     compute_tornado,
 )
-from app.optimization.stochastic import (
+from app.graph.disruption import (
     DEFAULT_BASE_ANNUAL_PROB,
     DEFAULT_CENTRALITY_SPREAD,
     DEFAULT_HORIZON_DAYS,

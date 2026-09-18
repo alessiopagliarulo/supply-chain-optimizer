@@ -1,6 +1,4 @@
 """Verify cost functions against hand-computed expectations."""
-import math
-import pytest
 
 from app.optimization import costs
 

@@ -2,12 +2,15 @@
 import pytest
 
 from app.optimization.cross_dock import (
-    CROSS_DOCK_IMPROVEMENT_THRESHOLD, DistributorShipment, RouteMetrics,
-    evaluate_cross_dock, evaluate_direct, evaluate_hub, pickup_tour_legs,
+    DistributorShipment, ObjectiveWeights,
+    RouteMetrics, evaluate_cross_dock, evaluate_direct, evaluate_hub, pickup_tour_legs,
 )
-from app.optimization.freight_hubs import FREIGHT_HUBS, get_hub
+from app.optimization.freight_hubs import get_hub
 from app.optimization.routing import GeoPoint, RoutingNode
-from app.optimization.strategies import get_strategy
+
+# The two weight profiles these tests were written against.
+BALANCED = ObjectiveWeights(w_cost=0.40, w_time=0.35, w_carbon=0.25)
+COST_ONLY = ObjectiveWeights(w_cost=1.00, w_time=0.00, w_carbon=0.00)
 
 
 def _ship(did, lat, lng, kg=50.0, tier="mid"):
@@ -21,7 +24,7 @@ def test_cross_dock_never_chosen_for_single_distributor():
     depot = GeoPoint(34.85, -82.39)
     ships = [_ship(1, 40.0, -75.0)]
     direct = RouteMetrics(cost_usd=500.0, lead_time_days=3.0, co2_kg=2.0)
-    decision = evaluate_cross_dock(direct, ships, depot, get_strategy("balanced"))
+    decision = evaluate_cross_dock(direct, ships, depot, BALANCED)
     assert decision.enabled is False
     assert "single" in decision.rationale.lower()
 
@@ -29,7 +32,7 @@ def test_cross_dock_never_chosen_for_single_distributor():
 def test_cross_dock_chosen_when_east_coast_distributors_favor_atlanta():
     """
     Depot in Greenville SC, distributors spread across the Midwest/Northeast.
-    Cheapest strategy should pick a central hub and save >5%.
+    A cost-only objective should pick a central hub and save >5%.
     """
     depot = GeoPoint(34.8526, -82.3940)  # Greenville SC
     ships = [
@@ -40,7 +43,7 @@ def test_cross_dock_chosen_when_east_coast_distributors_favor_atlanta():
     ]
     # Fake "direct" as very high (simulates a long multi-stop tour)
     direct = RouteMetrics(cost_usd=5000.0, lead_time_days=12.0, co2_kg=50.0)
-    decision = evaluate_cross_dock(direct, ships, depot, get_strategy("cheapest"))
+    decision = evaluate_cross_dock(direct, ships, depot, COST_ONLY)
     # Atlanta, Louisville, Memphis, or Columbus should win
     assert decision.hub is not None
     assert decision.hub.state in {"GA", "KY", "TN", "OH", "IL", "MO", "IN"}
@@ -66,7 +69,7 @@ def test_cross_dock_rejected_when_improvement_below_threshold():
         ],
         {1: ships[0], 2: ships[1]},
     )
-    decision = evaluate_cross_dock(cheap_direct, ships, depot, get_strategy("balanced"))
+    decision = evaluate_cross_dock(cheap_direct, ships, depot, BALANCED)
     # Direct pickup is already efficient, hub adds handling fee → reject
     assert decision.enabled is False
 
@@ -153,8 +156,8 @@ def test_rate_class_is_a_property_of_the_tour_not_of_the_leg():
 # ── The shared load profile (`pickup_tour_legs`) ─────────────────────────────
 #
 # This helper exists because the load profile used to be modelled TWICE: once
-# here, to SCORE the direct tour, and once in `solve.optimize_bom`, to RENDER the
-# legs on the map and at checkout. The renderer charged the FULL order weight to
+# here, to SCORE the direct tour, and once in the (since-archived) sourcing
+# orchestrator, to RENDER the legs on the map and at checkout. The renderer charged the FULL order weight to
 # every leg, including the outbound one on which the trailer is still empty, so
 # the legs on screen described a heavier truck than the one the optimizer ranked
 # the four plans with. These tests pin the accrual itself.

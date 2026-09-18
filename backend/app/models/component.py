@@ -37,7 +37,7 @@ class Component(Base):
     # unit. Never render it with a `%`, never band it on a numeric cutoff (any
     # cut in the empty interval (0.25, 0.60) yields an identical partition and
     # is unfalsifiable), and never feed it to anything expecting a failure rate
-    # — `optimization/stochastic.py::build_failure_probabilities` is the one
+    # — `graph/disruption.py::build_failure_probabilities` is the one
     # calibrated path. See `frontend/src/lib/risk.ts` for the UI contract.
     risk_score = Column(Float, default=0.0)
     # The falsifiable half, and strictly more informative than the score: a JSON

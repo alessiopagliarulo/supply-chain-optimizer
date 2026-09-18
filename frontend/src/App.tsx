@@ -10,14 +10,10 @@ import { Login } from './pages/Login';
 import LandingPage from './pages/LandingPage';
 import Register from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
-import MapPage from './pages/MapPage';
 import SchedulerPage from './pages/SchedulerPage';
 import CartPage from './pages/CartPage';
-import CheckoutPage from './pages/CheckoutPage';
-import BenchmarkPage from './pages/BenchmarkPage';
 import ResiliencePage from './pages/ResiliencePage';
 import ModelCardPage from './pages/ModelCardPage';
-import FrontierPage from './pages/FrontierPage';
 import NewsvendorPage from './pages/NewsvendorPage';
 import NotFoundPage from './pages/NotFoundPage';
 import './index.css';
@@ -26,7 +22,7 @@ import './index.css';
  * Shown while the stored session cookie is being validated against /auth/me.
  *
  * This is the OTHER cold-start entry point, and the worse one: a returning visitor
- * deep-linking to /benchmark hits it before any page renders, and /auth/me carries the
+ * deep-linking to /resilience hits it before any page renders, and /auth/me carries the
  * 150s cold-start timeout. Left bare it is a spinner with no explanation for up to two
  * minutes. After three seconds it borrows the same WakeNotice the login screen uses —
  * one mechanism, two places, no second story about what is happening.
@@ -174,17 +170,12 @@ function App() {
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           <Route element={<ProtectedLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/map" element={<MapPage />} />
             {/* Canonical paths now match the nav labels and the page content.
                 The old paths stay mounted so existing links keep working. */}
             <Route path="/components" element={<SchedulerPage />} />
             <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/cart" element={<CartPage />} />
-            <Route path="/optimize" element={<CheckoutPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/benchmark" element={<BenchmarkPage />} />
             <Route path="/resilience" element={<ResiliencePage />} />
-            <Route path="/frontier" element={<FrontierPage />} />
             <Route path="/newsvendor" element={<NewsvendorPage />} />
             <Route path="/model-card" element={<ModelCardPage />} />
             {/* A real 404 rather than the old silent <Navigate to="/dashboard">.

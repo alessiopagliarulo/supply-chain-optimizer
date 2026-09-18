@@ -324,8 +324,7 @@ def _build_disruption_probabilities(
     Per-distributor probability of a material disruption over the sourcing horizon.
 
     This is the SINGLE probability model the application uses. It delegates to
-    `app.optimization.stochastic.build_failure_probabilities`, which was written for
-    the CVaR frontier and is documented and published by `GET /stochastic/calibration`:
+    `app.graph.disruption.build_failure_probabilities`:
 
         level  <- a cited base rate, converted to an exposure window
                   (McKinsey Global Institute 2020: a disruption lasting a month or
@@ -345,7 +344,7 @@ def _build_disruption_probabilities(
 
     Nothing about the probabilities is duplicated here; only the call is.
     """
-    from app.optimization import stochastic as stoch
+    from app.graph import disruption as stoch
 
     dist_ids = sorted(betweenness)
     probs = stoch.build_failure_probabilities(dist_ids, betweenness)
@@ -365,8 +364,8 @@ def _build_disruption_probabilities(
             "value chains', August 2020 — disruptions lasting a month or longer every "
             "3.7 years. FIRM-level frequency applied per supplier, which likely "
             "OVERSTATES individual supplier risk. Treat as an assumption; "
-            "GET /stochastic/calibration publishes it per distributor and lets you "
-            "vary base_annual_prob, horizon_days and centrality_spread."
+            "base_annual_prob, horizon_days and centrality_spread are parameters of "
+            "app.graph.disruption.build_failure_probabilities."
         ),
         "method": (
             "p_d = min(base_horizon_prob * spread**(2*rank_d - 1), max_failure_prob), "

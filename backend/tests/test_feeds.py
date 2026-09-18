@@ -4,7 +4,6 @@ Unit tests for app/feeds/ package — LiveDataCache, scheduler, and optimizer in
 from __future__ import annotations
 import asyncio
 import io
-import math
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import openpyxl
@@ -72,88 +71,7 @@ def test_build_scheduler_returns_scheduler():
     assert scheduler.get_job('feed_refresh') is not None
 
 
-# ── Task 2: _feed_risk_obj_units and _port_delay_days tests ──────────────────
-
-def _make_offer(price_usd: float = 10.0) -> object:
-    """Create a minimal Offer-like object for testing."""
-    from app.optimization.sourcing import Offer
-    return Offer(
-        component_id=1,
-        distributor_id=1,
-        distributor_name="TestDist",
-        price_usd=price_usd,
-        stock=100,
-        moq=1,
-        is_domestic=True,
-        dist_km_from_depot=500.0,
-        risk_score=0.3,
-        is_chinese_origin=False,
-    )
-
-
-def test_feed_risk_obj_units_cache_none():
-    """_feed_risk_obj_units returns 0 when cache is None."""
-    from app.optimization.sourcing import _feed_risk_obj_units
-    offer = _make_offer(price_usd=10.0)
-    assert _feed_risk_obj_units(offer, "US", False, None) == 0
-
-
-def test_feed_risk_obj_units_empty_feeds():
-    """_feed_risk_obj_units returns 0 when all feed data is None."""
-    from app.optimization.sourcing import _feed_risk_obj_units
-    offer = _make_offer(price_usd=10.0)
-    cache = LiveDataCache()
-    assert _feed_risk_obj_units(offer, "US", False, cache) == 0
-
-
-def test_feed_risk_obj_units_gpr_elevated():
-    """_feed_risk_obj_units returns positive surcharge when GPR is elevated (>100) and is_chinese_origin=True."""
-    from app.optimization.sourcing import _feed_risk_obj_units
-    offer = _make_offer(price_usd=10.0)
-    cache = LiveDataCache()
-    cache.gpr.data = 200.0  # above baseline of 100
-    result = _feed_risk_obj_units(offer, "US", True, cache)
-    assert result > 0
-
-
-def test_feed_risk_obj_units_ceiling():
-    """_feed_risk_obj_units result is at most floor(0.15 * unit_price_obj_units)."""
-    from app.optimization.sourcing import _feed_risk_obj_units, to_obj_units
-    offer = _make_offer(price_usd=10.0)
-    cache = LiveDataCache()
-    cache.gpr.data = 500.0  # maximum GPR
-    cache.acled.data = {"CN": 1000}
-    result = _feed_risk_obj_units(offer, "CN", True, cache)
-    # Derive the ceiling through the same conversion the function uses, rather
-    # than hardcoding a scale that can silently drift away from the objective's.
-    ceiling = int(math.floor(0.15 * to_obj_units(offer.price_usd)))
-    assert result <= ceiling
-
-
-def test_feed_risk_surcharge_survives_a_sub_cent_price():
-    """A priced offer must not have its whole live-feed signal floored to zero.
-
-    The surcharge used to be computed in whole cents and scaled up afterwards,
-    so every offer under ~$0.07 got exactly nothing from GPR/ACLED while its
-    price term still counted. $0.0031 is the real catalogue price of
-    MLG0603P43NHT000.
-    """
-    from app.optimization.sourcing import _feed_risk_obj_units
-    offer = _make_offer(price_usd=0.0031)
-    cache = LiveDataCache()
-    cache.gpr.data = 500.0
-    assert _feed_risk_obj_units(offer, "US", True, cache) > 0
-
-
-def test_feed_risk_obj_units_acled_signal():
-    """_feed_risk_obj_units returns positive surcharge from ACLED conflict data."""
-    from app.optimization.sourcing import _feed_risk_obj_units
-    offer = _make_offer(price_usd=10.0)
-    cache = LiveDataCache()
-    cache.acled.data = {"US": 50}
-    result = _feed_risk_obj_units(offer, "US", False, cache)
-    assert result > 0
-
+# ── Task 2: _port_delay_days tests ───────────────────────────────────────────
 
 def test_port_delay_cache_none():
     """_port_delay_days returns 0.0 when cache is None."""

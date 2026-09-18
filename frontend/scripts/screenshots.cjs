@@ -57,15 +57,10 @@ const SHOTS = [
   { name: '02-dashboard', route: '/dashboard' },
   { name: '03a-scheduler-list', route: '/components' },
   { name: '05a-cart', route: '/cart' },
-  { name: '06-checkout-optimize', route: '/optimize', settle: 120000, full: true },
-  { name: '07-benchmark', route: '/benchmark', settle: 20000, full: true },
   { name: '08a-resilience', route: '/resilience', settle: 20000, full: true },
-  { name: '09a-map', route: '/map', settle: 20000 },
   { name: '10-model-card', route: '/model-card', settle: 20000, full: true },
-  { name: '11-frontier', route: '/frontier', settle: 180000, full: true },
   { name: '12-newsvendor', route: '/newsvendor', settle: 30000, full: true },
   { name: '13a-mobile-dashboard', route: '/dashboard', viewport: MOBILE },
-  { name: '13b-mobile-optimize', route: '/optimize', viewport: MOBILE, settle: 120000 },
   { name: '13c-mobile-resilience', route: '/resilience', viewport: MOBILE, settle: 20000 },
 ];
 

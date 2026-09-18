@@ -2,13 +2,9 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Map,
-  TrendingUp,
   Boxes,
   ShieldAlert,
-  LineChart,
   ShoppingCart,
-  Rocket,
   BrainCircuit,
   PackageSearch,
   Menu,
@@ -20,7 +16,7 @@ import { useCartStore } from '../store/cartStore';
 
 // Labels describe what the page actually contains, and each path is the page's own
 // canonical route. Previously "Scheduler" pointed at a component browser (nothing is
-// scheduled) and "Optimize" pointed at /checkout.
+// scheduled).
 interface NavItem {
   path: string;
   label: string;
@@ -31,14 +27,10 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/map', label: 'Map', icon: Map },
-  { path: '/benchmark', label: 'Benchmark', icon: TrendingUp },
   { path: '/components', label: 'Components', icon: Boxes, aliases: ['/scheduler'] },
   { path: '/resilience', label: 'Resilience', icon: ShieldAlert },
-  { path: '/frontier', label: 'Frontier', icon: LineChart },
   { path: '/newsvendor', label: 'Newsvendor', icon: PackageSearch },
   { path: '/cart', label: 'Cart', icon: ShoppingCart },
-  { path: '/optimize', label: 'Optimize', icon: Rocket, aliases: ['/checkout'] },
   { path: '/model-card', label: 'Model Card', icon: BrainCircuit },
 ];
 
@@ -47,7 +39,7 @@ export default function NavBar() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { items } = useCartStore();
-  // Below `xl` the 9-item link row plus brand, user and build stamp don't fit any
+  // Below `xl` the link row plus brand, user and build stamp don't fit any
   // viewport down to phone width — they used to just overflow the nav (and drag the
   // whole page into horizontal scroll with them, since nothing shrinks a flex row
   // whose items default to min-width:auto). Collapse into a hamburger instead.

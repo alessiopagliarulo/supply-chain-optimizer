@@ -415,8 +415,8 @@ export default function ModelCardPage() {
               Served model, provenance, and grouped-CV performance vs baselines — reported as measured.
             </p>
           </div>
-          <button onClick={() => navigate('/checkout')} className="flex items-center gap-1.5 min-h-[44px] text-xs text-slate-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Optimizer
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 min-h-[44px] text-xs text-slate-400 hover:text-white transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
           </button>
         </div>
 

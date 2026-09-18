@@ -120,8 +120,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // /auth/me was awaited, and the non-401 failure branch left it that way with
     // `user` null — a cold-start 502 therefore produced an app that believed it was
     // logged in and had nobody to show: Logout gone site-wide, "Welcome back, "
-    // blank, and MapPage early-returning on !user so the flagship map drew markers
-    // and zero routes, silently. Nothing renders behind `authResolved: false`, so
+    // blank, and pages that early-return on !user rendering nothing, silently. Nothing renders behind `authResolved: false`, so
     // waiting for the profile costs no UI.
     set({ token, isLoading: true });
     for (let attempt = 0; attempt < 2; attempt++) {

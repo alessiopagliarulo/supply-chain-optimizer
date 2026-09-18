@@ -1,9 +1,7 @@
 """Integration tests for /graph API endpoints — Phase 02."""
-import pytest
 
 
 def test_lifespan_loads_graph(client):
-    from app.graph import get_graph_state
     # After TestClient startup, graph state should be set (if DB has data)
     # With empty test DB, state may be None — assert no exception was raised
     # Full integration verified via manual server start
@@ -50,17 +48,3 @@ def test_post_graph_simulate(client):
         assert data["p10"] <= data["p50"] <= data["p90"]
 
 
-def test_graph_aware_parameter_exists(client):
-    # With the test client using an empty DB, sourcing will raise ValueError
-    # (no offers). This test verifies the graph_aware flag is accepted
-    # in the request body without a 422 validation error.
-    # Full functional verification requires a seeded DB (manual test with real data).
-    from app.optimization.solve import optimize_bom
-    import inspect
-    sig = inspect.signature(optimize_bom)
-    assert "graph_aware" in sig.parameters, (
-        "optimize_bom() missing graph_aware parameter"
-    )
-    assert sig.parameters["graph_aware"].default is False, (
-        "graph_aware default must be False (backward compatibility)"
-    )

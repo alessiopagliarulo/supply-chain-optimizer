@@ -1,5 +1,4 @@
 """Unit tests for app/graph/ metrics — Phase 02."""
-import pytest
 import time
 
 
@@ -135,7 +134,7 @@ def test_kcore_decomposition(graph_db_session):
     # Dist 1 node should be present
     assert "d_1" in k_core, f"'d_1' not in k_core; keys: {list(k_core.keys())[:10]}"
     # Component nodes should be present
-    assert "c_1" in k_core, f"'c_1' not in k_core"
+    assert "c_1" in k_core, "'c_1' not in k_core"
 
 
 def test_hhi_per_category(graph_db_session):
@@ -218,52 +217,3 @@ def test_cvar_at_95th_percentile(graph_db_session):
     )
 
 
-def test_surcharge_recourse_cost():
-    """Graph surcharge = P(disruption) x recourse cost (Snyder & Daskin 2005).
-
-    Replaces the old flat 15%-of-price ceiling, which was an arbitrary cap. The
-    surcharge is now an expected-recourse-cost: betweenness x (price delta to the
-    next-cheapest alternative), or betweenness x STOCKOUT_PENALTY_MULTIPLE x price
-    when the component is single-sourced. This gives near-zero surcharge for
-    cheaply-substitutable parts and a large one for high-centrality single sources.
-    """
-    from app.optimization.sourcing import (
-        _graph_surcharge_obj_units, to_obj_units, STOCKOUT_PENALTY_MULTIPLE,
-        EMERGENCY_REPROCURE_PREMIUM,
-    )
-
-    def mk(price_usd, did):
-        return type('Offer', (), {'price_usd': price_usd, 'distributor_id': did})()
-
-    # 1. Single-source (no alternative offers): recourse = STOCKOUT_MULTIPLE x price.
-    offer = mk(10.00, 1)
-    unit_units = to_obj_units(10.00)
-    expected = int(round(0.5 * STOCKOUT_PENALTY_MULTIPLE * unit_units))
-    assert _graph_surcharge_obj_units(offer, 0.5, [offer]) == expected
-
-    # 2. Cheapest offer, pricier alt: recourse = switch gap + expedite premium.
-    cheap, pricey = mk(10.00, 1), mk(12.00, 2)
-    cheap_units, pricey_units = to_obj_units(10.00), to_obj_units(12.00)
-    switch_gap = pricey_units - cheap_units
-    expedite = int(round(EMERGENCY_REPROCURE_PREMIUM * cheap_units))
-    assert _graph_surcharge_obj_units(cheap, 0.5, [cheap, pricey]) == int(round(0.5 * (switch_gap + expedite)))
-
-    # 3. A cheaper alt exists: switch gap is 0, but expedite premium still applies
-    #    (recovery is never free) -> surcharge is the expedite term x betweenness.
-    expedite_pricey = int(round(EMERGENCY_REPROCURE_PREMIUM * pricey_units))
-    assert _graph_surcharge_obj_units(pricey, 0.9, [cheap, pricey]) == int(round(0.9 * expedite_pricey))
-
-    # 4. Zero betweenness -> zero surcharge regardless of recourse cost.
-    assert _graph_surcharge_obj_units(offer, 0.0, [offer]) == 0
-
-    # 5. Monotonic in betweenness (more central -> larger surcharge).
-    s_low = _graph_surcharge_obj_units(cheap, 0.2, [cheap, pricey])
-    s_high = _graph_surcharge_obj_units(cheap, 0.8, [cheap, pricey])
-    assert s_high > s_low
-
-    # 6. UNITS. The surcharge is in the objective's own milli-cent units, not
-    #    cents: a sub-cent part must not have its whole graph signal floored to
-    #    zero while its price term still counts (that is the defect fixed on
-    #    2026-08-28). MLG0603P43NHT000's real catalogue price is $0.0031.
-    tiny = mk(0.0031, 1)
-    assert _graph_surcharge_obj_units(tiny, 0.5, [tiny]) > 0

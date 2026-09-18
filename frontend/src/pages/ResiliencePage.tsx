@@ -879,7 +879,7 @@ export default function ResiliencePage() {
   };
 
   // Auto-run the flagship scenario on mount, so /resilience never lands as an empty
-  // page behind a button the visitor has to find. Same pattern as FrontierPage: the
+  // page behind a button the visitor has to find. The
   // first result arrives on its own, and the loading state is what a *changed* input
   // looks like afterwards. It waits for both inputs, and both are derived from real
   // data — the BOM from the cart (or the catalogue's own single-source exposure) and

@@ -126,7 +126,7 @@ class GeopoliticalRiskRequest(_BomRequest):
             "Stress dial applied to each component's STORED risk_score column, and "
             "passed into the Monte Carlo as a scenario stress factor. It does NOT "
             "read or override any live feed — this endpoint imports no feed cache. "
-            "The live GPR signal reaches the optimizer elsewhere, on /optimize/*."
+            "No live feed signal is applied by this endpoint."
         ),
     )
 
@@ -508,8 +508,8 @@ _SPEND_AT_RISK_BASIS = (
 
 _COST_BASIS = (
     "Goods cost only: for each line, quantity x the cheapest available offer price. "
-    "Freight, per-supplier fees, MOQ rounding and duty are NOT included — those live "
-    "in /optimize/* , which is why its totals are larger. Scenario cost re-prices "
+    "Freight, per-supplier fees, MOQ rounding and duty are NOT included. Scenario "
+    "cost re-prices "
     "every line against the offers that survive the scenario, then applies the Monte "
     "Carlo's expected emergency-procurement multiplier."
 )
@@ -536,7 +536,7 @@ def _require_known_components(db: Session, quantities: Dict[int, int]) -> None:
     Without this an unknown id is silently treated as a line with no supplier: it
     shows up as "orphaned" in the hedging block and drags the fulfillment percentiles
     down, so the caller gets a confident 200 describing a BOM it never asked about.
-    `/graph/simulate` and `/stochastic/frontier` both already reject unknown ids;
+    `/graph/simulate` already rejects unknown ids;
     these endpoints now agree with them.
     """
     known = {
@@ -571,8 +571,8 @@ def _price_bom(
     simulating the whole catalogue instead of the plan: with 11-37 suppliers per
     line, P(all fail) is ~1e-13, so CVaR-95 pinned to exactly 1.0, every fulfilment
     percentile to 100%, and spend-at-risk to $0.00 — and the page then asserted that
-    zero was a meaningful result for a hedged BOM. run_benchmark.py always passed the
-    selected set; this endpoint never did.
+    zero was a meaningful result for a hedged BOM. The (since-archived) sourcing
+    benchmark always passed the selected set; this endpoint never did.
 
     Two audit fixes live here:
       * quantity is honoured. The old helper summed one unit of each line's AVERAGE
@@ -775,7 +775,7 @@ def _compute_baseline_metrics(db: Session, quantities: Dict[int, int]) -> dict:
 
     component_cost, per_line, unpriceable, chosen = _price_bom(db, quantities)
     # The suppliers this plan actually buys from. Restricting the simulation to them
-    # is what run_benchmark.py has always done; without it the cascade model answers
+    # is what the (since-archived) sourcing benchmark always did; without it the cascade model answers
     # "could anyone, anywhere sell this part" rather than "is this plan exposed".
     plan_distributor_ids = set(chosen.values()) or None
 
@@ -1129,9 +1129,8 @@ def post_geopolitical_risk(
     This docstring previously claimed it "overrides live feed indices (GPR_INDEX,
     ACLED_CONFLICT_COUNT)". That was FALSE and had been false for as long as it was
     written: this module imports no feed cache and contains no reference to one.
-    The GPR signal is real and it does reach the CP-SAT objective as an origin
-    surcharge — but it does so in `app/optimization/sourcing.py`, on the
-    `/api/v1/optimize/*` endpoints, not here. The two are not wired together.
+    (The GPR signal used to reach the archived sourcing MILP as an origin surcharge;
+    see git tag `archive/sourcing-v1`. It was never wired into this endpoint.)
 
     Results cached (1h TTL). OpenTelemetry spans track performance.
     """
@@ -1258,8 +1257,7 @@ def post_delivery_target(
 
     "Re-prices", not "re-optimizes": no scenario in this module invokes CP-SAT. Each
     one picks the cheapest surviving offer per line greedily and re-runs the Monte
-    Carlo. The MILP lives in `app/optimization/sourcing.py` and is reached only via
-    `/api/v1/optimize/*`.
+    Carlo.
     Results cached (1h TTL). OpenTelemetry spans track performance.
     """
     with tracer.start_as_current_span("delivery_target_scenario") as span:
@@ -1621,8 +1619,8 @@ _P_FAIL_BASIS = (
     "audit this field held min-max normalized betweenness read directly as a "
     "probability, which had no base rate, no exposure window and no unit, implied the "
     "largest distributors fail most often, and gave the single most central "
-    "distributor a p_fail of exactly 1.0. GET /stochastic/calibration publishes the "
-    "same model per distributor and lets you vary its three parameters."
+    "distributor a p_fail of exactly 1.0. The model is "
+    "app.graph.disruption.build_failure_probabilities."
 )
 
 
@@ -1630,7 +1628,7 @@ def _recalibrate_dual_sourcing(db: Session, entries: list, gs) -> list:
     """Replace centrality-as-probability with the calibrated disruption probability.
 
     `app.optimization.recommendations.compute_dual_sourcing_plan` scores p_fail as
-    `min(betweenness * stress, 1.0)`. That is the exact defect `/stochastic/calibration`
+    `min(betweenness * stress, 1.0)`. That is the exact defect `app/graph/disruption.py`
     documents: a min-max normalized centrality read as a probability, with no base
     rate, no exposure window and no unit — and it implied the largest distributors are
     the most likely to fail. The probabilities, and everything downstream of them

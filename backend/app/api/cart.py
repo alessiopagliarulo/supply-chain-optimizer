@@ -152,7 +152,7 @@ async def add_to_cart(
     if offer:
         # `cart_items` has no currency column (id, user_id, component_id,
         # distributor_id, quantity, unit_price, created_at) and every downstream
-        # consumer — /cart totals, /optimize/*, /resilience/* — reads
+        # consumer — /cart totals, /resilience/* — reads
         # `unit_price` as USD per unit. Booking a non-USD offer here would
         # silently relabel a EUR/GBP/SGD figure as dollars. The identical write
         # is already refused on the live-price path (see live_prices.py: "a

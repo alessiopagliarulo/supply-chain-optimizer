@@ -1,12 +1,7 @@
 // Shared risk utilities.
 //
-// ── Two DIFFERENT quantities live in this file. Do not mix them. ────────────
-//
-// 1. `catalogueRiskTier` / `formatRiskIndex` — for `Component.risk_score`, the
-//    catalogue attribute served by `/api/v1/components`.
-// 2. `riskLabel` / `RISK_COLORS` — a generic 0.4/0.7 tiering of an arbitrary
-//    0–1 number, still used by MapPage (betweenness) and BenchmarkPage.
-//    It is NOT valid for `risk_score`; see the support argument below.
+// `catalogueRiskTier` / `formatRiskIndex` — for `Component.risk_score`, the
+// catalogue attribute served by `/api/v1/components`.
 //
 // ── What `Component.risk_score` actually is ────────────────────────────────
 //
@@ -50,25 +45,6 @@
 // strictly more informative than the number. The number stays visible as a raw
 // index, labelled as such.
 
-export const RISK_COLORS: Record<'low' | 'medium' | 'high', string> = {
-  low:    '#10b981',
-  medium: '#f59e0b',
-  high:   '#ef4444',
-};
-
-/**
- * Generic 0.4/0.7 tiering of an arbitrary 0–1 number.
- *
- * NOT valid for `Component.risk_score` — see (b) above. Retained for the
- * callers that pass other quantities (MapPage's betweenness channel,
- * BenchmarkPage's tradeoff score). Use `catalogueRiskTier` for catalogue parts.
- */
-export function riskLabel(score: number): 'low' | 'medium' | 'high' {
-  if (score < 0.4) return 'low';
-  if (score < 0.7) return 'medium';
-  return 'high';
-}
-
 // ── Catalogue risk: the one definition both /dashboard and /components use ──
 
 export type CatalogueRiskTier = 'unflagged' | 'flagged' | 'origin_flagged';
@@ -94,8 +70,9 @@ export const CATALOGUE_RISK_LABELS: Record<CatalogueRiskTier, string> = {
  *
  * Bands are on the FLAGS, not the number — there is no defensible numeric
  * cutoff (see (b) above). `chinese_origin` is separated out because it is the
- * only flag the rest of the system consumes downstream (`is_chinese_origin` in
- * `optimization/sourcing.py`) and the only one carrying a non-trivial weight.
+ * only flag the rest of the system consumed downstream (`is_chinese_origin` in the
+ * sourcing optimizer archived at git tag `archive/sourcing-v1`) and the only one
+ * carrying a non-trivial weight.
  *
  * `score` is a fallback used ONLY when `risk_factors` is absent from the
  * response. Under the published weights a score of 0.60 or more is reachable

@@ -543,7 +543,7 @@ def scarf_order_quantity(mean: float, sd: float, underage_usd: float, overage_us
     The order that maximises the worst-case profit over EVERY demand law with mean mu and
     standard deviation sigma. This is the distributionally robust counterpart of
     `normal_order_quantity` -- same two moments in, but no shape assumed, an ambiguity set
-    rather than a guess. It is the same move `stochastic.py` makes with CVaR, in closed
+    rather than a guess. It is the same move a CVaR objective makes, in closed
     form and one dimension.
 
     Its own limitation, stated: the min-max criterion is pessimistic by design, so on a

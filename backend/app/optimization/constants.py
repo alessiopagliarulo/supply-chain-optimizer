@@ -1,8 +1,8 @@
 """
 Shared freight and transport constants.
 
-All values are cited from published industry sources. Previously duplicated
-between costs.py and sourcing.py -- now defined once and imported by both.
+All values are cited from published industry sources. Defined once here and
+imported wherever they are needed.
 """
 
 # -- Physical / unit constants ------------------------------------------------

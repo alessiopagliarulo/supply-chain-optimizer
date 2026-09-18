@@ -2,13 +2,11 @@
 
 WHY THIS MODULE EXISTS
 ----------------------
-`test_frontier_page_matches_cvar_artifact.py` caught a class of defect no other test
-in this repo structurally can: a number **typed into JSX** that agrees with no artifact,
-no API response and no version of either. It shipped `31 / 36` for five days while
-`docs/cvar_frontier.json` said `35 of 36`.
+A per-page pin test (for the since-removed FrontierPage) once caught a class of defect
+no other test in this repo structurally can: a number **typed into JSX** that agrees with
+no artifact, no API response and no version of either.
 
-That test reads one element at a time through its `data-testid`. Two callers now need
-the same JSX-to-text step:
+Two callers need the same JSX-to-text step:
 
 * the per-page PIN tests, which read one anchored element and compare it to an artifact;
 * ``test_pages_do_not_publish_unverified_numbers.py``, the class-level guard, which walks
