@@ -47,7 +47,7 @@ def solve(instance: VrpInstance, method: str = "auto", time_limit_seconds: float
 
     ``time_limit_seconds`` bounds CP-SAT and OR-Tools routing; Clarke-Wright
     is a single greedy pass and ignores it. ``seed`` controls randomness in
-    CP-SAT for reproducibility.
+    CP-SAT and OR-Tools for reproducibility.
     """
     if method == "auto":
         method = "cpsat" if instance.num_customers <= EXACT_MAX_CUSTOMERS else "ortools"
@@ -56,7 +56,7 @@ def solve(instance: VrpInstance, method: str = "auto", time_limit_seconds: float
     if method == "clarke_wright":
         return solve_clarke_wright(instance)
     if method == "ortools":
-        return solve_ortools(instance, time_limit_seconds=time_limit_seconds)
+        return solve_ortools(instance, time_limit_seconds=time_limit_seconds, seed=seed)
     raise ValueError(f"unknown method {method!r}; expected one of {METHODS}")
 
 

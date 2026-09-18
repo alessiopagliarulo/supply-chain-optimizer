@@ -35,7 +35,7 @@ from app.vrp.validate import build_solution
 METHOD = "ortools"
 
 
-def solve_ortools(instance: VrpInstance, time_limit_seconds: float = 5.0) -> VrpSolution:
+def solve_ortools(instance: VrpInstance, time_limit_seconds: float = 5.0, seed: int = 42) -> VrpSolution:
     """Solve ``instance`` with the OR-Tools routing library."""
     t0 = time.perf_counter()
     if instance.num_customers == 0:
@@ -87,6 +87,7 @@ def solve_ortools(instance: VrpInstance, time_limit_seconds: float = 5.0) -> Vrp
     params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
     params.time_limit.FromMilliseconds(max(1, int(time_limit_seconds * 1000)))
+    params.sat_parameters.random_seed = int(seed)
 
     assignment = routing.SolveWithParameters(params)
     wall = time.perf_counter() - t0
