@@ -11,6 +11,9 @@ A full-stack supply chain intelligence platform for electronic component procure
 > [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1)
 > (`git checkout archive/sourcing-v1`). The pickup-TSP (`optimization/routing.py`) and
 > cross-dock (`optimization/cross_dock.py`) modules are kept for the rebuild.
+> The new routing engine lives in [`backend/app/vrp/`](backend/app/vrp/__init__.py): one
+> CVRPTW data model, three solver paths (CP-SAT exact, Clarke-Wright savings, OR-Tools
+> routing) and one shared solution validator.
 
 ## Headline results
 
@@ -368,6 +371,7 @@ GET  /api/v1/ml/model-info                   # served lead-time artifact provena
 GET  /api/v1/demand/benchmark                # intermittent-demand method benchmark (Croston/SBA/TSB, CRPS+MASE, Monash car parts)
 GET  /api/v1/feeds/status                    # feed freshness: download date, plus observation date where the feed publishes one (today: GPR)
 GET  /api/v1/benchmark/fiedler-curve         # sequential-removal Fiedler λ₂ curve
+POST /api/v1/routing/solve                   # CVRPTW route plan (CP-SAT exact, Clarke-Wright, OR-Tools routing), validated
 ```
 
 Full API reference (live Swagger UI): **https://supply-chain-api-qy8x.onrender.com/docs** — or http://localhost:8000/docs when running locally  
@@ -518,11 +522,11 @@ ruff format app --check # formatting — not yet wired into CI (see note below)
 mypy app                 # type-check (non-strict)
 ```
 
-Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues found in 70 source files`) are green today — re-run 2026-09-17. Deliberately deferred, tracked
+Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues found in 77 source files`) are green today — re-run 2026-09-18. Deliberately deferred, tracked
 in `pyproject.toml` comments so they can be picked up later without fighting
 in-flight edits elsewhere in the repo:
 
-- **`ruff format`**: **62 of 70** backend files would be reformatted (`ruff format app
+- **`ruff format`**: **62 of 77** backend files would be reformatted (`ruff format app
   --check`) — the codebase predates a formatter convention. Not added as a CI gate yet:
   running it would touch nearly every file. Run locally and land as its own PR when
   convenient.
