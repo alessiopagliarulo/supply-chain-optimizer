@@ -141,4 +141,5 @@ CUST NO.   XCOORD.   YCOORD.   DEMAND   READY   DUE   SERVICE
 - **Travel Time**: equals distance when not specified (Solomon convention)
 - **Validation**: all solutions go through shared validator regardless of solver
 - **Time Limits**: CP-SAT and OR-Tools respect `time_limit_seconds`; Clarke-Wright ignores it
+- **Random Seed**: fixed at 42 for reproducibility across runs (both CP-SAT and OR-Tools use randomized search strategies)
 - **Fleet Constraint**: solvers attempt to use ≤ `num_vehicles` routes; infeasibility if they use more

@@ -32,7 +32,6 @@ referenced by academic convention.
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -51,7 +50,7 @@ def parse_solomon_file(path: Path) -> Tuple[List[Tuple[float, float]], List[Node
       Line 1-3: header lines (may contain VEHICLES and CAPACITY)
       Line 4+: customer data (customer_id x y demand ready due service)
     """
-    with open(path, "r") as f:
+    with open(path) as f:
         lines = f.read().strip().split("\n")
 
     # Find VEHICLES and CAPACITY in header lines
@@ -88,7 +87,6 @@ def parse_solomon_file(path: Path) -> Tuple[List[Tuple[float, float]], List[Node
             continue
 
         try:
-            cust_id = int(fields[0])
             x = float(fields[1])
             y = float(fields[2])
             demand = int(fields[3])

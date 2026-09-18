@@ -16,18 +16,17 @@ Usage:
 
 import argparse
 import json
-import os
 import platform
 import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.vrp import solve
-from app.vrp.solomon import BEST_KNOWN_SOLUTIONS, get_best_known, load_solomon
+from app.vrp.solomon import get_best_known, load_solomon
 
 
 @dataclass
