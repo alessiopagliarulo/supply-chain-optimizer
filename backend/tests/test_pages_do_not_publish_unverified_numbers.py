@@ -34,16 +34,16 @@ drift away from the backend the way a typed literal can.
 
 To that this file adds the handful of **static string props that a browser shows to a
 sighted reader** — `title` (the native tooltip), `hint`, `subtitle`, `caption`, `label`,
-`placeholder`. `NewsvendorPage.tsx` publishes "51 monthly observations" through `hint=`;
-that is a claim, and it would be invisible to a text-node-only scan.
+`placeholder`. The since-removed NewsvendorPage published "51 monthly observations"
+through `hint=`; that is a claim, and it would be invisible to a text-node-only scan.
 
 THREE GAPS THIS GUARD DOES NOT CLOSE — stated so nobody mistakes green for total
 --------------------------------------------------------------------------------
-1. **Literals that reach the screen through a JS string constant.** `ResiliencePage.tsx`
-   renders "1,000 Monte Carlo scenarios" from ``const MC_SCENARIOS = 1000``. That is a
-   typed literal that can go stale, but not a JSX text node. Scanning every string in a
-   `.tsx` file would drown the guard in false positives, so it is pinned by name in
-   `test_pages_match_their_sources.py` instead.
+1. **Literals that reach the screen through a JS string constant.** The since-removed
+   ResiliencePage rendered "1,000 Monte Carlo scenarios" from ``const MC_SCENARIOS = 1000``.
+   That is a typed literal that can go stale, but not a JSX text node. Scanning every string
+   in a `.tsx` file would drown the guard in false positives, so such a figure is pinned by
+   name in `test_pages_match_their_sources.py` instead.
 2. **`aria-label`.** Screen-reader text is published text and can carry figures. It is
    excluded here only because the scope of this guard is what a sighted reader sees;
    that is a deliberate, known hole, not an oversight.
@@ -95,212 +95,24 @@ _PROP_RE = re.compile(
 # citation, a past-tense date, or a figure pinned by name in another test. "It looked
 # fine" is not a justification.
 
-GLOBAL_ALLOW: tuple[tuple[str, str], ...] = (
-    ("CVaR-95", "the NAME of the risk measure. 95 is the tail level in its definition."),
-    ("VaR-95", "the NAME of the companion quantile measure."),
-    ("95% CI", "the confidence level the intervals are built at, fixed by protocol."),
-    ("P10", "a percentile label: the 10th. A name, not a value."),
-    ("P50", "a percentile label: the median. A name, not a value."),
-    ("P90", "a percentile label: the 90th. A name, not a value."),
-    ("worst-5%", "the CVaR-95 tail, i.e. the definition of the measure above."),
-    ("worst 5%", "the same tail, spelled with a space."),
-    ("0–1", "the range of a share. A scale, not a measurement."),
-)
+#: Empty since the sourcing-era pages were removed (issue #16): none of the risk-measure
+#: and percentile names it used to exempt (CVaR-95, P10, 95% CI, ...) is rendered any more,
+#: and `test_every_global_allowlist_phrase_is_still_rendered_somewhere` requires dropping
+#: an exemption nobody uses.
+GLOBAL_ALLOW: tuple[tuple[str, str], ...] = ()
 
 PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
-    "Dashboard.tsx": (
-        (
-            "Top 5 by catalogue risk index",
-            "the length of the list under it — `.slice(0, 5)` in this same file. Pinned "
-            "by test_pages_match_their_sources.py.",
-        ),
-        (
-            "every 15 min",
-            "the external-feed refresh cadence, a configured interval rather than a "
-            "measurement.",
-        ),
-    ),
-    "LandingPage.tsx": (
-        (
-            "static 2024",
-            "the year the underlying Nexar/Octopart dataset was COLLECTED, recorded at "
-            "backend/seeds/seed_db.py `DATASET_COLLECTED` (\"2024 (per dataset card: 404 "
-            "general components + 387 telecom components)\"). A past-tense collection "
-            "date: the snapshot was gathered in 2024 and always will have been, so it "
-            "cannot drift. It is on the page precisely BECAUSE `distributor_offers` has "
-            "no date column of any kind -- freshness is unfalsifiable from the data, so "
-            "the page states the vintage instead of implying the offers are live. "
-            "`test_landing_data_contract.py::test_the_offers_are_never_described_as_live` "
-            "fails if that wording regresses, and also fails if a date column ever "
-            "appears (which would mean this justification needs revisiting).",
-        ),
-    ),
-    "ModelCardPage.tsx": (
-        (
-            "can only ever emit 0 or 1",
-            "the output set of a persistence classifier, by definition.",
-        ),
-        (
-            "1.0 = perfectly calibrated",
-            "the definition of a calibration slope, not a measured slope.",
-        ),
-    ),
-    "NewsvendorPage.tsx": (
-        (
-            "takes over four minutes to precompute",
-            "Bound to docs/newsvendor.json meta.wall_seconds > 240 by "
-            "test_pages_match_their_sources.py::"
-            "test_the_newsvendor_precompute_cost_is_the_sweep_the_artifact_timed. "
-            "Deliberately a threshold, not a digit: wall_seconds is machine speed "
-            "(255.2 -> 268.7 on a regeneration) and a hand-synced number is how the "
-            "fabricated '108 s per setting' got here in the first place.",
-        ),
-
-        (
-            "Snyder & Daskin (2005)",
-            "an academic citation year.",
-        ),
-        (
-            "Scarf (1958)",
-            "an academic citation year.",
-        ),
-        (
-            "a number above 0 and at most 1,000,000",
-            "the input validation bounds enforced in this same file.",
-        ),
-        (
-            "a number between 0 and 10,000",
-            "the input validation bounds enforced in this same file.",
-        ),
-        (
-            "12 to 600 non-negative counts",
-            "the pasted-history bounds enforced in this same file.",
-        ),
-        (
-            "0, 0, 2, 0, 1, 0, 0, 0, 3, 0, 0, 1, 0, 4, 0, 0, 1, 0",
-            "a placeholder showing the INPUT FORMAT. Example data, labelled as such by "
-            "being a placeholder.",
-        ),
-        (
-            "a 5,000-replication paired bootstrap",
-            "pinned to docs/newsvendor.json meta.n_boot by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "all 72 settings",
-            "pinned to meta.evaluation_grid.n_configurations by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "the fractile is τ = 0.9931. The longest training window in this panel is 45 "
-            "monthly observations, so the finest quantile the data can resolve is 1/45 = "
-            "0.022",
-            "every figure here is pinned to docs/newsvendor.json "
-            "(sensitivity_line_down.costs.critical_ratio and protocol.train_sizes) by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "a 99.3rd percentile",
-            "the same critical fractile as a percentile. Pinned with it.",
-        ),
-        (
-            "T1 – T2674, 51 monthly observations each",
-            "pinned to panel.n_series_available and to train_sizes + horizon_months by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "Capped at the 6-month held-out horizon",
-            "pinned to protocol.horizon_months by test_pages_match_their_sources.py.",
-        ),
-        (
-            "The fixed $150 consignment charge",
-            "a cost ASSUMPTION of the shortage model, stated so the reader knows it is "
-            "excluded from the per-unit figures.",
-        ),
-        (
-            "per $1.00 of unit price",
-            "the panel carries no prices, so every dollar figure is per unit at $1.00. "
-            "A normalisation, stated in the artifact's own caveats.",
-        ),
-        (
-            "CI excludes 0",
-            "the decision rule: an interval that does not cover zero. A definition.",
-        ),
-        (
-            "against a shared zero line",
-            "the reference line every interval is drawn against; zero is the null, not "
-            "a measured value.",
-        ),
-        (
-            "At a 3-month review period",
-            "one cell of the review-period sweep, named. Pinned to the artifact's "
-            "sensitivity_review_period_3 block by test_pages_match_their_sources.py.",
-        ),
-        (
-            "At 6 months it wins again",
-            "the sensitivity_review_period_6 block. Same pin.",
-        ),
-        (
-            "quoting the 1-month number",
-            "the primary block's review period. Same pin.",
-        ),
-        (
-            "annual holding rate ×",
-            "the formula label for the served rate beside it.",
-        ),
-        (
-            "/12. Gartner 2022 electronics",
-            "months in a year, and the citation year of the holding-rate source.",
-        ),
-        (
-            "three rolling origins under six forecast methods",
-            "pinned to protocol.n_origins and the evaluation grid's forecast_methods by "
-            "test_pages_match_their_sources.py.",
-        ),
-    ),
     "NotFoundPage.tsx": (
         (
             "404",
             "the HTTP status this route represents.",
         ),
     ),
-    "Register.tsx": (
+    "SimulationPage.tsx": (
         (
-            "e.g. 40.7128",
-            "a placeholder latitude showing the expected format.",
-        ),
-        (
-            "e.g. -74.0060",
-            "a placeholder longitude showing the expected format.",
-        ),
-    ),
-    "ResiliencePage.tsx": (
-        (
-            "− 1)",
-            "the tail of the formula `baseline BOM spend × (CVaR-95 − 1)`, split across "
-            "elements by the <strong> around the served multiplier. 1 is the no-loss "
-            "value the multiplier is measured from, not a figure.",
-        ),
-        (
-            "0% where the supplier already meets the window",
-            "arithmetic: no expedite is required when the lead time already fits, so the "
-            "premium is zero by construction.",
-        ),
-    ),
-    "SchedulerPage.tsx": (
-        (
-            "all 4 metrics",
-            "the four scored metrics of the demand leaderboard, fixed by the endpoint's "
-            "response shape.",
-        ),
-        (
-            "0 · out of stock",
-            "rendered only in the `offer.stock === 0` branch, so the literal restates the "
-            "served value it is guarded by.",
-        ),
-        (
-            "a frozen 2024 snapshot (CC-BY-4.0)",
-            "the vintage and licence of the committed offer snapshot.",
+            "Lateness p95",
+            "the NAME of a statistic: the 95th percentile of per-stop lateness, which the "
+            "page renders from the API's `p95_lateness` field. A label, not a value.",
         ),
     ),
 }
@@ -372,8 +184,9 @@ def _claims(path: Path) -> list[tuple[JsxText, str]]:
 
 def test_the_pages_directory_was_actually_found() -> None:
     """A guard that scans zero files is a check that cannot fail."""
-    assert len(PAGES) >= 10, (
-        f"expected the 10+ pages of {PAGES_DIR}; found {[p.name for p in PAGES]}. "
+    assert len(PAGES) >= 5, (
+        f"expected the landing, Route Plan, Simulation, Benchmarks and 404 pages of "
+        f"{PAGES_DIR}; found {[p.name for p in PAGES]}. "
         "If the frontend moved, re-point PAGES_DIR — do not let this scan nothing."
     )
 

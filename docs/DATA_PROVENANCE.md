@@ -127,9 +127,8 @@ this summary, if the exact vintage matters.
 
 ## Outstanding provenance gaps (owner should know)
 
-- **README/UI copy overstatement:** `README.md`, `QUICK_START.md`, and
-  `frontend/src/pages/Dashboard.tsx` reference "791 parts from Nexar/Octopart
-  APIs" in a way that reads as a live API integration. That copy is outside
+- **README copy overstatement:** `README.md` and `QUICK_START.md` reference
+  "791 parts from Nexar/Octopart APIs" in a way that reads as a live API integration. That copy is outside
   `backend/seeds/` and was **not** changed as part of this pass (scoped to
   `seed_db.py`) — flagging for whoever owns those files to reword per the
   "honest framing" note in §1 above.

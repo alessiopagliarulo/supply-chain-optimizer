@@ -73,10 +73,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               Try again
             </button>
             <a
-              href="/dashboard"
+              href="/"
               className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold transition"
             >
-              Back to Dashboard
+              Back to the start
             </a>
           </div>
         </div>

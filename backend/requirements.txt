@@ -39,6 +39,7 @@ scikit-learn==1.8.0
 joblib==1.5.3
 ortools==9.15.6755
 networkx==3.6.1
+simpy==4.1.1
 
 # Scheduling & data ingestion
 apscheduler==3.11.2
