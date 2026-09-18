@@ -158,16 +158,19 @@ class VehicleSimulation:
             if wait_time > 0:
                 yield self.env.timeout(wait_time)
 
+            # Time windows are on SERVICE START (see app/vrp/model.py), so lateness is
+            # measured when service begins, not when it ends: a stop served from its
+            # due time onward is on time, exactly as the validator schedules it.
+            service_start = self.env.now
+            lateness = max(0, service_start - float(node.due))
+            self.on_time_per_customer[customer] = lateness <= 0
+            self.lateness_per_customer[customer] = lateness
+
             nominal_service = float(node.service_time)
             actual_service = self.service_time_sampler(nominal_service)
             self.actual_service_times[customer] = actual_service
 
             yield self.env.timeout(actual_service)
-
-            service_end = self.env.now
-            lateness = max(0, service_end - float(node.due))
-            self.on_time_per_customer[customer] = lateness <= 0
-            self.lateness_per_customer[customer] = lateness
 
             current = customer
 

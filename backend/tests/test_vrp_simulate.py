@@ -327,3 +327,44 @@ def test_zero_duration_route_gets_zero_utilization_without_dividing_by_zero():
 
     if len(run.vehicle_utilization) > 0:
         assert run.vehicle_utilization[0] == 0
+
+
+def test_a_stop_served_from_its_due_time_is_on_time():
+    """Windows are on service START (app/vrp/model.py), so lateness is too.
+
+    Regression: lateness used to be measured at service END, so any stop with a
+    service time whose service started at (or near) its due time counted as
+    late even in the deterministic plan the validator had just accepted.
+    """
+    coords = [(0, 0), (10, 0)]
+    nodes = [Node(0, 0, OPEN), Node(1, 0, 10, service_time=90)]
+    inst = VrpInstance.from_coordinates(coords, nodes, num_vehicles=1, vehicle_capacity=10)
+    sol = solve_cpsat(inst, time_limit_seconds=1)
+    assert sol.feasible
+
+    run = simulate_once(inst, sol, variability=0.0, seed=1)
+
+    assert run.lateness_per_customer[1] == 0.0
+    assert run.on_time_per_customer[1] is True
+
+
+def test_zero_variability_keeps_a_feasible_solomon_plan_fully_on_time():
+    """The module's contract: zero variability reproduces the deterministic plan.
+
+    C101's customers all take 90 time units of service, so measuring lateness at
+    service end made this validated plan look almost entirely late.
+    """
+    from app.vrp import solve_clarke_wright
+    from app.vrp.instances import load_instance
+
+    named = load_instance("sample/C101_25")
+    inst = VrpInstance.from_coordinates(
+        named.coords, named.nodes, num_vehicles=named.num_vehicles, vehicle_capacity=named.vehicle_capacity
+    )
+    sol = solve_clarke_wright(inst)
+    assert sol.feasible
+
+    results = simulate(inst, sol, num_replications=3, variability=0.0, seed=7)
+
+    assert results.on_time_rate == 1.0
+    assert results.mean_lateness == 0.0
