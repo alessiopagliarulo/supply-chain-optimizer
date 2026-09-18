@@ -5,9 +5,10 @@ name: Repo — Tests (plain CI, no agent)
 # branch is green).
 #
 # STACK-AWARE BY DESIGN. This file is a TEMPLATE copied into every project, so it must not
-# assume a stack. A detection step works out what this repo actually is — Node at the root or
+# assume a stack. A `detect` job works out what this repo actually is — Node at the root or
 # in a subfolder (`frontend/`, `web/`, …)? Python (`pyproject.toml` / `requirements*.txt` /
-# `pytest.ini`) at the root or in `backend/`? Prisma? — and every step after it is conditional.
+# `pytest.ini`) at the root or in `backend/`? Prisma? — and the `node` and `python` jobs run
+# only when their stack is present.
 # Node scripts are run with `npm run <script> --if-present`, so a repo without a `lint` or
 # `test` script is not failed for lacking one; it is skipped with a log line. Same for Prisma
 # and for the Python path. A repo that matches nothing at all ends green with a clear
@@ -22,15 +23,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  # WHAT IS THIS REPO? Every job below branches on this one's outputs.
+  detect:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
     permissions:
       contents: read
+    outputs:
+      node_dir: ${{ steps.stack.outputs.node_dir }}
+      py_dir: ${{ steps.stack.outputs.py_dir }}
+      npm_cache: ${{ steps.stack.outputs.npm_cache }}
+      prisma: ${{ steps.stack.outputs.prisma }}
     steps:
       - uses: actions/checkout@v6
 
-      # WHAT IS THIS REPO? Everything below branches on this step.
       - name: Detect the project's stack
         id: stack
         run: |
@@ -78,17 +84,31 @@ jobs:
             echo "prisma=$prisma"
           } >> "$GITHUB_OUTPUT"
 
-      # ── Node path ───────────────────────────────────────────────────────────────────────
+      # ── Nothing recognised ──────────────────────────────────────────────────────────────
+      - name: Nothing to run
+        if: steps.stack.outputs.node_dir == '' && steps.stack.outputs.py_dir == ''
+        run: |
+          echo "::notice::No package.json and no Python project were found at the root or in the usual subfolders (frontend/, web/, backend/, api/, …), so there is nothing for plain CI to install, lint, test or build. Passing rather than failing — but if this repo does have a test suite, add it here or point this workflow at the right directory."
+
+  # ── Node path ─────────────────────────────────────────────────────────────────────────
+  node:
+    needs: detect
+    if: needs.detect.outputs.node_dir != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/setup-node@v4
-        if: steps.stack.outputs.node_dir != ''
         with:
           node-version: "20"
-          cache: ${{ steps.stack.outputs.npm_cache }}
-          cache-dependency-path: ${{ steps.stack.outputs.node_dir }}/package-lock.json
+          cache: ${{ needs.detect.outputs.npm_cache }}
+          cache-dependency-path: ${{ needs.detect.outputs.node_dir }}/package-lock.json
 
       - name: Install dependencies (Node)
-        if: steps.stack.outputs.node_dir != ''
-        working-directory: ${{ steps.stack.outputs.node_dir }}
+        working-directory: ${{ needs.detect.outputs.node_dir }}
         run: npm ci || npm install
 
       # Only on repos that actually use Prisma. DATABASE_URL is set here rather than as a
@@ -99,8 +119,8 @@ jobs:
       # That is a local-setup mismatch, not a broken pull request, so it warns and carries on —
       # the real lint/test/build steps below are what decide whether this run is red or green.
       - name: Prisma client + database
-        if: steps.stack.outputs.prisma == 'true'
-        working-directory: ${{ steps.stack.outputs.node_dir }}
+        if: needs.detect.outputs.prisma == 'true'
+        working-directory: ${{ needs.detect.outputs.node_dir }}
         run: |
           set +e
           if [ -z "${DATABASE_URL:-}" ]; then
@@ -125,29 +145,46 @@ jobs:
           exit 0
 
       - name: Lint (Node)
-        if: steps.stack.outputs.node_dir != ''
-        working-directory: ${{ steps.stack.outputs.node_dir }}
+        working-directory: ${{ needs.detect.outputs.node_dir }}
         run: npm run lint --if-present
 
       - name: Test (Node)
-        if: steps.stack.outputs.node_dir != ''
-        working-directory: ${{ steps.stack.outputs.node_dir }}
+        working-directory: ${{ needs.detect.outputs.node_dir }}
         run: npm run test --if-present
 
       - name: Build (Node)
-        if: steps.stack.outputs.node_dir != ''
-        working-directory: ${{ steps.stack.outputs.node_dir }}
+        working-directory: ${{ needs.detect.outputs.node_dir }}
         run: npm run build --if-present
 
-      # ── Python path ─────────────────────────────────────────────────────────────────────
+  # ── Python path ───────────────────────────────────────────────────────────────────────
+  # The WHOLE suite, with no `-m` marker filter: nothing is deselected here. That includes
+  # the `slow` pins in backend/tests/test_artifacts_pinned_to_code.py, which re-solve the
+  # committed Prophet and Chronos artifacts under a strict tolerance.
+  #
+  # WHY macOS/arm64 AND PYTHON 3.13. Those artifacts are generated on macOS/arm64 with
+  # Python 3.13 (see each artifact's `provenance.platform`). Prophet fits via Stan's
+  # L-BFGS, which is not bit-reproducible across CPU architectures: on Linux/x86_64 the
+  # Prophet pins differ by ~0.2% on every value, against artifacts that are current. The
+  # tolerance stays strict, so the suite runs where the artifacts are made instead.
+  python:
+    needs: detect
+    if: needs.detect.outputs.py_dir != ''
+    runs-on: macos-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/setup-python@v5
-        if: steps.stack.outputs.py_dir != ''
         with:
-          python-version: "3.x"
+          python-version: "3.13"
 
       - name: Install dependencies (Python)
-        if: steps.stack.outputs.py_dir != ''
-        working-directory: ${{ steps.stack.outputs.py_dir }}
+        working-directory: ${{ needs.detect.outputs.py_dir }}
         run: |
           python -m pip install --upgrade pip
           shopt -s nullglob
@@ -165,18 +202,36 @@ jobs:
             fi
           fi
 
+      # The Chronos pin reads its weights from the local Hugging Face cache, offline, and
+      # skips on a cold cache rather than download mid-test. Download them here, before the
+      # suite, so that pin actually runs. A failed download fails this step: it never turns
+      # into a silent skip.
+      - name: Download the Chronos weights the artifact pin reads
+        working-directory: ${{ needs.detect.outputs.py_dir }}
+        run: |
+          if [ ! -f seeds/run_chronos_benchmark.py ] || [ ! -f ../docs/chronos_benchmark.json ]; then
+            echo "No Chronos benchmark in this repo - nothing to download."
+            exit 0
+          fi
+          model="$(jq -r '.chronos.model' ../docs/chronos_benchmark.json)"
+          echo "Downloading $model"
+          python -c "import sys; from huggingface_hub import snapshot_download; print(snapshot_download(sys.argv[1]))" "$model"
+
       - name: Test (Python)
-        if: steps.stack.outputs.py_dir != ''
-        working-directory: ${{ steps.stack.outputs.py_dir }}
+        working-directory: ${{ needs.detect.outputs.py_dir }}
         run: |
           if python -m pytest --version >/dev/null 2>&1; then
+            # Spread the same selection over the runner's cores when pytest-xdist is
+            # installed; `--dist loadfile` keeps each file's module-scoped fixtures in one
+            # process (see ci.yml for the measured equivalence with a serial run).
+            xdist=""
+            if python -c "import xdist" >/dev/null 2>&1; then
+              xdist="-n auto --dist loadfile"
+            fi
             # pytest exits 5 when it collected no tests at all. On a fresh Python repo that
             # is "there is nothing to run yet", not a failure — anything else is passed through.
-            # `-m "not slow"`: `slow` is the conventional marker for tests that are too
-            # expensive or too platform-dependent for CI (in this repo it means local-only;
-            # ci.yml deselects it the same way). An unregistered marker selects nothing away.
             set +e
-            python -m pytest -q -m "not slow"
+            python -m pytest -q $xdist
             rc=$?
             set -e
             if [ "$rc" -eq 5 ]; then
@@ -187,9 +242,3 @@ jobs:
           else
             echo "::notice::pytest is not installed in this environment — skipping Python tests rather than failing the run. Add pytest to requirements*.txt (or pyproject.toml) to have CI run them."
           fi
-
-      # ── Nothing recognised ──────────────────────────────────────────────────────────────
-      - name: Nothing to run
-        if: steps.stack.outputs.node_dir == '' && steps.stack.outputs.py_dir == ''
-        run: |
-          echo "::notice::No package.json and no Python project were found at the root or in the usual subfolders (frontend/, web/, backend/, api/, …), so there is nothing for plain CI to install, lint, test or build. Passing rather than failing — but if this repo does have a test suite, add it here or point this workflow at the right directory."
