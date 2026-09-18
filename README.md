@@ -522,7 +522,7 @@ ruff format app --check # formatting — not yet wired into CI (see note below)
 mypy app                 # type-check (non-strict)
 ```
 
-Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues found in 70 source files`) are green today — re-run 2026-09-17. Deliberately deferred, tracked
+Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues found in 77 source files`) are green today — re-run 2026-09-18. Deliberately deferred, tracked
 in `pyproject.toml` comments so they can be picked up later without fighting
 in-flight edits elsewhere in the repo:
 
