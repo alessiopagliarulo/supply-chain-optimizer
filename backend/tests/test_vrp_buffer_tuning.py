@@ -252,8 +252,11 @@ def test_chosen_buffer_meets_target_on_time_rate():
         objective="minimize_cost_for_target",
     )
 
-    if result.chosen_buffer.simulation.on_time_rate >= 0.9:
-        assert result.chosen_buffer.simulation.on_time_rate >= 0.9
+    max_on_time = max(c.simulation.on_time_rate for c in result.frontier)
+    chosen_rate = result.chosen_buffer.simulation.on_time_rate
+    assert (
+        chosen_rate >= result.target_on_time_rate or chosen_rate == max_on_time
+    )
 
 
 def test_tune_buffers_with_maximize_on_time_objective():
@@ -452,6 +455,10 @@ def test_no_improvement_on_already_tight_plan():
 
 def simulate_one(instance, solution, variability, base_seed, replications):
     """Helper to run multiple seeded replications and aggregate."""
+    import statistics
+
+    import numpy as np
+
     from app.vrp.simulate import SimulationResults
 
     runs = []
@@ -468,9 +475,38 @@ def simulate_one(instance, solution, variability, base_seed, replications):
     ]
     on_time_rate = sum(all_on_time) / len(all_on_time) if all_on_time else 1.0
 
+    on_time_rate_per_customer = {}
+    for customer in instance.customers:
+        customer_on_time = [r.on_time_per_customer.get(customer, False) for r in runs]
+        if customer_on_time:
+            on_time_rate_per_customer[customer] = sum(customer_on_time) / len(
+                customer_on_time
+            )
+
+    all_lateness = [
+        r.lateness_per_customer.get(c, 0) for r in runs for c in instance.customers
+    ]
+    mean_lateness = statistics.mean(all_lateness) if all_lateness else 0.0
+    p95_lateness = float(np.percentile(all_lateness, 95)) if all_lateness else 0.0
+
+    all_completion_times = [t for r in runs for t in r.vehicle_completion_times]
+    mean_completion_time = statistics.mean(all_completion_times) if all_completion_times else 0.0
+    max_completion_time = max(all_completion_times) if all_completion_times else 0.0
+
+    all_utilizations = [u for r in runs for u in r.vehicle_utilization]
+    utilization_mean = statistics.mean(all_utilizations) if all_utilizations else 0.0
+    utilization_min = min(all_utilizations) if all_utilizations else 0.0
+
     return SimulationResults(
         num_replications=replications,
         instance_name=instance.name,
         on_time_rate=on_time_rate,
+        on_time_rate_per_customer=on_time_rate_per_customer,
+        mean_lateness=mean_lateness,
+        p95_lateness=p95_lateness,
+        mean_route_completion_time=mean_completion_time,
+        max_route_completion_time=max_completion_time,
+        vehicle_utilization_mean=utilization_mean,
+        vehicle_utilization_min=utilization_min,
         runs=runs,
     )
