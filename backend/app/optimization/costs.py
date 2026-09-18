@@ -1,9 +1,8 @@
 """
 Freight cost + carbon + holding cost model.
 
-All constants are cited from published industry sources. See
-docs/OPTIMIZATION_DESIGN.md §5.1 for full
-references.
+All constants are cited from published industry sources; the citations sit
+beside each constant (here and in constants.py).
 """
 from __future__ import annotations
 

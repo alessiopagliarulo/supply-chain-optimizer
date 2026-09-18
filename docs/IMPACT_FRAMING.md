@@ -59,7 +59,7 @@ an assumption:
   the sum of each line's average real distributor offer price. Nothing there is
   assumed.
 - **The probability side is calibrated, not proxied.** `backend/app/graph/simulation.py`
-  now calls `build_failure_probabilities` (`backend/app/optimization/stochastic.py`),
+  now calls `build_failure_probabilities` (`backend/app/graph/disruption.py`),
   which anchors to a cited base rate — McKinsey Global Institute (Aug 2020):
   disruptions lasting a month or longer roughly every 3.7 years — converted to an
   annual Poisson rate and then to a probability over a 60-day purchase-order

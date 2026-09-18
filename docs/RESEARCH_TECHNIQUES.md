@@ -246,7 +246,7 @@ against worst-case constraint violation.** Complements, not substitutes.
 M independent SAA replications give a statistically optimistic lower bound; evaluating the chosen
 first-stage plan on a much larger held-out scenario sample gives the upper bound; report the
 **gap with a confidence interval** and sweep N to show where it stabilizes. `out_of_sample_seeds`
-and the exact-vs-SAA comparison already exist in `docs/cvar_frontier.json` — this finishes it.
+and the exact-vs-SAA comparison already exist in `docs/cvar_frontier.json` (archived at tag `archive/sourcing-v1`) — this finishes it.
 
 - Mak, W-K., Morton, D.P. & Wood, R.K. (1999). "Monte Carlo bounding techniques for determining
   solution quality in stochastic programs." *OR Letters* 24(1–2):47–56.
@@ -277,8 +277,8 @@ pinball loss already on the leaderboard *is* this decision cost up to a constant
 | | value | source |
 |---|---|---|
 | `Co` overage | `price × 0.25 × L/12` | `app.optimization.costs.holding_cost_usd`, the *same function* the freight model calls. 25%/yr electronics holding rate cited to Gartner IT Supply Chain Benchmarks 2022. |
-| `Cu` underage (default) | `price × 0.15` | the emergency-reprocurement premium already in `sourcing.py` and `graph/simulation.py`; a test pins all three equal. |
-| `Cu` underage (sensitivity) | `price × 3.0` | `sourcing.STOCKOUT_PENALTY_MULTIPLE`, after Snyder & Daskin (2005) — a single-sourced line-down event. |
+| `Cu` underage (default) | `price × 0.15` | the emergency-reprocurement premium already in `graph/simulation.py`; a test pins the two equal. |
+| `Cu` underage (sensitivity) | `price × 3.0` | `newsvendor.STOCKOUT_ESCALATION_MULTIPLE`, after Snyder & Daskin (2005) — a single-sourced line-down event. |
 | excluded | `$150` fixed air consignment | per *consignment*, not per unit, so it cannot enter a linear per-unit `Cu`. Excluding it pushes `Cu`, `τ` and `q*` **down**: the published saving is a lower bound. |
 
 **τ = 0.15 / (0.15 + 0.0208) = 0.8780** at a one-month review period. Two framing choices do
@@ -392,7 +392,7 @@ proper scoring rule averages a bad tail away, a decision reads it.
 
 **Scarf's min-max newsvendor shipped with it** — `scarf_order_quantity`, closed form
 `μ + (σ/2)(√(Cu/Co) − √(Co/Cu))`, worst-case optimal over *every* law with those two moments.
-It is the same distributionally-robust move `stochastic.py` makes with CVaR, in one dimension
+It is the same distributionally-robust move a CVaR objective makes, in one dimension
 and with no solver, and it turned out to be the toughest baseline in the table.
 
 **Deliberately NOT built: the decision-focused *learning* half.** Ban & Rudin's LightGBM

@@ -58,9 +58,7 @@ both are proportional to the unit price:
 
   Cu  =  unit_price * EXPEDITE_PREMIUM                        (shortage_mode="expedite")
      0.15, the emergency-reprocurement premium. It is the same number as
-     `sourcing.EMERGENCY_REPROCURE_PREMIUM` and `graph.simulation.EMERGENCY_COST_PREMIUM`;
-     a test asserts the three agree. It is deliberately NOT imported from `sourcing`, which
-     drags in CP-SAT and the whole MILP stack for one float.
+     `graph.simulation.EMERGENCY_COST_PREMIUM`; a test asserts the two agree.
 
      JUSTIFICATION, because a stockout penalty is exactly the kind of number that gets
      invented. A spare part that is out of stock is not a lost sale: the demand does not
@@ -70,7 +68,7 @@ both are proportional to the unit price:
      conservative reading, and it is the one this module publishes.
 
   Cu  =  unit_price * STOCKOUT_ESCALATION_MULTIPLE            (shortage_mode="line_down")
-     3.0, `sourcing.STOCKOUT_PENALTY_MULTIPLE`, after Snyder & Daskin (2005): when there is
+     3.0, after Snyder & Daskin (2005): when there is
      no substitutable source the recourse is a line-down / respin event, priced as a
      large-but-finite multiple of unit price. Offered as a SENSITIVITY, not as the default.
      Read the warning on `NewsvendorCosts.resolution_warning` before quoting it: at
@@ -222,14 +220,12 @@ PmfLike = Sequence[float] | np.ndarray
 # ── Cost inputs ──────────────────────────────────────────────────────────────
 
 #: Emergency-reprocurement premium on the unit price when a needed unit is not on hand.
-#: The same 0.15 as `sourcing.EMERGENCY_REPROCURE_PREMIUM` and
-#: `graph.simulation.EMERGENCY_COST_PREMIUM`; duplicated rather than imported so this
-#: decision layer does not depend on the CP-SAT sourcing module, and pinned equal to both
-#: by `tests/test_newsvendor.py::test_expedite_premium_matches_the_sourcing_constant`.
+#: The same 0.15 as `graph.simulation.EMERGENCY_COST_PREMIUM`, pinned equal to it by
+#: `tests/test_newsvendor.py::test_expedite_premium_matches_the_simulation_constant`.
 EXPEDITE_PREMIUM: float = 0.15
 
 #: Shortage escalation for a line-down / respin event with no substitutable source, after
-#: Snyder & Daskin (2005). Mirrors `sourcing.STOCKOUT_PENALTY_MULTIPLE`. A SENSITIVITY, not
+#: Snyder & Daskin (2005). A SENSITIVITY, not
 #: the default -- see `NewsvendorCosts.resolution_warning`.
 STOCKOUT_ESCALATION_MULTIPLE: float = 3.0
 
