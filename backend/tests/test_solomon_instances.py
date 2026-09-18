@@ -207,7 +207,9 @@ class TestBenchmarkRunner:
     def test_rejects_non_positive_time_limit(self, limit, tmp_path):
         out = tmp_path / "out.json"
         with pytest.raises(SystemExit) as exc:
-            benchmark_solomon.main(["--instances", "C101", "--sizes", "25", "--time-limit", limit, "--output", str(out)])
+            benchmark_solomon.main(
+                ["--instances", "C101", "--sizes", "25", "--time-limit", limit, "--output", str(out)]
+            )
         assert exc.value.code == 2
         assert not out.exists()
 
@@ -249,8 +251,8 @@ class TestCommittedArtifact:
             one_dp = round(route_distance(raw.coords, r["routes"], truncate_one_decimal=True), 1)
             assert r["distance_one_decimal"] == one_dp, label
             ref = r["reference"]
-            expected_field = None if ref is None else (
-                "distance_one_decimal" if ref["source"] == "solomon_optimal" else "distance"
+            expected_field = (
+                None if ref is None else ("distance_one_decimal" if ref["source"] == "solomon_optimal" else "distance")
             )
             assert r["gap_measured_on"] == expected_field, label
             if ref is None or not r["feasible"]:
