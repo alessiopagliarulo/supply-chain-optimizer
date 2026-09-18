@@ -296,3 +296,34 @@ def test_run_id_increments_across_replications():
 
     run_ids = [r.run_id for r in results.runs]
     assert run_ids == list(range(5))
+
+
+def test_utilization_computed_for_vehicle_departing_at_t_zero():
+    """Regression: vehicle departing at t=0 (depart_time=0) should have utilization computed.
+
+    The bug was checking truthiness of depart_time (0 is falsy), which prevented utilization
+    calculation. Fix uses explicit None checks.
+    """
+    inst = single_customer_instance()
+    sol = solve_cpsat(inst, time_limit_seconds=1)
+
+    run = simulate_once(inst, sol, variability=0, seed=0)
+
+    assert len(run.vehicle_utilization) == 1
+    assert run.vehicle_utilization[0] > 0
+
+
+def test_zero_duration_route_gets_zero_utilization_without_dividing_by_zero():
+    """Zero-duration route should have 0 utilization without raising ZeroDivisionError."""
+    inst = VrpInstance(
+        nodes=[Node(0, 0, 100), Node(5, 0, 100, service_time=0)],
+        distance=[[0, 0], [0, 0]],
+        num_vehicles=1,
+        vehicle_capacity=10,
+    )
+    sol = solve_cpsat(inst, time_limit_seconds=1)
+
+    run = simulate_once(inst, sol, variability=0, seed=0)
+
+    if len(run.vehicle_utilization) > 0:
+        assert run.vehicle_utilization[0] == 0
