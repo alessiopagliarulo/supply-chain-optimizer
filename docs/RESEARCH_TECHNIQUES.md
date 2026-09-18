@@ -1,5 +1,10 @@
 # Research Backlog — Statistical & OR Techniques Worth Adding
 
+> **Sourcing work archived.** The sourcing optimizer this document refers to (CP-SAT
+> sourcing MILP, two-stage stochastic program / CVaR frontier, MILP-vs-greedy benchmark)
+> and the docs/artifacts it cites were removed from `main` and are preserved at git tag
+> `archive/sourcing-v1`. The repo is being rebuilt as a logistics/routing engine.
+
 **Compiled 2026-08-15/16** from a literature scan (2023–2026) plus verification against this
 repo's actual data artifacts. Every citation below was checked to exist; nothing here is
 recalled from memory.
@@ -18,8 +23,8 @@ Verified against the artifacts on disk:
 |---|---|---|
 | **Monash car parts** (`docs/intermittent_demand.json`) | **2,674 series × 51 months**, 24.1% non-zero, **2,646 scored** under the rolling-origin protocol | **Now carrying the demand story** — proper scoring rules and significance testing shipped (1.1/1.2 below); still supports a newsvendor study (1.4) and conformal calibration. |
 | Census M3 A34SNO (`docs/forecast_backtest.json`) | `n_obs=198` at the pinned `2026-08-16` vintage, **`n_windows=3`**, horizon 12 → **36 test points from 3 origins** | The weakest evidence in the repo. No significance test is possible. And the series is *revised in place* — see 4.1; it is now vintage-pinned, and the revision moves WAPE more than the model choice does. Saying so is worth more than another model. |
-| CVaR frontier (`docs/cvar_frontier.json`) | tail atoms now 31–54 after calibration work; largest single atom still 32–80% of tail mass | Tail estimate improved but remains atom-dominated at low volume. Report it. |
-| Lead-time panel | **3,406 rows / 6 snapshots on disk** (sha256 `d94df904…`); the **served model is fitted on an earlier cut of it** — 2,615 usable rows of the then 2,664-row, five-snapshot panel (sha256 `c68e2891…`), retrained 2026-09-03 — one distributor | Supports the ST-extension *event narrative*; supports almost no inference. The staleness tripwire reports `stale: true` — the 2026-09-07 collector run moved the panel past the artifact, and a retrain is owed. Every `2,615` / `472` / `28` / `324` figure below is a property of that artifact, not of the panel. |
+| CVaR frontier (`docs/cvar_frontier.json`, archived at tag `archive/sourcing-v1`) | tail atoms now 31–54 after calibration work; largest single atom still 32–80% of tail mass | Tail estimate improved but remains atom-dominated at low volume. Report it. |
+| Lead-time panel | **4,148 rows / 7 snapshots on disk** (sha256 `d94df904…`); the **served model is fitted on an earlier cut of it** — 2,615 usable rows of the then 2,664-row, five-snapshot panel (sha256 `c68e2891…`), retrained 2026-09-03 — one distributor | Supports the ST-extension *event narrative*; supports almost no inference. The staleness tripwire reports `stale: true` — the 2026-09-07 collector run moved the panel past the artifact, and a retrain is owed. Every `2,615` / `472` / `28` / `324` figure below is a property of that artifact, not of the panel. |
 
 **Therefore: stop pointing new statistics at the 198-point macro series. Point them at car parts.**
 Nearly every item below gets cheaper and more defensible under that reframe.
@@ -131,7 +136,7 @@ than patched, and Monash now carries the demand story:
 28 manufacturers — all three straight from `leakage_progression.json` →
 `counts.n_rows` / `counts.n_family_group_keys` / `counts.n_manufacturers`, which that file pins
 to `meta.panel_sha256` `c68e2891…`, i.e. the **2026-09-03 artifact vintage**, fitted on the
-then 2,664-row cut of a panel that now holds 3,406 rows).*
+then 2,664-row cut of a panel that now holds 4,148 rows).*
 
 > **Use the right noun for 472.** It is the count of `_group_key` values, not of part
 > families. Grouping on `base_product` collapses 742 MPNs into **361** base_product levels;
@@ -241,7 +246,7 @@ against worst-case constraint violation.** Complements, not substitutes.
 M independent SAA replications give a statistically optimistic lower bound; evaluating the chosen
 first-stage plan on a much larger held-out scenario sample gives the upper bound; report the
 **gap with a confidence interval** and sweep N to show where it stabilizes. `out_of_sample_seeds`
-and the exact-vs-SAA comparison already exist in `docs/cvar_frontier.json` — this finishes it.
+and the exact-vs-SAA comparison already exist in `docs/cvar_frontier.json` (archived at tag `archive/sourcing-v1`) — this finishes it.
 
 - Mak, W-K., Morton, D.P. & Wood, R.K. (1999). "Monte Carlo bounding techniques for determining
   solution quality in stochastic programs." *OR Letters* 24(1–2):47–56.
@@ -272,8 +277,8 @@ pinball loss already on the leaderboard *is* this decision cost up to a constant
 | | value | source |
 |---|---|---|
 | `Co` overage | `price × 0.25 × L/12` | `app.optimization.costs.holding_cost_usd`, the *same function* the freight model calls. 25%/yr electronics holding rate cited to Gartner IT Supply Chain Benchmarks 2022. |
-| `Cu` underage (default) | `price × 0.15` | the emergency-reprocurement premium already in `sourcing.py` and `graph/simulation.py`; a test pins all three equal. |
-| `Cu` underage (sensitivity) | `price × 3.0` | `sourcing.STOCKOUT_PENALTY_MULTIPLE`, after Snyder & Daskin (2005) — a single-sourced line-down event. |
+| `Cu` underage (default) | `price × 0.15` | the emergency-reprocurement premium already in `graph/simulation.py`; a test pins the two equal. |
+| `Cu` underage (sensitivity) | `price × 3.0` | `newsvendor.STOCKOUT_ESCALATION_MULTIPLE`, after Snyder & Daskin (2005) — a single-sourced line-down event. |
 | excluded | `$150` fixed air consignment | per *consignment*, not per unit, so it cannot enter a linear per-unit `Cu`. Excluding it pushes `Cu`, `τ` and `q*` **down**: the published saving is a lower bound. |
 
 **τ = 0.15 / (0.15 + 0.0208) = 0.8780** at a one-month review period. Two framing choices do
@@ -387,7 +392,7 @@ proper scoring rule averages a bad tail away, a decision reads it.
 
 **Scarf's min-max newsvendor shipped with it** — `scarf_order_quantity`, closed form
 `μ + (σ/2)(√(Cu/Co) − √(Co/Cu))`, worst-case optimal over *every* law with those two moments.
-It is the same distributionally-robust move `stochastic.py` makes with CVaR, in one dimension
+It is the same distributionally-robust move a CVaR objective makes, in one dimension
 and with no solver, and it turned out to be the toughest baseline in the table.
 
 **Deliberately NOT built: the decision-focused *learning* half.** Ban & Rudin's LightGBM

@@ -208,20 +208,9 @@ export default function CartPage() {
                 <span className="text-slate-400">Components subtotal</span>
                 <span className="text-white">{fmtUsd(totalCost)}</span>
               </div>
-              <div className="flex justify-between text-sm mb-3">
+              <div className="flex justify-between text-sm">
                 <span className="text-slate-400">Line items</span>
                 <span className="text-white">{items.length}</span>
-              </div>
-              <div className="border-t border-slate-700 pt-3 flex items-center justify-between">
-                <div className="text-slate-300 text-sm">
-                  Choose distributors and build the pickup route for these lines.
-                </div>
-                <button
-                  onClick={() => navigate('/checkout')}
-                  className="bg-green-700 hover:bg-green-600 text-white px-6 py-3 rounded font-medium text-sm transition-colors"
-                >
-                  Optimize & Checkout
-                </button>
               </div>
             </div>
           </>

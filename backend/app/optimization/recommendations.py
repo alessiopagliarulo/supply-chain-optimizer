@@ -11,7 +11,7 @@ nothing is fabricated.
   2. compute_dual_sourcing_plan   — rank single-source components by the payoff
      of qualifying a second source (no-regret / hedge / supplier-development).
      Failure probabilities come from the app's ONE calibrated disruption model
-     (`stochastic.build_failure_probabilities`), never from raw centrality.
+     (`graph.disruption.build_failure_probabilities`), never from raw centrality.
   3. compute_tornado              — one-way sensitivity of a BOM's landed cost
      (or tail-risk CVaR) to the real model levers.
 
@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.models.component import Component, DistributorOffer
 from app.models.distributor import Distributor
 from app.graph.simulation import run_monte_carlo, EMERGENCY_COST_PREMIUM
-from app.optimization.stochastic import build_failure_probabilities
+from app.graph.disruption import build_failure_probabilities
 
 # Cap on how many orphaned component ids we echo back per distributor (payload hygiene).
 _ORPHAN_ID_CAP = 25
@@ -39,7 +39,7 @@ def _horizon_failure_probabilities(gs) -> Dict[int, float]:
 
     `gs.p_disruption` is built once per graph by
     `app/graph/builder.py::_build_disruption_probabilities`, which delegates to
-    `app.optimization.stochastic.build_failure_probabilities`: a cited annual base
+    `app.graph.disruption.build_failure_probabilities`: a cited annual base
     rate (McKinsey Global Institute 2020 — a disruption lasting a month or longer
     every 3.7 years, i.e. 1 - exp(-1/3.7) = 0.2368/yr) converted to the 60-day PO
     exposure window (1 - (1-p)**(60/365) = 0.0436), then rank-shaped by betweenness
@@ -257,8 +257,7 @@ def compute_dual_sourcing_plan(
     asserts, silently, that the LARGEST distributors are the most likely to fail.
 
     `p_fail` now comes from the single calibrated model the whole app shares
-    (`app.optimization.stochastic.build_failure_probabilities`, published by
-    `GET /stochastic/calibration`), so the level is a cited base rate over a stated
+    (`app.graph.disruption.build_failure_probabilities`), so the level is a cited base rate over a stated
     exposure window and centrality only rank-orders relative risk inside a bounded
     band. `expected_disruption_cost_usd`, `risk_reduction_usd`,
     `risk_reduction_per_dollar` and the ranking all move with it. Tiers do not: they

@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
   BarChart, Bar, ReferenceLine, LabelList,
 } from 'recharts';
-import { Map, Boxes, ShoppingCart, Rocket, type LucideIcon } from 'lucide-react';
+import { Boxes, ShoppingCart, ShieldAlert, BrainCircuit, type LucideIcon } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { componentsAPI, distributorsAPI, feedsAPI } from '../services/api';
@@ -350,10 +350,10 @@ export const Dashboard = () => {
   // and fall back to an honest "Unavailable" instead of a confident "0" when
   // the underlying fetch failed (dataError).
   const NAV: NavCard[] = [
-    { title: 'Distributor Map', desc: dataError ? 'Distributors worldwide' : `${distributors.length} distributors worldwide`, icon: Map, path: '/map', border: 'hover:border-blue-500 hover:bg-blue-500/5', badge: dataError ? 'Unavailable' : `${distributors.length} distributors` },
     { title: 'Component Browser', desc: dataError ? 'Real pricing from live distributors' : `Real pricing from ${distributors.length} distributors`, icon: Boxes, path: '/scheduler', border: 'hover:border-green-500 hover:bg-green-500/5', badge: dataError ? 'Unavailable' : `${components.length} components` },
     { title: 'Bill of Materials', desc: 'Build orders across distributors', icon: ShoppingCart, path: '/cart', border: 'hover:border-purple-500 hover:bg-purple-500/5', badge: cartItems.length > 0 ? `${cartItems.length} items` : 'Empty' },
-    { title: 'Route Optimization', desc: 'CP-SAT sourcing MILP + OR-Tools TSP tour', icon: Rocket, path: '/checkout', border: 'hover:border-orange-500 hover:bg-orange-500/5', badge: 'MILP + TSP' },
+    { title: 'Supplier Resilience', desc: 'Disruption scenarios for a BOM', icon: ShieldAlert, path: '/resilience', border: 'hover:border-blue-500 hover:bg-blue-500/5', badge: 'Monte Carlo' },
+    { title: 'ML Model Card', desc: 'Served models, provenance and baselines', icon: BrainCircuit, path: '/model-card', border: 'hover:border-orange-500 hover:bg-orange-500/5', badge: 'Measured' },
   ];
 
   return (
@@ -832,12 +832,10 @@ export const Dashboard = () => {
           className="flex flex-wrap gap-2"
         >
           {[
-            'CP-SAT fixed-charge sourcing MILP + OR-Tools TSP pickup tour',
-            'Cost / time / CO₂ weighting ranks the solved plans',
+            'Supplier-network graph analytics (Fiedler, betweenness)',
             dataError ? 'Real electronic components' : `${components.length} real electronic components`,
-            'Monte Carlo ETA (n=1000)',
+            'Monte Carlo disruption scenarios (n=1000)',
             dataError ? 'Real distributors worldwide' : `${distributors.length} real distributors worldwide`,
-            'Digital twin what-if scenarios',
             'Real pricing — static 2024 snapshot (CC-BY-4.0)',
           ].map((cap) => (
             <span key={cap} className="text-xs bg-slate-800/60 border border-slate-700 text-slate-400 px-3 py-1 rounded-full">

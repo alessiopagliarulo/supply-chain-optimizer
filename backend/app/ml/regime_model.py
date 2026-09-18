@@ -69,8 +69,8 @@ essentially the whole originally-reported 10-point gap, but it does not settle
 whether the model should ship — because accuracy is blind to what this model is
 actually FOR.
 
-``app/optimization/sourcing.py`` prices a stock-out risk premium off
-``P(stress)``. The consumer is a probability, not a class label. Persistence, as
+The archived sourcing MILP (git tag ``archive/sourcing-v1``) priced a stock-out
+risk premium off ``P(stress)``. The consumer is a probability, not a class label. Persistence, as
 a probability, is degenerate: it puts all its mass on last month's class, so it
 is either exactly right or confidently wrong and can never express uncertainty.
 Scoring these two on accuracy throws away the only thing that distinguishes
@@ -104,7 +104,7 @@ Two honest caveats that are reported, not buried:
     catastrophically wrong when it does. The model's advantage is that it is
     never catastrophically wrong, which is the property a risk premium needs.
 
-Serving contract (unchanged for costs.py / sourcing.py / api/ml.py):
+Serving contract (unchanged for costs.py / api/ml.py):
     get_current_stress_prob(model, features_df) -> P(regime == "stress") in [0,1].
     get_feature_frame_asof(features_df)         -> the observation date of the row
         that probability was scored from, i.e. the DATA VINTAGE the number
@@ -175,8 +175,8 @@ SD_BURN_IN_INFLATION = 2.5
 #: probability and climatology) on Brier score over the walk-forward folds, AND
 #: be adequately calibrated.
 #:
-#: Accuracy was the WRONG rule and is no longer the gate. The optimizer consumes
-#: a probability, not a label (app/optimization/sourcing.py prices a stock-out
+#: Accuracy was the WRONG rule and is no longer the gate. The consumer uses
+#: a probability, not a label (the archived sourcing MILP priced a stock-out
 #: premium off P(stress)), so a scoring rule that ignores the probability cannot
 #: decide whether the probability is fit to ship. On accuracy this model exactly
 #: ties persistence (0.7294 vs 0.7294) — a tie that says nothing about whether
@@ -193,8 +193,8 @@ SHIP_GATE_POLICY = "brier"
 MIN_CALIBRATION_SLOPE = 0.5
 
 #: Value served when there is no fit-to-serve regime model. 0.0 means "no macro
-#: stress claimed", which makes the stock-out risk premium in sourcing.py exactly
-#: zero. It is a documented, clearly-labelled default, never model output.
+#: stress claimed", i.e. no stress premium.
+#: It is a documented, clearly-labelled default, never model output.
 REGIME_UNAVAILABLE_STRESS_PROB = 0.0
 
 # Legacy fixed-split boundaries, retained only so the deprecated
@@ -286,7 +286,7 @@ class RegimeModel:
         return np.asarray(out, dtype=float)
 
     def stress_proba(self, X) -> np.ndarray:
-        """P(GSCPI_t > BAND_HI) — the single number sourcing.py prices risk off."""
+        """P(GSCPI_t > BAND_HI) — the single number risk is priced off."""
         return self.class_probabilities(X)[:, list(REGIME_CLASSES).index(STRESS_CLASS)]
 
 
@@ -539,8 +539,7 @@ def walk_forward_evaluate(
 
     # ── proper scoring rules ────────────────────────────────────────────────
     # Accuracy is blind to the thing this model is actually used for: the
-    # optimizer prices a risk premium off a PROBABILITY (app/optimization/
-    # sourcing.py), not off a class label. So the ship decision is made on a
+    # consumer prices a risk premium off a PROBABILITY, not off a class label. So the ship decision is made on a
     # proper scoring rule, with accuracy reported alongside unchanged.
     onehot = np.zeros((len(a), len(classes)), dtype=float)
     for i, label in enumerate(a):
@@ -764,7 +763,7 @@ def evaluate_ship_gate(metrics: Optional[Dict]) -> Dict:
 def get_current_stress_prob(model, features_df: pd.DataFrame) -> float:
     """P(regime == "stress") for the most recent feature row. 0.0 if empty.
 
-    Interface unchanged from the legacy binary model: costs.py / sourcing.py /
+    Interface unchanged from the legacy binary model: costs.py /
     api/ml.py consume this single stress probability in [0, 1]. Accepts either a
     :class:`RegimeModel` (regression + residual tail) or a legacy sklearn
     classifier Pipeline exposing ``predict_proba`` / ``classes_``.

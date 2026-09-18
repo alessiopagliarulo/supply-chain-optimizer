@@ -4,9 +4,17 @@
 
 A full-stack supply chain intelligence platform for electronic component procurement. Built on real market data: **791 components, 92 distributors, 8,176 price offers** — a static 2024 snapshot originally collected via the Nexar API (which aggregates Octopart), redistributed on HuggingFace under CC-BY-4.0. It is real, but it is a **frozen snapshot, not a live feed** ([docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)).
 
+> **Sourcing work archived.** This repo is being rebuilt as a vehicle-routing / logistics
+> engine. The sourcing optimizer — the CP-SAT sourcing MILP, the two-stage stochastic
+> program with its CVaR efficient frontier, the MILP-vs-greedy benchmark and its pages —
+> was removed and is preserved at git tag
+> [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1)
+> (`git checkout archive/sourcing-v1`). The pickup-TSP (`optimization/routing.py`) and
+> cross-dock (`optimization/cross_dock.py`) modules are kept for the rebuild.
+
 ## Headline results
 
-Three results, each produced by a command in this repo and written down in a committed JSON
+Two results, each produced by a command in this repo and written down in a committed JSON
 artifact you can open. **What is gated and what is not, precisely:**
 `tests/test_docs_match_artifacts.py` regenerates each linked document's `<!-- GENERATED: -->`
 regions from its artifact and fails on any difference, so the figures *in those documents* cannot
@@ -14,17 +22,6 @@ drift. The restatements *on this page* are hand-written and are not diffed figur
 they were checked against the artifacts on 2026-09-07 and the link beside each one is where the
 gated version lives.
 
-- **Cost-vs-tail-risk frontier — 387 λ-solves** across four arms: 150 breadth (10 BOMs ×
-  3 volumes), 27 on the headline BOM, 180 sensitivity and 30 SAA-endpoint-stability
-  (347 converged; the 40 that did not are excluded from every figure).
-  On the headline BOM **at 60,000 units**, moving from risk-neutral to the knee at λ = 0.3
-  spends **$2,044 more in expectation and removes $8,719 of CVaR-95** — a chord ratio of
-  **$4.27** of tail risk removed per $1 spent across that stretch. Past the knee the same
-  trade returns **$0.41**. Both are averages over a stretch of the curve, not a marginal
-  rate at a point. CVaR-95 is the **mean cost of the worst 5% of scenarios**, not a
-  worst case. At 100× and 1,000× volume the `knee` is `null` — the frontier is flat there
-  and there is no trade-off to price, which is why the volume condition is never dropped.
-  → [docs/CVAR_EFFICIENT_FRONTIER.md](docs/CVAR_EFFICIENT_FRONTIER.md)
 - **Intermittent-demand benchmark — 2,646 real spare-parts series**, where `zero` (forecast
   nothing) ranks **1st of 6 by MASE** and 4th–5th of 6 under proper scoring rules; Kendall's
   τ between the MASE and pinball orderings is **−0.20**, i.e. mildly *anti*-correlated.
@@ -32,16 +29,10 @@ gated version lives.
 - **Macro supply-stress regime model — 219 walk-forward folds** (2008–2026), Brier
   **0.393** against persistence 0.539 and climatology 0.673, calibration slope 0.629.
   **It ties persistence on accuracy — 0.7306 vs 0.7306, a dead heat** — and ships anyway,
-  because accuracy is not the gate: the optimizer consumes a probability, and persistence
+  because accuracy is not the gate: the model's consumer prices a probability, and persistence
   can only ever emit 0 or 1. Its own ship-gate record says both halves; so does this line.
   An earlier version lost on the proper score too, and was refused rather than shipped.
   → [docs/MODEL_CI.md](docs/MODEL_CI.md)
-
-[![Cost vs. CVaR-95 efficient frontier: expected cost on the x-axis, CVaR-95 on the y-axis, nine λ-solves falling from the risk-neutral plan down to the knee at λ = 0.3 and then flattening. A dashed chord marks the $4.27-per-$1 stretch.](docs/cvar_frontier.png)](docs/CVAR_EFFICIENT_FRONTIER.md)
-
-*Drawn from `docs/cvar_frontier.json` by `backend/seeds/render_cvar_frontier_chart.py` — the
-same artifact the prose above is checked against, so the picture and the sentence cannot
-disagree. Every figure on it is read from the artifact; none is typed.*
 
 ---
 
@@ -52,24 +43,16 @@ disagree. Every figure on it is read from the artifact; none is typed.*
 > No signup — the login page has a one-click **Demo Login** button.
 > **The page loads instantly. The first *data* request may take 50–120 s.** Two different services sit behind those two links, and only one of them sleeps. The UI is a Render **static site** — it never spins down, and every route answers in well under a second (measured: 0.04–0.50 s, SPA rewrites included). The API is a Render **free-tier web service**, which spins down when idle, so the first call after a quiet spell waits for it to wake. The login screen says so itself: an amber *"Free-tier backend is waking up"* banner appears after 3 seconds and stays until the response lands. Once awake, the API answers in well under a second too.
 
-**Live demo flow:** Login → browse components → add to cart → run multi-objective VRP optimization → explore resilience scenarios.
-
-![Live walkthrough: dashboard, adding a component to cart, the 4-strategy VRP optimizer, the CVaR efficient frontier, and a distributor-failure resilience scenario](docs/screenshots/demo-walkthrough.gif)
-
-*Recorded from the live deployment above — dashboard → add to cart → optimizer results → CVaR efficient frontier → resilience scenario. Static screenshots of each page are further down.*
+**Live demo flow:** Login → browse components → add to cart → explore resilience scenarios.
 
 ---
 
 ## What it does
 
-**For a PCB manufacturer sourcing a BOM of electronic components across 92 real distributors:**
+**For a BOM of electronic components across 92 real distributors:**
 
 | Feature | Technical approach |
 |---------|-------------------|
-| Supplier selection | CP-SAT MILP (OR-Tools) — minimize landed cost under stock constraints (MOQ constraint implemented; inert on this catalogue, where MOQ is uniformly 1) |
-| Route optimization | Exact TSP by exhaustive enumeration for tours ≤ 8 stops (every live request); OR-Tools routing with PATH_CHEAPEST_ARC + Guided Local Search above that threshold, not exercised on the current catalogue |
-| 4 strategies on the cost/time/carbon frontier | Multi-objective weighted sum. Distinct when the BOM is big enough to separate them — the demo cart returns **3 distinct plans across 4 strategies** — and the UI names the collapse when it happens instead of showing four cards as four answers (`strategy_divergence` in the response) |
-| Delivery uncertainty | Monte Carlo simulation (1,000 scenarios) → P10/P50/P90 ETA bands. **The input distribution is assumed, not fitted**: a Normal(1.0, 0.15) transit multiplier on the route ETA plus a 4-point disruption mixture (0/1/3/7 days at 0.85/0.08/0.05/0.02). This repo holds DigiKey *factory* lead times and no record of realised delivery dates, so there is nothing here to calibrate it against — read the band as a seeded sensitivity range, not an empirical service level. Every response carries the same caveat in `monte_carlo_assumptions` |
 | Network fragility | Graph ML: Fiedler algebraic connectivity, betweenness centrality, HHI, k-core decomposition |
 | Resilience scenarios | Distributor failure cascade, geopolitical risk overlay, delivery target optimization |
 | Demand-method benchmark | Croston/SBA/TSB scored on CRPS + scaled pinball loss, not just MASE, across 2,646 Monash car-parts series — MASE and proper scoring pick different winners |
@@ -77,111 +60,23 @@ disagree. Every figure on it is read from the artifact; none is typed.*
 
 ---
 
-## I audited my own headline and retracted it
-
-The benchmark used to claim the optimizer was **44.7% cheaper than a greedy buyer**.
-That number is arithmetically correct and substantively meaningless, so rather than
-quietly deleting it, here is the decomposition.
-
-The greedy baseline buys each BOM line from whoever is cheapest, which makes it the
-**component-cost minimum by construction** — the MILP *cannot* beat it on component
-cost. It can only win on fixed charges. And every distinct supplier you open costs a
-flat **$75** (LTL) or **$150** (air) freight fee. Now look at the scale the benchmark
-ran at:
-
-| `iot_sensor_node`, as benchmarked (4 parts, 5 units) | |
-|---|---:|
-| Component cost | **$6.96** |
-| Fixed freight fees | **$450.00** |
-| Variable freight + consolidation | $11.02 |
-| Total "landed cost" | $467.98 |
-
-**Fixed fees are 96.2% of the cost being optimized.** Consolidating 3 suppliers into 1
-avoids $337.50 of fees and books a **71.7% saving** — on a *seven-dollar* order.
-
-Aggregated across all 10 BOMs (pooled: sum of greedy costs vs sum of MILP costs), the
-decomposition is damning:
-
-| Source of the $3,304 "saving" at benchmark scale | |
-|---|---:|
-| Avoided fixed per-supplier fees | **+$3,863** |
-| Variable freight | +$2 |
-| **Component cost** | **−$561** ← *the MILP pays **more** for the parts* |
-
-**Fixed fees are 117% of the saving.** The MILP loses on component cost in **10 of 10**
-BOMs — it must, since greedy is the component-cost minimum — and funds that loss, plus
-the entire headline, out of avoided supplier fees.
-
-That saving is a **constant** (`$112.50–$225 per supplier avoided`, after the 1.5×
-`transport_penalty_scale`), not a rate — so as volume grows, only the denominator moves:
-
-| Volume | Savings vs greedy (pooled) |
-|---|---:|
-| 4–9 units *(as benchmarked)* | **47.2%** |
-| ~50 units | 23.1% |
-| ~500 units | 8.5% |
-| ~5,000 units | 5.0% |
-| 2,000–60,000 units *(500×–10,000×)* | **2.6% – 8.0%** |
-
-(`iot_sensor_node`, the BOM that books **71.7%** at prototype scale, goes **71.7% → 7.4%** on its own.)
-
-**The 45% headline is dead. Do not quote it.** At any volume a real manufacturer would
-order, the cost edge is single digits.
-
-### The audit found a real bug — and fixing it cut *against* the retraction
-
-Chasing that decaying curve turned up a genuine defect in the freight model: it computed
-one representative shipment weight for the whole BOM and then charged **every** opened
-supplier that full weight, so splitting an order across 3 suppliers was billed 3× a full
-BOM's variable freight instead of dividing one BOM's freight across 3 shipments. It
-corrupted **both** arms (they share the cost function by design), and it made distance
-almost free at volume.
-
-Freight is now `fixed[d]·opened(d) + per_unit[d]·units_shipped_from(d)` — still linear,
-so CP-SAT models it exactly. And the corrected model makes the optimizer look **better**
-at scale, not worse: the fixed-fee wedge collapses to zero (at ≥500× the MILP opens
-*more* suppliers than greedy on purpose), and the residual 2.6–8.0% edge comes from
-**routing volume by price + freight** rather than by unit price alone — something greedy
-structurally cannot do. That part scales with volume and is honestly earned.
-
-Reporting a correction that helps my own number is the same discipline as reporting one
-that hurts it.
-
-What the optimizer genuinely provides beyond that: *feasibility and flexibility* — it
-respects stock, it can split a line across distributors, and it proves optimality on the
-cost/time/carbon tradeoff.
-
-Full decomposition, methodology and the reproduce script:
-**[docs/BENCHMARK_VOLUME_CURVE.md](docs/BENCHMARK_VOLUME_CURVE.md)**.
-
-> Auditing this also surfaced a genuine production bug: `sourcing.py` keyed its CP-SAT
-> variables on `(component, distributor)` while the offer table stores one row per
-> price-break tier, so 509 duplicated pairs were being summed into the demand constraint
-> and priced into the objective. `STM32F103C8T6` from Verical was costed at **$30.03/unit
-> against a true $2.86**, so the solver had been systematically avoiding multi-tier
-> distributors. Fixed, with regression tests.
-
----
-
 ## Dollar-denominated impact
 
 Every headline metric is paired with a concrete financial interpretation, derived
 from real computed quantities — never an invented figure. The conversions are
-surfaced live in the dashboard (resilience banner, benchmark strip, holding-cost
-tooltips) and summarized here.
+surfaced live in the dashboard (resilience banner, holding-cost tooltips) and
+summarized here.
 
 | Metric | Where it comes from | Dollar translation |
 |--------|---------------------|--------------------|
-| **CVaR-95** (tail-risk) | Mean emergency-procurement cost multiplier over the worst-5% of 1,000 Monte Carlo cascade scenarios (`graph/simulation.py`) | **"$X of procurement spend at risk"** = real baseline BOM spend × (CVaR-95 − 1). Computed per BOM in `resilience.py` (`procurement_spend_at_risk_usd`) and shown on the Resilience page; aggregated per reference BOM on the Benchmark page (`baseline_spend_at_risk_usd`). **Caveat — read this before trusting the number:** the *spend* side is real, and the *probability* side is now calibrated, not proxied. Distributor failure probability is anchored to a cited base rate — McKinsey Global Institute (Aug 2020): disruptions lasting a month or longer roughly every 3.7 years — converted to an annual Poisson rate and then to a probability over a 60-day purchase-order exposure window; betweenness centrality only rank-orders *relative* risk around that base rate (a `centrality_spread=1.0` sensitivity arm removes centrality's effect entirely), and every probability is capped at 50%. On the live headline BOM this puts calibrated `p_fail` between 1.45% and 13.04% across its six suppliers — it no longer saturates near a fixed number. What's still assumed, not measured: the McKinsey rate is firm-level, so applying it to one distributor is almost certainly too high, and nothing establishes that centrality actually predicts disruption likelihood (the code names this and ships the `spread=1.0` arm precisely because of it). See [docs/CVAR_EFFICIENT_FRONTIER.md](docs/CVAR_EFFICIENT_FRONTIER.md). |
-| **Optimizer cost delta** | Graph-aware MILP vs blind MILP total landed cost, over the **9 of 10** reference BOMs the run actually scores (`benchmark.py`). `audio_dsp_board` is excluded because the blind arm, which sources domestically only, raises `ValueError: Insufficient stock` before the solver runs (GD25Q127CYIGR needs 1, 0 in stock at any US distributor); the exclusion and its reason are recorded in `bom_inclusion` in [docs/benchmark_results.json](docs/benchmark_results.json), and `/benchmark/summary` reports `n_boms: 9` | **"$Y per BOM run"** = mean(graph-aware − blind `total_cost_usd`), served live as `cost_delta_usd`. Surfaced as a real, run-dependent figure rather than a fixed claim — and on the current reference set **it is a cost, not a saving**: graph-aware runs **$59.99 more expensive per BOM** (`cost_delta_usd`, the mean of the nine per-BOM dollar deltas), while the mean of the nine per-BOM percentage premiums is **+31.0%** (`cost_delta_pct`). Those are two different aggregations and are deliberately no longer printed as one figure's percentage of the other: a mean of differences and a mean of ratios do not divide into each other, and `$59.99 / 31.045%` implies a $193.23 base that is no arm's cost. The spread is what breaks it — two BOMs sit at 0% and `iot_sensor_node` at 82.16% (`benchmark.py:1414-1420`, `value_of_resilience[].nominal_premium_pct`). The Benchmark page prints exactly that ("nominal cost premium … $59.99 more expensive / BOM run") and says it is *the price of the resilience below, not a reversal of the optimization result*. Note the 2% materiality threshold this is measured against is a reporting convention fixed a priori — the API states in `materiality_threshold_basis` that it is **not** a measured noise floor, because the benchmark is a single deterministic solve (seed 42, one search worker) with no replicates from which run-to-run variance could be estimated. |
-| **Forecast WAPE** (macro backtest, kept) | Walk-forward backtest (3 rolling origins, 12-month horizon) on Census M3 `A34SNO` (Manufacturers' New Orders: Computers & Electronic Products), 198 monthly obs, **pinned to ALFRED vintage 2026-08-16**: Prophet **3.13%** vs seasonal-naive **4.80%** — skill score **+34.8%**. Under the **real-time protocol** — each origin trained only on the vintage that existed on its date, because Census revises this series *in place* — Prophet is **4.13%** vs naive **5.87%**, skill **+29.6%**. The revised-data figures are optimistic by ~24%; the real-time pair is the number you could actually have achieved, and it is the one to quote ([docs/FORECAST_BACKTEST.md](docs/FORECAST_BACKTEST.md)) | **No dollar translation.** This number used to feed a "≈N weeks of safety stock" tooltip on a per-part forecast — that forecast is gone (its magnitude was `total_stock/52 × risk_score`, inferred from inventory, not measured), and the safety-stock dollar figure went with it rather than being carried over with no live consumer. The macro WAPE above is real and stands on its own as a Prophet-vs-naive comparison on an aggregate industry series; it says nothing about per-part accuracy. **What now measures demand-forecast quality:** an intermittent-demand method benchmark on 2,646 Monash car-parts series — MASE ranks the degenerate `zero` forecast 1st (mean rank 1.66) while proper scoring ranks it 4th on CRPS / 5th on scaled pinball loss, and `tsb` wins both (Friedman p < 1e-300). See [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md). That benchmark doesn't translate to dollars yet — connecting it to the sourcing decision is open work ([docs/archive/ML_API_PUSH_PLAN.md](docs/archive/ML_API_PUSH_PLAN.md) §1.4). |
+| **CVaR-95** (tail-risk) | Mean emergency-procurement cost multiplier over the worst-5% of 1,000 Monte Carlo cascade scenarios (`graph/simulation.py`) | **"$X of procurement spend at risk"** = real baseline BOM spend × (CVaR-95 − 1). Computed per BOM in `resilience.py` (`procurement_spend_at_risk_usd`) and shown on the Resilience page. **Caveat — read this before trusting the number:** the *spend* side is real, and the *probability* side is now calibrated, not proxied. Distributor failure probability is anchored to a cited base rate — McKinsey Global Institute (Aug 2020): disruptions lasting a month or longer roughly every 3.7 years — converted to an annual Poisson rate and then to a probability over a 60-day purchase-order exposure window; betweenness centrality only rank-orders *relative* risk around that base rate (`centrality_spread=1.0` removes centrality's effect entirely), and every probability is capped at 50%. On the live headline BOM this puts calibrated `p_fail` between 1.45% and 13.04% across its six suppliers — it no longer saturates near a fixed number. What's still assumed, not measured: the McKinsey rate is firm-level, so applying it to one distributor is almost certainly too high, and nothing establishes that centrality actually predicts disruption likelihood (the code names this and supports `spread=1.0` precisely because of it); the model is `app/graph/disruption.py`. |
+| **Forecast WAPE** (macro backtest, kept) | Walk-forward backtest (3 rolling origins, 12-month horizon) on Census M3 `A34SNO` (Manufacturers' New Orders: Computers & Electronic Products), 198 monthly obs, **pinned to ALFRED vintage 2026-08-16**: Prophet **3.13%** vs seasonal-naive **4.80%** — skill score **+34.8%**. Under the **real-time protocol** — each origin trained only on the vintage that existed on its date, because Census revises this series *in place* — Prophet is **4.13%** vs naive **5.87%**, skill **+29.6%**. The revised-data figures are optimistic by ~24%; the real-time pair is the number you could actually have achieved, and it is the one to quote ([docs/FORECAST_BACKTEST.md](docs/FORECAST_BACKTEST.md)) | **No dollar translation.** This number used to feed a "≈N weeks of safety stock" tooltip on a per-part forecast — that forecast is gone (its magnitude was `total_stock/52 × risk_score`, inferred from inventory, not measured), and the safety-stock dollar figure went with it rather than being carried over with no live consumer. The macro WAPE above is real and stands on its own as a Prophet-vs-naive comparison on an aggregate industry series; it says nothing about per-part accuracy. **What now measures demand-forecast quality:** an intermittent-demand method benchmark on 2,646 Monash car-parts series — MASE ranks the degenerate `zero` forecast 1st (mean rank 1.66) while proper scoring ranks it 4th on CRPS / 5th on scaled pinball loss, and `tsb` wins both (Friedman p < 1e-300). See [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md). That benchmark doesn't translate to dollars yet — connecting it to a purchasing decision is open work ([docs/archive/ML_API_PUSH_PLAN.md](docs/archive/ML_API_PUSH_PLAN.md) §1.4). |
 
 ### Conversion assumptions & citations
 
-- **Inventory carrying cost = 25%/yr.** Reused from the existing optimizer constant
+- **Inventory carrying cost = 25%/yr.** Reused from the existing cost-model constant
   `ANNUAL_HOLDING_RATE = 0.25` (`backend/app/optimization/costs.py`), cited to
-  **Gartner IT Supply Chain Benchmarks 2022** (electronics annual holding rate). The
-  same rate already drives the per-route holding cost shown at checkout. Industry
+  **Gartner IT Supply Chain Benchmarks 2022** (electronics annual holding rate). Industry
   ranges are typically 20–25%/yr (Richardson, *Harvard Business Review*; APICS).
 - **Service level z = 1.645** (95%, one-sided normal) for the safety-stock buffer.
   WAPE is used as a σ/μ forecast-error proxy over the planning horizon — a standard
@@ -191,20 +86,20 @@ tooltips) and summarized here.
   calibrated against a cited base rate — precisely which parts, and which parts
   are still assumed.** The *spend* side is real: it multiplies by the real BOM
   spend (sum of each line's average real offer price). The *probability* side
-  (`optimization/stochastic.py`) starts from McKinsey Global Institute (Aug 2020):
+  (`graph/disruption.py`) starts from McKinsey Global Institute (Aug 2020):
   "companies can now expect supply chain disruptions lasting a month or longer to
   occur every 3.7 years," treated as a Poisson rate and converted to a probability
   over the 60-day purchase-order exposure window. Betweenness centrality
   (`graph/simulation.py`) only rank-orders *relative* risk around that calibrated
   base rate — the most central supplier gets `spread`× it, the least central gets
   1/`spread`×, capped at 50% — and `centrality_spread=1.0` (centrality ignored
-  entirely) is a supported, published sensitivity arm. On the live headline BOM
+  entirely) is a supported setting. On the live headline BOM
   this gives calibrated `p_fail` of 1.45%–13.04% across the six suppliers, not a
   saturated constant. What's still an assumption, not a measurement: the McKinsey
   rate is firm-level, not per-supplier, so applying it to a single distributor is
   almost certainly too high; and nothing establishes that centrality actually
   predicts disruption likelihood at all (arguable either way — the code names this
-  explicitly and ships the `spread=1.0` arm because of it). Earlier drafts of this
+  explicitly and supports `spread=1.0` because of it). Earlier drafts of this
   README called the pre-calibration version "fully data-derived," which was an
   overstatement that was corrected; this is the current, calibrated state.
 
@@ -229,8 +124,8 @@ they hear it from me:
   benchmark on a real intermittent-demand panel (Monash car parts) — see the
   demand-method row above and [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md).
 - **Disruption probabilities are structural, not empirical** (see the CVaR caveat above).
-- **The lead-time panel is 3,406 real observations across six snapshot dates**
-  (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07), all from DigiKey — one distributor, not a cross-distributor consensus. 791
+- **The lead-time panel is 4,148 real observations across seven snapshot dates**
+  (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14), all from DigiKey — one distributor, not a cross-distributor consensus. 791
   of 791 parts were polled on 2026-08-15; 6.2% missed (43 not in DigiKey's catalog, 6 in
   the catalog with no published lead time), and that miss list is in
   `seeds/data/lead_time_panel/collection_log.csv`.
@@ -312,9 +207,9 @@ Open http://localhost:5173 → click **Demo Login**.
 ## Tech Stack
 
 **Backend:** Python 3.11 · FastAPI · SQLAlchemy · SQLite (dev **and** current production — `render.yaml` pins `DATABASE_URL=sqlite:///./supply_chain.db`; PostgreSQL support exists in the SQLAlchemy layer via `psycopg`, but nothing is deployed on it) · OR-Tools · NetworkX · scikit-learn (Prophet is installed and used by the offline `seeds/` backtests; no API route imports it)  
-**Frontend:** React 19 · TypeScript · Vite · Tailwind CSS v4 · Recharts · Zustand · MapLibre GL + deck.gl (map)  
-**Algorithms:** CP-SAT MILP, TSP, Monte Carlo simulation, Spectral Graph Theory  
-**Data:** Nexar/Octopart static 2024 snapshot (real component pricing), DigiKey API (3,406 real observed lead times + live pricing), Nexar & OEMsecrets live pricing, FRED and IMF PortWatch (live), GPR index (downloaded live, but the published archive's newest observation is **September 2021** — see the feeds note below), ACLED (needs a key — reports as inactive without one)
+**Frontend:** React 19 · TypeScript · Vite · Tailwind CSS v4 · Recharts · Zustand  
+**Algorithms:** Monte Carlo simulation, Spectral Graph Theory, TSP (kept for the routing rebuild)  
+**Data:** Nexar/Octopart static 2024 snapshot (real component pricing), DigiKey API (4,148 real observed lead times + live pricing), Nexar & OEMsecrets live pricing, FRED and IMF PortWatch (live), GPR index (downloaded live, but the published archive's newest observation is **September 2021** — see the feeds note below), ACLED (needs a key — reports as inactive without one)
 
 ---
 
@@ -322,21 +217,23 @@ Open http://localhost:5173 → click **Demo Login**.
 
 ```
 frontend/src/
-  pages/          Dashboard, Map, Scheduler, Cart, Checkout, Resilience, Benchmark, Frontier,
-                  Newsvendor, ModelCard, Login, Register, NotFound
+  pages/          Landing, Dashboard, Scheduler, Cart, Resilience, Newsvendor, ModelCard,
+                  Login, Register, NotFound
   components/     NavBar, ScenarioCard, DeltaCard, MonteCarloChart, BOMImpactTable, CiStrip,
                   BomCostBreakdownTable, CriticalitySweepTable, DualSourcingTable, TornadoChart,
-                  VolumeDecayCurve, DistributorSelector, ErrorBoundary, map/
-  store/          Zustand: authStore, cartStore, optimizeStore
+                  DistributorSelector, ErrorBoundary, WakeNotice
+  store/          Zustand: authStore, cartStore
   services/api.ts Axios client for all backend endpoints
 frontend/scripts/
-  ui-gate.cjs     the automated browser gate — 256 checks against the live site (see Tests)
+  ui-gate.cjs     the automated browser gate against the live site (see Tests)
 
 backend/app/
-  api/            FastAPI routers: auth, cart, components, distributors, optimize, stochastic,
-                  resilience, graph, benchmark, demand, newsvendor, ml, feeds, live_prices
-  optimization/   CP-SAT sourcing MILP, OR-Tools TSP, cross-dock facility location
-  graph/          NetworkX bipartite supply graph, Fiedler curve, centrality metrics
+  api/            FastAPI routers: auth, cart, components, distributors, resilience, graph,
+                  benchmark, demand, newsvendor, ml, feeds, live_prices
+  optimization/   OR-Tools pickup TSP, cross-dock hub selection, freight/carbon costs,
+                  newsvendor, resilience recommendations
+  graph/          NetworkX bipartite supply graph, Fiedler curve, centrality metrics,
+                  calibrated disruption probabilities
   feeds/          Live data fetchers: GPR, ACLED, IMF PortWatch, FRED freight
   ml/             Prophet macro (A34SNO) backtest + Chronos comparison, sklearn lead-time
                   prediction, FRED regime model, intermittent-demand method benchmark
@@ -348,17 +245,14 @@ backend/app/
 ```mermaid
 flowchart TB
     subgraph FE["Frontend — React + TypeScript"]
-        UI["Pages: Dashboard, Cart, Optimizer,<br/>Resilience, Frontier, Benchmark, Model Card<br/>(Zustand store, Axios client)"]
+        UI["Pages: Dashboard, Components, Cart,<br/>Resilience, Newsvendor, Model Card<br/>(Zustand store, Axios client)"]
     end
 
     subgraph BE["Backend — FastAPI"]
-        API["REST routers:<br/>auth · cart · components · distributors<br/>optimize · stochastic · resilience · graph<br/>benchmark · demand · newsvendor · ml<br/>feeds · live_prices"]
+        API["REST routers:<br/>auth · cart · components · distributors<br/>resilience · graph · benchmark<br/>demand · newsvendor · ml<br/>feeds · live_prices"]
     end
 
-    subgraph OPT["Optimization & Risk — OR-Tools"]
-        SOURCING["CP-SAT sourcing MILP<br/>optimization/sourcing.py"]
-        ROUTING["TSP routing<br/>(guided local search)<br/>optimization/routing.py"]
-        STOCH["Two-stage stochastic program<br/>+ CVaR efficient frontier<br/>optimization/stochastic.py"]
+    subgraph OPT["Risk"]
         GRAPHSIM["Bipartite supply graph +<br/>Monte Carlo cascade sim<br/>graph/builder.py, graph/simulation.py"]
     end
 
@@ -387,15 +281,9 @@ flowchart TB
     end
 
     UI -->|Axios / REST| API
-    API --> SOURCING
-    API --> ROUTING
-    API --> STOCH
     API --> GRAPHSIM
     API --> LEADTIME
     API --> DEMAND
-    STOCH --> GRAPHSIM
-    SOURCING --> DB
-    ROUTING --> DB
     GRAPHSIM --> DB
     API --> DB
     LEADTIME --> SERVING
@@ -412,43 +300,18 @@ flowchart TB
     class OFFLINE offline;
 ```
 
-Lead-time and demand-forecast training runs are tracked with MLflow (params, real backtest metrics, model artifacts, champion promotion) — 21 runs across 2 experiments. The regime model and the benchmark/newsvendor/leakage scripts write committed JSON artifacts instead — see [docs/MLFLOW.md](docs/MLFLOW.md).
+Lead-time and demand-forecast training runs are tracked with MLflow (params, real backtest metrics, model artifacts, champion promotion) — 21 runs across 2 experiments. The regime model and the newsvendor/leakage scripts write committed JSON artifacts instead — see [docs/MLFLOW.md](docs/MLFLOW.md).
 
 ---
 
 ## Screenshots
 
-Both are captures of the **live deployment** at `85b2890`, taken from the demo cart a
-one-click Demo Login gives you (5 lines, 225 units). Every figure in them was a field of
-the response the API returned *at capture time*, and you can reproduce either one against
-the live API in about a minute — but **both PNGs now sit behind a later fix and neither is
-current.** The prose and alt text beside each one carry the re-derived figures; the
-blockquote under each says exactly what its PNG still shows and why. Where they disagree,
-the API is right and the image is stale.
-
-### `/optimize` — four strategies, three genuinely distinct plans
-
-![The Route Optimization page comparing four sourcing strategies side by side. Lowest Cost: $374, 7.0d median ETA, 89.6 kg CO2. Fastest Delivery: $747, 4.6d, 1.6 kg. Lowest Carbon: $735, 5.7d, 0.9 kg. Balanced (recommended): $747, 4.6d, 1.6 kg. An amber banner above the cards reads "SOME STRATEGIES ARE TIED" and explains that Fastest Delivery and Balanced returned the same plan, so 3 distinct plans were found across 4 strategies.](docs/screenshots/optimize-four-strategies.png)
-
-The trade-off is the point: **$374.02 / 6.9 d / 89.6 kg** buys everything from one cheap
-Singapore distributor, and **$747.44 / 4.5 d / 1.65 kg** splits it across three domestic
-suppliers — roughly **2× the cost for 2.4 days and 54× less carbon**. Lowest Carbon holds
-a third, distinct position (**$735.01 / 5.5 d / 0.936 kg**).
-
-> **The CO₂ figures above were re-measured on 2026-09-03 and the screenshot has not yet
-> caught up.** `costs.py::co2_kg` was dividing freight weight by a metric 1000 while the
-> 161.8 g truck factor is per US *short* ton-mile, so every truck CO₂ number this project
-> published was 9.28% low. Fixing it multiplied all of them by exactly ×1.102311: the two
-> truck-only plans moved 1.49 → 1.65 kg and 0.849 → 0.936 kg. The air-dominated Lowest Cost
-> plan is unchanged at 89.6 kg, because the air factor is already per metric tonne-km — and
-> that is why the headline ratio fell from 60× to **54×**: only the denominator moved. The
-> costs and ETAs above re-run to the cent and the day. **The PNG still shows the pre-fix
-> 1.5 / 0.8 kg and is queued for re-capture.**
-
-Note the amber banner. Two of the four strategies (Fastest Delivery and Balanced) return
-the *same* plan on this BOM, and the page says so out loud rather than presenting four
-cards as four answers — the strategies are ranked only where they actually differ, and
-`strategy_divergence.distinct_plans` in the response is the number the banner prints.
+A capture of the **live deployment** at `85b2890`, taken from the demo cart a one-click
+Demo Login gives you (5 lines, 225 units). Every figure in it was a field of the response
+the API returned *at capture time*, and you can reproduce it against the live API in about
+a minute — but **the PNG now sits behind a later fix and is not current.** The prose and
+alt text beside it carry the re-derived figures; the blockquote under it says exactly what
+the PNG still shows and why. Where they disagree, the API is right and the image is stale.
 
 ### `/resilience` — losing the distributor the cart leans on
 
@@ -496,17 +359,15 @@ that losing this distributor costs money and *buys* time, and nothing else.
 ```
 POST /api/v1/auth/demo                       # one-click demo login
 GET  /api/v1/components                      # 791 real electronic components
-POST /api/v1/optimize/vrp                    # 4-strategy VRP: cheapest/fastest/greenest/balanced
 GET  /api/v1/graph/metrics                   # Fiedler value, centrality, HHI, k-core
 POST /api/v1/resilience/distributor-failure  # simulate distributor outage -> cost/ETA/risk delta
 POST /api/v1/resilience/geopolitical-risk    # what-if risk-score stress dial (reads no live feed)
 POST /api/v1/resilience/delivery-target      # "who can hit 14 days?" -> supplier capability list
-POST /api/v1/stochastic/frontier             # two-stage stochastic program -> CVaR-95 efficient frontier (the 387-solve artifact)
 GET  /api/v1/ml/stress                       # macro supply-stress regime model (219 walk-forward folds, Brier 0.393)
 GET  /api/v1/ml/model-info                   # served lead-time artifact provenance + training_data_staleness
 GET  /api/v1/demand/benchmark                # intermittent-demand method benchmark (Croston/SBA/TSB, CRPS+MASE, Monash car parts)
 GET  /api/v1/feeds/status                    # feed freshness: download date, plus observation date where the feed publishes one (today: GPR)
-GET  /api/v1/benchmark/summary               # network resilience metrics snapshot
+GET  /api/v1/benchmark/fiedler-curve         # sequential-removal Fiedler λ₂ curve
 ```
 
 Full API reference (live Swagger UI): **https://supply-chain-api-qy8x.onrender.com/docs** — or http://localhost:8000/docs when running locally  
@@ -543,7 +404,7 @@ to stand here as a second, permitted failure — a local-only MLflow registry id
 that was always green in CI. The 2026-09-03 retrain cleared it and it now passes locally
 too, so it is no longer an exception the reader has to hold in their head.
 
-Coverage: optimization solver (sourcing, routing, cross-dock), graph metrics, ML models
+Coverage: routing and cross-dock modules, graph metrics, ML models
 and their published-artifact pins, resilience API, auth guards, feed integrations.
 
 ### Frontend
@@ -554,13 +415,13 @@ runner, and it runs against the **live deployment**:
 ```bash
 cd frontend
 BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
-# -> 256 passed, 0 failed
 ```
 
-Also a real run, 2026-09-07, against the live deployment. `scripts/ui-gate.cjs` drives a real
-Chromium over **all 10 routes at 4 viewports** (390 / 768 / **1280** / 1440 — 1280 is
-there because a nav regression lived exactly at that breakpoint) and asserts what a human
-would otherwise have to notice:
+The last full run (2026-09-07, before the sourcing pages were removed) was 256 passed,
+0 failed across 10 routes. `scripts/ui-gate.cjs` drives a real Chromium over **every
+authenticated route at 4 viewports** (390 / 768 / **1280** / 1440 — 1280 is there because
+a nav regression lived exactly at that breakpoint) and asserts what a human would
+otherwise have to notice:
 
 - **horizontal overflow**, measured against the real scroll container — every route renders
   inside `overflow-y-auto`, so `document.scrollWidth` reports a false clean
@@ -657,11 +518,11 @@ ruff format app --check # formatting — not yet wired into CI (see note below)
 mypy app                 # type-check (non-strict)
 ```
 
-Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues found in 77 source files`) are green today — re-run 2026-09-02. Deliberately deferred, tracked
+Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues found in 70 source files`) are green today — re-run 2026-09-17. Deliberately deferred, tracked
 in `pyproject.toml` comments so they can be picked up later without fighting
 in-flight edits elsewhere in the repo:
 
-- **`ruff format`**: **69 of 77** backend files would be reformatted (`ruff format app
+- **`ruff format`**: **62 of 70** backend files would be reformatted (`ruff format app
   --check`) — the codebase predates a formatter convention. Not added as a CI gate yet:
   running it would touch nearly every file. Run locally and land as its own PR when
   convenient.
@@ -669,21 +530,20 @@ in-flight edits elsewhere in the repo:
   → `list`/`X | None`) and **import sorting** (`I001`): large, repo-wide, low-risk-but-
   noisy sweeps. Ignored in `[tool.ruff.lint]` for now; safe to re-enable and `--fix`
   once other in-flight branches land.
-- **Eight per-file rule ignores**, in `app/ml/regime_model.py` (`F401`, `B905`),
+- **Six per-file rule ignores**, in `app/ml/regime_model.py` (`F401`, `B905`),
   `app/ml/lead_time_model.py` (`E402`), `app/ml/serving.py` (`UP017`),
-  `app/optimization/recommendations.py` (`F401`), `app/optimization/solve.py` (`F841`),
-  `app/optimization/sourcing.py` (`F841`), `app/graph/simulation.py` (`B905`) and
+  `app/optimization/recommendations.py` (`F401`), `app/graph/simulation.py` (`B905`) and
   `app/core/clients/oemsecrets_client.py` (`B007`) — small, real lint findings (unused
-  imports and locals, `zip()` without `strict=`, an import below the top of the module,
+  imports, `zip()` without `strict=`, an import below the top of the module,
   an unused loop variable, and `datetime.timezone.utc` where `datetime.UTC` now exists),
   left untouched because those files are owned by concurrent work; see
   `[tool.ruff.lint.per-file-ignores]`.
 - **mypy** is fully strict-by-default-off (`ignore_missing_imports`, no `--strict`) and
-  has a `[[tool.mypy.overrides]]` block that turns off checking for **22** modules — mostly
+  has a `[[tool.mypy.overrides]]` block that turns off checking for **18** modules — mostly
   `app/api/*` and `app/optimization/*` — where the codebase's untyped SQLAlchemy
   `Column(...)` declarative models (no `Mapped[...]` annotations) produce large numbers
   of `Column[T]` vs `T` false positives rather than real bugs. `mypy app` reports
-  `Success: no issues found in 77 source files`, so **55 of those 77** are fully
+  `Success: no issues found in 70 source files`, so **52 of those 70** are fully
   type-checked today. Migrating `app/models/*` to SQLAlchemy 2.0 `Mapped[]` typing would
   let those overrides be removed.
 
@@ -730,8 +590,7 @@ satisfies an exact invariant that makes this class of silent drop impossible to 
 **Key talking points:**
 - Fiedler value as a fragility metric — including *why the naive whole-graph reading of it is a trap* on a disconnected graph
 - Monte Carlo shows distribution tails, not just means — that's where supply chain risk lives
-- CP-SAT separates cost, time and carbon because they are not scalar multiples of each other — on the demo cart that yields 3 distinct plans from 4 strategies, and the UI says which two collapsed rather than implying four answers
-- Live geopolitical data overlay: PortWatch/FRED/GPR feeds inform the optimizer — and the feed panel distinguishes *downloaded recently* from *observed recently*, which is how the GPR archive's frozen September-2021 reading stopped being published as a current one (ACLED is wired but needs a key — the UI labels it "Inactive" rather than faking a healthy feed)
+- Live geopolitical data overlay: PortWatch/FRED/GPR feeds — and the feed panel distinguishes *downloaded recently* from *observed recently*, which is how the GPR archive's frozen September-2021 reading stopped being published as a current one (ACLED is wired but needs a key — the UI labels it "Inactive" rather than faking a healthy feed)
 
 ---
 
@@ -743,8 +602,9 @@ pretend otherwise; the `claude-*.yml` workflows that ran them are public and rea
 
 What I actually did: framed the problem, decided what to build and in what order,
 reviewed every pull request before merging it, and did the verification — including the
-audit above that found the 44.7% headline was arithmetically real and substantively
-meaningless, and killed it rather than leaving it in. That retraction is the clearest
+audit (archived with the sourcing work at `archive/sourcing-v1`) that found the sourcing
+optimizer's 44.7% headline was arithmetically real and substantively meaningless, and
+killed it rather than leaving it in. That retraction is the clearest
 evidence of what "direction" means here: an agent produced the number, and I'm the one
 who checked it, didn't like what I found, and published the correction instead of the
 headline.
@@ -758,7 +618,7 @@ subagents killed mid-task when their parent job ended. The specific failures tha
 standing rule are written into the thing they constrain instead, in the test and workflow
 comments, where they cannot rot away from it.
 
-Nothing in this README is asserted on trust. The optimizer and ML numbers are checked by
+Nothing in this README is asserted on trust. The ML numbers are checked by
 CI gates (`model-ci`, [docs/MODEL_CI.md](docs/MODEL_CI.md)) that fail the build rather
 than let a bad number ship quietly.
 
@@ -769,7 +629,7 @@ than let a bad number ship quietly.
 | Source | What it provides |
 |--------|-----------------|
 | Nexar / Octopart (**static 2024 snapshot**, via HuggingFace `mdnh/electronic-components-supply-chain`, CC-BY-4.0) | Real component pricing, stock levels, distributor offers (791 components, 92 distributors, 8,176 offers). Real data, but a **frozen snapshot** — not a live API feed. See [docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md). |
-| DigiKey API (**live**) | **3,406 real observed lead times across six snapshots** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07), collected from all 791 catalogued components — 6.19% miss rate on the full 2026-08-15 sweep, logged per attempt. The served model is fitted on an earlier cut of this panel (2,615 usable rows of the then 2,664-row, five-snapshot cut, trained 2026-09-03) — see the lead-time bullets above. Collected by [`app/ml/lead_time_collector.py`](backend/app/ml/lead_time_collector.py) (resumable, quota-aware, honours `X-RateLimit-Remaining` and `Retry-After`) and scheduled weekly via [`.github/workflows/collect-lead-times.yml`](.github/workflows/collect-lead-times.yml). Also supplies live pricing/stock through `/api/v1/live-prices/*`. |
+| DigiKey API (**live**) | **4,148 real observed lead times across seven snapshots** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14), collected from all 791 catalogued components — 6.19% miss rate on the full 2026-08-15 sweep, logged per attempt. The served model is fitted on an earlier cut of this panel (2,615 usable rows of the then 2,664-row, five-snapshot cut, trained 2026-09-03) — see the lead-time bullets above. Collected by [`app/ml/lead_time_collector.py`](backend/app/ml/lead_time_collector.py) (resumable, quota-aware, honours `X-RateLimit-Remaining` and `Retry-After`) and scheduled weekly via [`.github/workflows/collect-lead-times.yml`](.github/workflows/collect-lead-times.yml). Also supplies live pricing/stock through `/api/v1/live-prices/*`. |
 | FRED (Federal Reserve) | Freight index, PPI, macro stress regime |
 | ACLED | Conflict event counts by country (distributor risk) |
 | IMF PortWatch | Port call frequency (congestion delay) |

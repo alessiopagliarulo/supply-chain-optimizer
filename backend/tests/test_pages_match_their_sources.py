@@ -2,12 +2,9 @@
 
 WHY THIS FILE EXISTS (2026-09-05)
 ---------------------------------
-`test_frontier_page_matches_cvar_artifact.py` pins seven claims on ONE page, through the
-seven `data-testid` anchors that page happens to carry. Twelve other pages carry between
-zero and twenty-four anchors, and the ones with zero are not the ones with nothing to
-check — `NewsvendorPage.tsx` publishes "τ = 0.9931" and "45 monthly observations" with no
-anchor anywhere near them, and `BenchmarkPage.tsx` publishes its two cohort sizes the
-same way.
+A `data-testid` pin only covers the anchors a page happens to carry, and the pages with
+none are not the ones with nothing to check — `NewsvendorPage.tsx` publishes
+"τ = 0.9931" and "45 monthly observations" with no anchor anywhere near them.
 
 So the pins here are anchored on the SENTENCE, not on a `data-testid`. `_jsx.text_nodes`
 gives the plain text a browser would show; each test regexes its claim out of that text
@@ -35,22 +32,17 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 from pathlib import Path
 
 import pytest
 
-from app.api.stochastic import LAMBDA_GRID
-from app.graph.simulation import DEFAULT_SEED, N_SCENARIOS
-from app.optimization.sourcing import RISK_PREMIUM_RATE
-from app.optimization.strategies import STRATEGIES
+from app.graph.simulation import N_SCENARIOS
 from tests._jsx import decode_entities, text_nodes, to_rendered_text
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_ROOT.parent
 PAGES_DIR = REPO_ROOT / "frontend" / "src" / "pages"
 DOCS = REPO_ROOT / "docs"
-DB_PATH = BACKEND_ROOT / "supply_chain.db"
 
 NUMBER_WORDS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
@@ -120,90 +112,11 @@ def _artifact(name: str) -> dict:
 
 
 @pytest.fixture(scope="module")
-def benchmark() -> dict:
-    return _artifact("benchmark_results.json")
-
-
-@pytest.fixture(scope="module")
-def volume_sweep() -> dict:
-    return _artifact("volume_sweep.json")
-
-
-@pytest.fixture(scope="module")
 def newsvendor() -> dict:
     return _artifact("newsvendor.json")
 
 
-@pytest.fixture(scope="module")
-def cvar() -> dict:
-    return _artifact("cvar_frontier.json")
-
-
 # ══ BenchmarkPage — zero data-testids, and two cohort sizes typed by hand ════
-
-
-def test_the_benchmark_page_states_both_cohort_sizes_correctly(
-    benchmark: dict, volume_sweep: dict
-) -> None:
-    """"a 10-BOM cohort … a 9-BOM cohort" is the sentence that keeps two runs apart.
-
-    The page's headline is the VOLUME SWEEP's pooled figure and the retracted one is the
-    BENCHMARK's. The sentence exists to stop a reader treating them as two points on one
-    line, which only works while both counts are right — and both are typed, not served.
-    """
-    m = claim("BenchmarkPage.tsx", r"the sweep runs a (\d+)-BOM cohort")
-    assert int(m.group(1)) == len(volume_sweep["boms"]), (
-        f"page: {m.group(1)}-BOM sweep cohort; docs/volume_sweep.json solves "
-        f"{len(volume_sweep['boms'])} BOMs."
-    )
-
-    m = claim("BenchmarkPage.tsx", r"the benchmark run a (\d+)-BOM cohort")
-    assert int(m.group(1)) == benchmark["headline"]["n_boms_in_tables"], (
-        f"page: {m.group(1)}-BOM benchmark cohort; docs/benchmark_results.json "
-        f"headline.n_boms_in_tables = {benchmark['headline']['n_boms_in_tables']}."
-    )
-
-
-def test_the_resilience_verdict_counts_the_boms_it_was_measured_on(
-    benchmark: dict,
-) -> None:
-    """"on nine BOMs there is not enough evidence" — spelled out, beside a served twin.
-
-    Two sentences later the same page renders `{summary.n_boms}` from the API. This word
-    is the hardcoded half of that pair, and nothing but this test notices when the cohort
-    moves and only one of them follows.
-    """
-    m = claim("BenchmarkPage.tsx", r"on (\w+) BOMs there is not enough evidence")
-    assert NUMBER_WORDS[m.group(1).lower()] == benchmark["headline"]["n_boms_in_tables"], (
-        f"page: 'on {m.group(1)} BOMs'; the benchmark ran on "
-        f"{benchmark['headline']['n_boms_in_tables']}."
-    )
-
-
-def test_the_broad_disruption_label_names_the_stress_factor_that_ran(
-    benchmark: dict,
-) -> None:
-    """"stress_factor=3" is `meta.stress_factor` — the arm's whole definition."""
-    m = claim("BenchmarkPage.tsx", r"Broad disruption \(stress_factor=([\d.]+)\)")
-    assert float(m.group(1)) == benchmark["meta"]["stress_factor"], (
-        f"page: stress_factor={m.group(1)}; artifact meta.stress_factor = "
-        f"{benchmark['meta']['stress_factor']}."
-    )
-
-
-def test_the_run_header_publishes_the_seed_the_simulation_actually_uses() -> None:
-    """"seed=42" / "Seed 42" is `app.graph.simulation.DEFAULT_SEED`.
-
-    Note the honest limit: `docs/benchmark_results.json` publishes NO seed field, so this
-    pin binds the page to the CODE the resilience arm runs, not to the artifact. If the
-    benchmark ever starts recording its own seed, re-point this at that field — an
-    artifact beats a constant.
-    """
-    for pattern in (r"· seed=(\d+) ·", r"BOMs · Seed (\d+)"):
-        m = claim("BenchmarkPage.tsx", pattern)
-        assert int(m.group(1)) == DEFAULT_SEED, (
-            f"page: {m.group(0)!r}; app.graph.simulation.DEFAULT_SEED = {DEFAULT_SEED}."
-        )
 
 
 # ══ NewsvendorPage — zero data-testids, and the densest prose on the site ════
@@ -367,88 +280,7 @@ def test_the_input_bounds_shown_are_the_bounds_enforced() -> None:
 # ══ FrontierPage — the claims that sit OUTSIDE its seven anchors ═════════════
 
 
-def test_the_loading_copy_counts_the_lambda_points_the_endpoint_solves() -> None:
-    """"7 λ points" is `len(app.api.stochastic.LAMBDA_GRID)`.
-
-    Not the artifact's `lambda_grid` — that has nine points and belongs to the offline
-    sweep. This sentence describes the LIVE solve the reader is waiting on, so it is
-    pinned to the grid that endpoint actually iterates.
-    """
-    m = claim("FrontierPage.tsx", r"(\d+) λ points, one CP-SAT solve each")
-    assert int(m.group(1)) == len(LAMBDA_GRID), (
-        f"page: {m.group(1)} λ points; app.api.stochastic.LAMBDA_GRID has "
-        f"{len(LAMBDA_GRID)}: {LAMBDA_GRID}."
-    )
-
-
-def test_the_surcharge_the_page_says_it_replaced_is_the_one_in_the_code() -> None:
-    """"the flat 15% risk surcharge" is `RISK_PREMIUM_RATE`, twice on the page.
-
-    Both spellings are pinned: the tile heading and the body sentence. The whole framing
-    of the page — a two-stage recourse model REPLACING a flat surcharge — rests on the
-    reader knowing what that surcharge was.
-    """
-    for pattern in (
-        r"the flat (\d+)% risk surcharge this replaced",
-        r"The (\d+)% surcharge it replaced",
-    ):
-        m = claim("FrontierPage.tsx", pattern)
-        assert float(m.group(1)) == pytest.approx(RISK_PREMIUM_RATE * 100), (
-            f"page: {m.group(0)!r}; app.optimization.sourcing.RISK_PREMIUM_RATE = "
-            f"{RISK_PREMIUM_RATE} ({RISK_PREMIUM_RATE * 100:g}%)."
-        )
-
-
-def test_the_spread_dial_advice_names_arms_the_sweep_actually_ran(cvar: dict) -> None:
-    """"between spread 1.0 and 3.0" must be two arms of the sensitivity grid.
-
-    The advice is "re-solve at both and see if the recommendation moves". It is only
-    actionable if both values are on the grid the artifact swept.
-    """
-    grid = sorted(cvar["sensitivity"]["grid"]["centrality_spread"])
-    m = claim("FrontierPage.tsx", r"between spread ([\d.]+) and ([\d.]+)")
-    named = [float(m.group(1)), float(m.group(2))]
-    assert named == grid[:2], (
-        f"page names centrality_spread arms {named}; the artifact's grid is {grid}."
-    )
-
-
 # ══ CheckoutPage — 24 anchors, and two claims sitting outside all of them ════
-
-
-def test_the_loading_copy_counts_the_strategies_the_solver_returns() -> None:
-    """"Generating 4 route strategies" is `len(STRATEGIES)`."""
-    m = claim("CheckoutPage.tsx", r"Generating (\d+) route strategies")
-    assert int(m.group(1)) == len(STRATEGIES), (
-        f"page: {m.group(1)} strategies; app.optimization.strategies.STRATEGIES has "
-        f"{len(STRATEGIES)}: {[s.id for s in STRATEGIES]}."
-    )
-
-
-def test_the_tie_rule_the_page_explains_is_the_tie_rule_it_applies() -> None:
-    """"within $1, 0.05 days, 0.05 kg and 0.5 km" is TIE_FLOOR, declared 800 lines up.
-
-    The page tells the reader why four strategies are shown as tied instead of ranked.
-    If the prose and the constant part company, the reader is given a false reason for a
-    real behaviour — worse than no explanation.
-    """
-    m = claim(
-        "CheckoutPage.tsx",
-        r"to within \$([\d.]+), ([\d.]+) days, ([\d.]+) kg and ([\d.]+) km",
-    )
-    src = source_of("CheckoutPage.tsx")
-    decl = re.search(r"const TIE_FLOOR[^{]*\{(.*?)\}", src, re.DOTALL)
-    assert decl is not None, "CheckoutPage.tsx no longer declares TIE_FLOOR"
-    block = decl
-    floors = {
-        k: float(v)
-        for k, v in re.findall(r"(\w+):\s*([\d.]+)", block.group(1))
-    }
-    assert [float(m.group(i)) for i in (1, 2, 3, 4)] == [
-        floors["cost"], floors["speed"], floors["carbon"], floors["distance"]
-    ], (
-        f"page explains tie floors {m.group(0)!r}; TIE_FLOOR in the same file is {floors}."
-    )
 
 
 # ══ Dashboard / MapPage / ResiliencePage — self-descriptions and a fallback ══
@@ -463,51 +295,6 @@ def test_the_dashboard_heading_counts_the_rows_under_it() -> None:
     )
     assert int(m.group(1)) == int(declared.group(1)), (
         f"heading says Top {m.group(1)}; the list is cut at {declared.group(1)}."
-    )
-
-
-def test_the_map_legend_bands_match_the_quantiles_that_draw_them() -> None:
-    """"Top 10% / Next 30% / Bottom 60%" is `quantile(0.9)` and `quantile(0.6)`.
-
-    Three labels, one prose restatement, and two numbers in a `useMemo` — five places for
-    the same split to be written down, which is five chances for one of them to be wrong.
-    """
-    stats = constant("MapPage.tsx", r"p90:\s*quantile\(([\d.]+)\),\s*p60:\s*quantile\(([\d.]+)\)")
-    p_high, p_mid = float(stats.group(1)), float(stats.group(2))
-
-    m = claim("MapPage.tsx", r"Top (\d+)% \(decile\) by betweenness")
-    assert int(m.group(1)) == round((1 - p_high) * 100), (
-        f"legend: top {m.group(1)}%; the tier cut is quantile({p_high}), i.e. the top "
-        f"{round((1 - p_high) * 100)}%."
-    )
-    m = claim("MapPage.tsx", r"Next (\d+)% by betweenness")
-    assert int(m.group(1)) == round((p_high - p_mid) * 100), (
-        f"legend: next {m.group(1)}%; quantile({p_mid}) to quantile({p_high}) is "
-        f"{round((p_high - p_mid) * 100)}%."
-    )
-    m = claim("MapPage.tsx", r"Bottom (\d+)% by betweenness")
-    assert int(m.group(1)) == round(p_mid * 100), (
-        f"legend: bottom {m.group(1)}%; below quantile({p_mid}) is {round(p_mid * 100)}%."
-    )
-
-    m = claim("MapPage.tsx", r"top (\d+)% / next (\d+)% / bottom (\d+)%")
-    assert [int(m.group(i)) for i in (1, 2, 3)] == [
-        round((1 - p_high) * 100), round((p_high - p_mid) * 100), round(p_mid * 100)
-    ], f"the prose restatement {m.group(0)!r} disagrees with the legend above it."
-
-
-def test_the_map_tooltip_fallback_count_is_the_served_catalogue_size() -> None:
-    """`betweennessStats?.n ?? 92` — a literal that renders whenever the stats are absent.
-
-    It is not a JSX text node, so the unverified-number guard cannot see it; it is exactly
-    the kind of literal that goes stale in silence, so it is pinned here instead.
-    """
-    declared = constant("MapPage.tsx", r"betweennessStats\?\.n \?\? (\d+)")
-    with sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True) as conn:
-        served = conn.execute("SELECT COUNT(*) FROM distributors").fetchone()[0]
-    assert int(declared.group(1)) == served, (
-        f"MapPage falls back to {declared.group(1)} distributors; the served database "
-        f"has {served}."
     )
 
 
@@ -571,8 +358,7 @@ def test_the_newsvendor_precompute_cost_is_the_sweep_the_artifact_timed(
 def test_every_page_this_file_pins_is_a_page_that_exists() -> None:
     """A pin aimed at a deleted page would skip forever and look green."""
     for page in (
-        "BenchmarkPage.tsx", "NewsvendorPage.tsx", "FrontierPage.tsx",
-        "CheckoutPage.tsx", "Dashboard.tsx", "MapPage.tsx", "ResiliencePage.tsx",
+        "NewsvendorPage.tsx", "Dashboard.tsx", "ResiliencePage.tsx",
     ):
         assert (PAGES_DIR / page).is_file(), f"{page} is gone; its pins here are dead"
 

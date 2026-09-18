@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   Database,
   Gauge,
-  ShieldCheck,
   TrendingDown,
   Warehouse,
 } from 'lucide-react';
@@ -36,12 +35,9 @@ function formatStatValue(stat: LandingStat): string {
   return `${value.toFixed(decimals)}${unit}`;
 }
 
-const STAT_ICONS: Record<string, typeof TrendingDown> = {
-  'cost-edge': TrendingDown,
-  'cvar-leverage': ShieldCheck,
+const STAT_ICONS: Record<string, typeof Gauge> = {
   'forecast-mape': Gauge,
-  'wape-reduction': Gauge,
-  shortfall: ShieldCheck,
+  'wape-reduction': TrendingDown,
   latency: Gauge,
 };
 
@@ -104,11 +100,11 @@ export default function LandingPage() {
               {catalogue.offers.toLocaleString()} offers
             </span>
             <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight max-w-3xl mx-auto">
-              A sourcing optimizer for real electronic-component supply chains
+              Supply-chain analytics on real electronic-component data
             </h1>
             <p className="text-slate-400 text-lg mt-5 max-w-2xl mx-auto leading-relaxed">
-              CP-SAT mixed-integer solving, Monte Carlo risk analysis, and a Prophet demand
-              forecaster run over a real catalogue of {catalogue.parts} electronic components,{' '}
+              Supplier-network disruption analysis, Monte Carlo risk simulation, and a Prophet
+              demand forecaster run over a real catalogue of {catalogue.parts} electronic components,{' '}
               {catalogue.partsPriced} of which are priced by {catalogue.distributorsQuoting}{' '}
               distributors &mdash; a static 2024 Nexar/Octopart snapshot, not synthetic data and
               not a live feed.
@@ -146,9 +142,9 @@ export default function LandingPage() {
             Verified, not asserted
           </h2>
           <p className="text-center text-slate-400 text-sm mb-8 max-w-xl mx-auto">
-            The credibility of an optimizer is in what got checked, not what got claimed.
+            The credibility of an analysis is in what got checked, not what got claimed.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 max-w-2xl mx-auto">
             {landingProofPoints.map((point, i) => (
               <motion.div
                 key={point.label}
@@ -198,8 +194,8 @@ export default function LandingPage() {
         <section className="max-w-6xl mx-auto px-6 pt-6 pb-20 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">See it running on real data</h2>
           <p className="text-slate-400 text-sm max-w-xl mx-auto mb-6">
-            Sign in with the published demo account to browse the catalogue, build a BOM, and run
-            the CP-SAT sourcing optimizer yourself.
+            Sign in with the published demo account to browse the catalogue, build a BOM, and
+            stress-test it against supplier disruptions yourself.
           </p>
           <Link
             to="/login"
@@ -217,7 +213,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-slate-800">
         <div className="max-w-6xl mx-auto px-6 py-6 text-center text-slate-600 text-xs">
-          Built with FastAPI, OR-Tools CP-SAT, Prophet, and React &mdash; every figure on this page
+          Built with FastAPI, Prophet, and React &mdash; every figure on this page
           traces to a committed artifact, not a slide.
         </div>
       </footer>

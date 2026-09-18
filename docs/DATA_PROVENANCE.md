@@ -108,25 +108,20 @@ Owned by the forecasting/ML tracks, not `seed_db.py`:
 Verification status for those tracks lives in `docs/MODEL_CI.md` and
 `docs/LEAKAGE_PROGRESSION.md`, which are regenerated from the artifacts.
 
-## 4. Emission factors (`backend/app/optimization/solve.py`)
+## 4. Emission factors (`backend/app/optimization/constants.py`, `costs.py`)
 
-Corrected 2026-09-07: this section named `backend/app/core/constants.py`, which
-does not exist — the factors are constants in `solve.py`, and the citations
-beside them there are the authoritative ones.
-
-It also listed "EPA SmartWay, ICAO, IATA", two thirds of which `solve.py` has
-since retracted in place:
+The citations beside the constants are the authoritative ones; read them, not
+this summary, if the exact vintage matters.
 
 - **Road** — the value is a **2013** SmartWay figure, not the "EPA SmartWay
-  2023" label this repo used to carry; `solve.py` now cites the 2013 SmartWay
+  2023" label this repo used to carry; `constants.py` cites the 2013 SmartWay
   technical documentation and the EDF handbook as the route by which it is
   cited.
-- **Air** — relabelled from "ICAO 2023" to **GLEC Framework v3.2** (long-haul
-  dedicated-freighter tank-to-wheel, 503 g CO2e/tonne-km), because ICAO
-  publishes no static air-freight table to cite.
-
-Read the citations in `solve.py`, not this summary, if the exact vintage
-matters.
+- **Air** — **GLEC Framework v3.2** (long-haul dedicated-freighter
+  tank-to-wheel, 503 g CO2e/tonne-km), relabelled from "ICAO 2023" because ICAO
+  publishes no static air-freight table. The constant lived in the sourcing
+  orchestrator, archived at tag `archive/sourcing-v1`; `costs.py` keeps its
+  unit note.
 
 ---
 

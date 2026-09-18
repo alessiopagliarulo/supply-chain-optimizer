@@ -2,7 +2,7 @@
 
 `cart_items` is `(id, user_id, component_id, distributor_id, quantity,
 unit_price, created_at)` — there is no currency column. Every downstream
-consumer (`/cart` totals, `/optimize/*`, `/resilience/*`) reads `unit_price` as
+consumer (`/cart` totals, `/resilience/*`) reads `unit_price` as
 USD per unit. So accepting a EUR/GBP/SGD offer here silently relabels a foreign
 figure as dollars.
 

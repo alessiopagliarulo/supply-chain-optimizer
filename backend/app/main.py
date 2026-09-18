@@ -49,11 +49,10 @@ def _reference_boms(db):
     """
     Load the benchmarked reference BOMs as {bom_name: [component_id, ...]}.
 
-    Source is the latest `optimization_runs` run_id — the same rows /benchmark/summary
-    aggregates — so the Fiedler chart's collapse column describes the same BOMs as the
-    rest of the Benchmark page. Reading them from the database rather than importing
-    `seeds.run_benchmark.BOM_CATALOG` keeps the app layer independent of the seed
-    scripts, which are not on the path in production.
+    Source is the latest `optimization_runs` run_id — the rows written by the
+    sourcing benchmark archived at git tag `archive/sourcing-v1`. Reading them from
+    the database keeps the app layer independent of the seed scripts, which are not
+    on the path in production.
 
     Returns (boms, source_note). `boms` is empty when no benchmark has ever been run
     or when an MPN cannot be resolved to a Component — never a silent partial answer.

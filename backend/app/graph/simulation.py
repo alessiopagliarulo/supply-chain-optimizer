@@ -228,7 +228,7 @@ def run_monte_carlo(
     # gs.p_disruption is the calibrated per-distributor disruption probability over the
     # sourcing horizon (cited base rate -> exposure window -> bounded centrality rank
     # transform); see app/graph/builder.py::_build_disruption_probabilities and
-    # GET /stochastic/calibration. It replaces the min-max normalized betweenness that
+    # app/graph/disruption.py. It replaces the min-max normalized betweenness that
     # used to be read directly as p_fail here -- which pinned the most central
     # distributor at p = 1.0 and made forcing its failure a no-op.
     #
@@ -238,7 +238,7 @@ def run_monte_carlo(
     # the same calibration function.
     base_probs: Dict[int, float] = gs.p_disruption
     if not base_probs and gs.betweenness:
-        from app.optimization.stochastic import build_failure_probabilities
+        from app.graph.disruption import build_failure_probabilities
         base_probs = build_failure_probabilities(sorted(gs.betweenness), gs.betweenness)
 
     all_dist_ids: Set[int] = set()

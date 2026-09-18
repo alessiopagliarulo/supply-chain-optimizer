@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { cartAPI } from '../services/api';
-import { useOptimizeStore } from './optimizeStore';
 
 export interface CartItem {
   id: number;
@@ -61,7 +60,6 @@ export const useCartStore = create<CartState>((set) => ({
       await cartAPI.add(data);
       const res = await cartAPI.get();
       set({ items: res.data, error: null });
-      useOptimizeStore.getState().clearResult();
     } catch (err: unknown) {
       const message = errorMessage(err, 'Failed to add item');
       set({ error: message });
@@ -76,7 +74,6 @@ export const useCartStore = create<CartState>((set) => ({
     try {
       await cartAPI.remove(id);
       set((s) => ({ items: s.items.filter((i) => i.id !== id), error: null }));
-      useOptimizeStore.getState().clearResult();
     } catch (err: unknown) {
       const message = errorMessage(err, 'Failed to remove item from cart');
       set({ error: message });
@@ -88,7 +85,6 @@ export const useCartStore = create<CartState>((set) => ({
     try {
       await cartAPI.clear();
       set({ items: [], error: null });
-      useOptimizeStore.getState().clearResult();
     } catch (err: unknown) {
       const message = errorMessage(err, 'Failed to clear cart');
       set({ error: message });

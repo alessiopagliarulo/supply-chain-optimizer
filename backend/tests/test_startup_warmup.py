@@ -322,22 +322,6 @@ def test_the_resilience_graph_helper_caches_instead_of_rebuilding_per_request(
     assert graph_mod.get_graph_state() is first
 
 
-def test_the_stochastic_graph_helper_caches_instead_of_rebuilding_per_request(
-    graph_db_session, counting_builder
-):
-    """Same landmine, second copy of it. RED CHECK: as above, in api/stochastic.py."""
-    from app.api.stochastic import _graph
-
-    graph_mod.set_graph_state(None)
-    first = _graph(graph_db_session)
-    _graph(graph_db_session)
-    _graph(graph_db_session)
-
-    assert len(counting_builder) == 1, \
-        f"{len(counting_builder)} rebuilds across 3 requests — the result is not cached"
-    assert graph_mod.get_graph_state() is first
-
-
 def test_a_graph_endpoint_waits_for_the_warmup_rather_than_answering_503(
     fresh_warmup, monkeypatch
 ):

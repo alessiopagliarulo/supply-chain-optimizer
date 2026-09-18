@@ -1,6 +1,6 @@
 /**
- * Newsvendor API client — SEPARATE axios instance, for the same reason
- * `services/stochastic.ts` is separate: one of these endpoints is slow.
+ * Newsvendor API client — SEPARATE axios instance, because one of these
+ * endpoints is slow.
  * ====================================================================
  *
  * `services/api.ts` creates one shared axios instance with a global

@@ -25,8 +25,6 @@ ignore = [
 "app/ml/regime_model.py" = ["F401", "B905"]
 "app/ml/lead_time_model.py" = ["E402"]
 "app/optimization/recommendations.py" = ["F401"]
-"app/optimization/solve.py" = ["F841"]
-"app/optimization/sourcing.py" = ["F841"]
 "app/graph/simulation.py" = ["B905"]
 "app/core/clients/oemsecrets_client.py" = ["B007"]
 "app/ml/serving.py" = ["UP017"]
@@ -55,7 +53,6 @@ exclude = ["migrations", "venv", "mlruns", "tests", "seeds"]
 # already clean, rather than disabling a check globally.
 [[tool.mypy.overrides]]
 module = [
-    "app.api.optimize",
     "app.api.benchmark",
     "app.api.resilience",
     "app.api.live_prices",
@@ -63,10 +60,7 @@ module = [
     "app.api.distributors",
     "app.api.auth",
     "app.api.components",
-    "app.api.forecasts",
     "app.optimization.recommendations",
-    "app.optimization.solve",
-    "app.optimization.sourcing",
     "app.optimization.routing",
     "app.optimization.costs",
     "app.ml.serving",

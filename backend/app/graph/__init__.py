@@ -55,7 +55,7 @@ class GraphState:
     #            "lambda2": float, "delta_pct": float}, ...]
     fiedler_curve: List[dict] = field(default_factory=list)
     # Per-distributor probability of a material disruption over the sourcing horizon,
-    # from app.optimization.stochastic.build_failure_probabilities (cited McKinsey
+    # from app.graph.disruption.build_failure_probabilities (cited McKinsey
     # base rate -> exposure window -> bounded centrality RANK transform). This is the
     # ONE probability model the whole app uses. It replaces the previous practice of
     # feeding min-max normalized betweenness straight into a Bernoulli draw, which had

@@ -2,19 +2,17 @@
 
 WHY THIS FILE EXISTS (2026-09-05)
 ---------------------------------
-`test_frontier_page_matches_cvar_artifact.py` exists because `FrontierPage.tsx` shipped
-``31 / 36`` and ``11 of 12`` for five days while `docs/cvar_frontier.json` said ``35 of 36``
-and ``12 of 12``, and the attribution named the wrong experimental arm. The page had never
-matched ANY version of the artifact, and a doc-vs-artifact test structurally could not see
-it, because the page is neither.
+A page (the since-removed FrontierPage) once shipped figures for five days that had never
+matched ANY version of the artifact they described, and a doc-vs-artifact test
+structurally could not see it, because the page is neither.
 
-That test fixed ONE page. It cannot fix the class, because it only knows the seven
+A per-page pin test fixes ONE page. It cannot fix the class, because it only knows the
 `data-testid` anchors someone remembered to add. The generalisation is the inverse
 question: instead of "does this pinned number match its artifact?", ask
 
     **does EVERY number this page renders have anything at all standing behind it?**
 
-This file asks that of all thirteen pages. A rendered number passes only if it is
+This file asks that of every page. A rendered number passes only if it is
 
   (a) inside an element carrying a ``data-testid`` that a pin test actually asserts
       against an artifact (see ``PINNED``), or
@@ -36,27 +34,23 @@ drift away from the backend the way a typed literal can.
 
 To that this file adds the handful of **static string props that a browser shows to a
 sighted reader** — `title` (the native tooltip), `hint`, `subtitle`, `caption`, `label`,
-`placeholder`. `NewsvendorPage.tsx` publishes "51 monthly observations" through `hint=`
-and `CheckoutPage.tsx` publishes a 25%/yr holding rate through `title=`; both are claims,
-and both would be invisible to a text-node-only scan.
+`placeholder`. `NewsvendorPage.tsx` publishes "51 monthly observations" through `hint=`;
+that is a claim, and it would be invisible to a text-node-only scan.
 
 THREE GAPS THIS GUARD DOES NOT CLOSE — stated so nobody mistakes green for total
 --------------------------------------------------------------------------------
 1. **Literals that reach the screen through a JS string constant.** `ResiliencePage.tsx`
-   renders "1,000 Monte Carlo scenarios" from ``const MC_SCENARIOS = 1000``, and
-   `MapPage.tsx` renders a ``?? 92`` fallback distributor count inside a template literal.
-   Both are typed literals that can go stale; neither is a JSX text node. Scanning every
-   string in a `.tsx` file would drown the guard in false positives, so those two are
-   pinned by name in `test_pages_match_their_sources.py` instead.
-2. **`aria-label`.** Screen-reader text is published text, and BenchmarkPage's aria-labels
-   do carry figures ("roughly 47 percent on toy orders"). They are excluded here only
-   because the scope of this guard is what a sighted reader sees; that is a deliberate,
-   known hole, not an oversight.
-3. **The testid exemption is per-ELEMENT, not per-number.** `frontier-solve-quality-caveat`
-   is pinned, so every number inside it is exempt — including "load averages 2.5, 43.5 and
-   2.6", which the pin test does not assert. Criterion (a) says "an anchor a pin test
-   reads", and it cannot know which digits inside that anchor the assertions actually
-   cover.
+   renders "1,000 Monte Carlo scenarios" from ``const MC_SCENARIOS = 1000``. That is a
+   typed literal that can go stale, but not a JSX text node. Scanning every string in a
+   `.tsx` file would drown the guard in false positives, so it is pinned by name in
+   `test_pages_match_their_sources.py` instead.
+2. **`aria-label`.** Screen-reader text is published text and can carry figures. It is
+   excluded here only because the scope of this guard is what a sighted reader sees;
+   that is a deliberate, known hole, not an oversight.
+3. **The testid exemption is per-ELEMENT, not per-number.** Every number inside a pinned
+   anchor is exempt, including digits the pin test does not assert. Criterion (a) says
+   "an anchor a pin test reads", and it cannot know which digits inside that anchor the
+   assertions actually cover.
 """
 from __future__ import annotations
 
@@ -66,7 +60,6 @@ from pathlib import Path
 import pytest
 
 from tests._jsx import JsxText, decode_entities, text_nodes
-from tests.test_frontier_page_matches_cvar_artifact import PINNED_TESTIDS
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 PAGES_DIR = BACKEND_ROOT.parent / "frontend" / "src" / "pages"
@@ -75,11 +68,11 @@ PAGES_DIR = BACKEND_ROOT.parent / "frontend" / "src" / "pages"
 #: triaged, not silently exempt because someone forgot to add it here.
 PAGES = sorted(PAGES_DIR.glob("*.tsx"))
 
-#: `data-testid` anchors a pin test reads against an artifact. Imported, not retyped, so
-#: dropping a pin cannot quietly widen this guard's exemptions.
-PINNED: dict[str, frozenset[str]] = {
-    "FrontierPage.tsx": frozenset(PINNED_TESTIDS),
-}
+#: `data-testid` anchors a pin test reads against an artifact. Import them from the pin
+#: test rather than retyping them, so dropping a pin cannot quietly widen this guard's
+#: exemptions. Empty since FrontierPage (the only pinned page) was removed with the
+#: sourcing optimizer.
+PINNED: dict[str, frozenset[str]] = {}
 
 #: Static string props a browser shows to a sighted reader. `aria-*` and `alt` are
 #: deliberately absent — see gap 2 in the module docstring.
@@ -104,171 +97,17 @@ _PROP_RE = re.compile(
 
 GLOBAL_ALLOW: tuple[tuple[str, str], ...] = (
     ("CVaR-95", "the NAME of the risk measure. 95 is the tail level in its definition."),
-    ("CVaR₉₅", "the same measure, written with a subscript."),
     ("VaR-95", "the NAME of the companion quantile measure."),
-    ("CVaR₉₅[cost]", "the objective term of the model, written as maths."),
-    ("(1−λ)·E[cost] + λ·", "the objective FORMULA. 1 is the coefficient, not a result."),
     ("95% CI", "the confidence level the intervals are built at, fixed by protocol."),
     ("P10", "a percentile label: the 10th. A name, not a value."),
     ("P50", "a percentile label: the median. A name, not a value."),
     ("P90", "a percentile label: the 90th. A name, not a value."),
     ("worst-5%", "the CVaR-95 tail, i.e. the definition of the measure above."),
     ("worst 5%", "the same tail, spelled with a space."),
-    ("5% tail", "the same tail, named as a noun."),
     ("0–1", "the range of a share. A scale, not a measurement."),
-    ("0-1", "the same range, written with a hyphen."),
-    ("CO2", "a chemical formula. The 2 is a subscript, not a quantity."),
-    ("CO₂", "the same formula with a real subscript character."),
-    ("1×", "the benchmark's nominal order size — the unit the sweep multiplies."),
-    ("λ = 1", "the endpoint of the λ grid by definition: pure CVaR."),
-    ("k = 1", "the single-supplier end of the diversification sweep, by definition."),
-    ("k=1", "the same reference point, written without spaces."),
-    ("k−1", "the previous step of the k sweep. An index, not a measurement."),
 )
 
 PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
-    "BenchmarkPage.tsx": (
-        (
-            "0.0000× delta",
-            "the value a saturated CVaR ratio takes by arithmetic, printed at the "
-            "page's own 4-dp precision. Not a measurement: the sentence exists to say "
-            "the metric cannot resolve anything here.",
-        ),
-        (
-            "an exact 0 to the delta",
-            "arithmetic. Two arms at the same ceiling differ by zero by construction.",
-        ),
-        (
-            "an exact 0.0 to every delta",
-            "same claim, one decimal place.",
-        ),
-        (
-            "seed=42",
-            "the RNG seed of the benchmark run — an input, not a result. Pinned to "
-            "`meta.seed` where the artifact carries one; see the run_id caveat below.",
-        ),
-        (
-            "Seed 42",
-            "same seed, prose spelling.",
-        ),
-        (
-            "until 2026-09-03",
-            "a past-tense changelog date. What this page served before that date can "
-            "never change.",
-        ),
-        (
-            "on 2026-09-03",
-            "same: the date the pool-matched arms entered the pipeline.",
-        ),
-        (
-            "10-BOM cohort",
-            "pinned to len(docs/volume_sweep.json['boms']) by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "9-BOM cohort",
-            "pinned to docs/benchmark_results.json headline.n_boms_in_tables by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "on nine BOMs",
-            "pinned to the same field. NOTE: the very next sentence renders the live "
-            "{summary.n_boms}; this word is the hardcoded twin of it and is only "
-            "correct while the cohort stays at nine.",
-        ),
-        (
-            "stress_factor=3",
-            "pinned to docs/benchmark_results.json meta.stress_factor by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "over 100%",
-            "arithmetic: a share of a total whose other terms are net losses must "
-            "exceed 100%. The share itself is rendered from the API beside it.",
-        ),
-        (
-            "0, .25, .5, .75, 1",
-            "the complete set of values a 4-line BOM's unfulfilled-line share can take. "
-            "Enumeration of a definition, not a measurement.",
-        ),
-        (
-            "an unqualified −8 pp",
-            "the rounded form of the API-rendered delta immediately before it, quoted to "
-            "say why it must NOT be claimed. Editorial, and the guard cannot bind it to "
-            "the live value it paraphrases.",
-        ),
-        (
-            "carries a 95%",
-            "the confidence level of the bootstrap intervals, fixed by protocol. The "
-            "noun it qualifies continues in the next element, so 'CI' is not adjacent.",
-        ),
-        (
-            "~0 finding",
-            "a direction, not a figure: the sentence's whole point is that the measured "
-            "effect is indistinguishable from zero.",
-        ),
-        (
-            "Top-5 highest-betweenness",
-            "the removal budget of the sequential-attack sweep, fixed by the endpoint.",
-        ),
-        (
-            "2 of the",
-            "the count of tied BOMs, followed immediately by the live {summary.n_boms}. "
-            "Hardcoded numerator over a served denominator; correct today, and listed "
-            "here rather than pinned because the artifact publishes no tied-BOM count.",
-        ),
-        ("Δ cost vs", "an axis label; the 'cost' carries no figure."),
-        (
-            "mc_cvar_95 / baseline_cvar_95",
-            "API field NAMES quoted in a tooltip, not values.",
-        ),
-        (
-            "plan_cascade_risk = 1 −",
-            "the definition of the field, written as maths.",
-        ),
-        (
-            "4-line BOMs",
-            "the arity of the reference BOMs this enumeration applies to; the "
-            "enumeration above is only meaningful with it.",
-        ),
-        (
-            "roughly 47 percent on toy orders",
-            "the retracted headline, quoted inside an aria-label so a screen-reader user "
-            "gets the same retraction a sighted one does. 47.25% is the artifact's "
-            "total_save_pct_vs_greedy.",
-        ),
-        (
-            "0 to 1",
-            "the range of the right axis, spelled out for a screen reader.",
-        ),
-        (
-            "6 steps from 0 to 5 distributors removed",
-            "the shape of the sequential-removal sweep, spelled out for a screen reader.",
-        ),
-        (
-            "Expect ~0",
-            "the null hypothesis this tile tests, not a reading.",
-        ),
-    ),
-    "CheckoutPage.tsx": (
-        (
-            "4 route strategies",
-            "pinned to len(app.optimization.strategies.STRATEGIES) by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "within $1, 0.05 days, 0.05 kg and 0.5 km",
-            "the TIE_FLOOR constants declared at the top of this same file — the page "
-            "explaining its own tie rule. Pinned to them by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "at a 25%/yr electronics holding rate (Gartner IT Supply Chain Benchmarks "
-            "2022). Holding $ = component value × 25% × (lead-time days ÷ 365)",
-            "a cited cost ASSUMPTION and its formula: the rate is an input the backend "
-            "uses, 2022 is the citation year, 365 is days in a year.",
-        ),
-    ),
     "Dashboard.tsx": (
         (
             "Top 5 by catalogue risk index",
@@ -279,62 +118,6 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
             "every 15 min",
             "the external-feed refresh cadence, a configured interval rather than a "
             "measurement.",
-        ),
-    ),
-    "FrontierPage.tsx": (
-        (
-            "the flat 15% risk surcharge this replaced",
-            "pinned to app.optimization.sourcing.RISK_PREMIUM_RATE by "
-            "test_pages_match_their_sources.py.",
-        ),
-        (
-            "The 15% surcharge it replaced",
-            "same constant, tile heading.",
-        ),
-        (
-            "7 λ points",
-            "pinned to len(app.api.stochastic.LAMBDA_GRID) by "
-            "test_pages_match_their_sources.py — the grid the live endpoint solves.",
-        ),
-        (
-            "between spread 1.0 and 3.0",
-            "pinned to the two lowest centrality_spread arms of the artifact's "
-            "sensitivity grid by test_pages_match_their_sources.py.",
-        ),
-        (
-            "how much worse the bad 5% is than the average case",
-            "the CVaR-95 tail restated in words for a tooltip — the definition of the "
-            "measure, not a reading of it.",
-        ),
-        (
-            "Artzner et al. 1999",
-            "an academic citation year.",
-        ),
-        (
-            "Satopää et al. 2011",
-            "an academic citation year.",
-        ),
-        (
-            "a probability of 1.0",
-            "the ceiling of a probability. The sentence says the fix cannot reach it.",
-        ),
-        (
-            "nowhere near 1.0",
-            "same ceiling, describing the calibrated model's headroom below it.",
-        ),
-        (
-            "made the single most central distributor fail in 100% of scenarios, because "
-            "a min-max rescale always attains 1.0 at its maximum",
-            "the defect being described: a min-max rescale attains 1.0 at its maximum by "
-            "construction. Arithmetic about a RETIRED model.",
-        ),
-        (
-            "1/spread ×",
-            "the lower bound of the bounded rank transform, written as maths.",
-        ),
-        (
-            "Tail removed per $1 spent",
-            "the unit of the column: dollars of tail per dollar spent.",
         ),
     ),
     "LandingPage.tsx": (
@@ -350,34 +133,6 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
             "`test_landing_data_contract.py::test_the_offers_are_never_described_as_live` "
             "fails if that wording regresses, and also fails if a date column ever "
             "appears (which would mean this justification needs revisiting).",
-        ),
-    ),
-    "MapPage.tsx": (
-        (
-            "Top 10% (decile) by betweenness",
-            "the top band of this page's own percentile split; pinned to the p90 "
-            "threshold in this file by test_pages_match_their_sources.py.",
-        ),
-        (
-            "Next 30% by betweenness",
-            "the middle band, p60–p90. Same pin.",
-        ),
-        (
-            "Bottom 60% by betweenness",
-            "the bottom band, below p60. Same pin.",
-        ),
-        (
-            "top 10% / next 30% / bottom 60%",
-            "the same three bands restated in prose. Same pin.",
-        ),
-        (
-            "absolute 0–100% BOM-collapse percentage",
-            "the range of a percentage — the sentence says this layer is NOT one.",
-        ),
-        (
-            "a fixed threshold like 0.4 could never be reached",
-            "an illustrative threshold, chosen to be above the observed maximum rendered "
-            "immediately before it. Not a claim about the data.",
         ),
     ),
     "ModelCardPage.tsx": (
@@ -555,23 +310,10 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
 #: stays green on a known set and (b) no NEW unverifiable number can be added without
 #: this list changing, which `test_the_unverifiable_debt_has_not_grown` refuses to let
 #: happen quietly.
-KNOWN_UNVERIFIED: dict[str, tuple[tuple[str, str], ...]] = {
-    # NewsvendorPage's "108 s per setting on the deployed instance" was PAID OFF on
-    # 2026-09-05, which is why this page no longer appears here. 108 traced to no
-    # artifact, no document and no code path — an unrecorded stopwatch reading on a
-    # Render container, published as fact. The page now cites the sweep's recorded
-    # `meta.wall_seconds` instead, and that figure is pinned in
-    # `test_pages_match_their_sources.py` so it moves when the artifact moves.
-    "BenchmarkPage.tsx": (
-        (
-            "exist only from run 8 onward",
-            "LIVE DEBT. No table in backend/supply_chain.db and no field in "
-            "docs/benchmark_results.json records which run first carried pool-matched "
-            "baseline arms; the artifact only knows it is run 9. The claim is probably "
-            "true and is certainly unfalsifiable from this repo.",
-        ),
-    ),
-}
+#:
+#: EMPTY. The last entry (BenchmarkPage's "exist only from run 8 onward") left with
+#: that page when the sourcing optimizer was removed.
+KNOWN_UNVERIFIED: dict[str, tuple[tuple[str, str], ...]] = {}
 
 
 # ── Machinery ────────────────────────────────────────────────────────────────
@@ -630,8 +372,8 @@ def _claims(path: Path) -> list[tuple[JsxText, str]]:
 
 def test_the_pages_directory_was_actually_found() -> None:
     """A guard that scans zero files is a check that cannot fail."""
-    assert len(PAGES) >= 13, (
-        f"expected the 13+ pages of {PAGES_DIR}; found {[p.name for p in PAGES]}. "
+    assert len(PAGES) >= 10, (
+        f"expected the 10+ pages of {PAGES_DIR}; found {[p.name for p in PAGES]}. "
         "If the frontend moved, re-point PAGES_DIR — do not let this scan nothing."
     )
 
@@ -715,13 +457,14 @@ def test_every_global_allowlist_phrase_is_still_rendered_somewhere() -> None:
 
 
 #: Published numbers this repo cannot verify. Started at 2 on 2026-09-05; the
-#: NewsvendorPage "108 s" entry was paid off the same day. This number may go DOWN
-#: freely — it must never go up without someone deciding to let it.
-MAX_UNVERIFIED_DEBT = 1
+#: NewsvendorPage "108 s" entry was paid off the same day and the BenchmarkPage entry
+#: left with that page. This number may go DOWN freely — it must never go up without
+#: someone deciding to let it.
+MAX_UNVERIFIED_DEBT = 0
 
 
 def test_the_unverifiable_debt_has_not_grown() -> None:
-    """One published number this repo cannot verify. One, and no more.
+    """No published number this repo cannot verify, and it stays that way.
 
     ``KNOWN_UNVERIFIED`` buys a green suite in exchange for naming the debt exactly.
     The moment another entry is needed, this fails and forces the decision to be taken

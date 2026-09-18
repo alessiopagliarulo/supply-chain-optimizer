@@ -42,7 +42,14 @@ from app.optimization.costs import (
 )
 from app.optimization.freight_hubs import FREIGHT_HUBS, FreightHub
 from app.optimization.routing import GeoPoint, RoutingNode
-from app.optimization.strategies import StrategyWeights
+
+
+@dataclass(frozen=True)
+class ObjectiveWeights:
+    """Weights of the cost / time / carbon objective a hub is chosen on."""
+    w_cost: float
+    w_time: float
+    w_carbon: float
 
 
 CROSS_DOCK_IMPROVEMENT_THRESHOLD = 0.95  # hub must beat direct by ≥ 5%
@@ -113,7 +120,7 @@ class CrossDockDecision:
     objective_savings_pct: float = 0.0
 
 
-def _weighted_objective(metrics: RouteMetrics, weights: StrategyWeights) -> float:
+def _weighted_objective(metrics: RouteMetrics, weights: ObjectiveWeights) -> float:
     """
     Single-alternative weighted objective (no normalization — used only for
     direct-vs-consolidated comparison within one strategy).
@@ -121,8 +128,7 @@ def _weighted_objective(metrics: RouteMetrics, weights: StrategyWeights) -> floa
     The 100.0 and 10.0 factors are ad-hoc unit bridges that put days and kg
     of CO2 on a roughly dollar-like scale so the weights are not swamped by
     raw magnitude. They are NOT derived from anything and are not the
-    min-max normalization used to rank the four finished alternatives (see
-    ``strategies.normalize_objectives``). They are legitimate only because
+    a normalization across alternatives. They are legitimate only because
     both sides of the direct-vs-hub comparison pass through the same
     transform, which leaves the argmin within one strategy unaffected.
     """
@@ -214,8 +220,7 @@ def pickup_tour_legs(
     Both consumers must go through here:
       * ``evaluate_direct`` below, which SCORES the direct plan (and therefore
         decides whether cross-dock consolidation is worth taking);
-      * ``solve.optimize_bom``, which RENDERS the legs the map and the checkout
-        panel display.
+      * any renderer that DISPLAYS the legs of the same tour.
 
     They used to model the load independently, and the renderer charged the FULL
     order weight to every leg including the empty outbound one — so the legs on
@@ -299,7 +304,7 @@ def evaluate_direct(
     The load profile and the rate class both live in ``pickup_tour_legs`` above —
     read its docstring for the modelling and the citations. This function only
     folds those legs into plan-level metrics, so the plan that gets SCORED here
-    and the legs that get DISPLAYED by ``solve.optimize_bom`` are by construction
+    and the legs that get DISPLAYED from ``pickup_tour_legs`` are by construction
     the same vehicle carrying the same freight.
     """
     if not ordered_nodes:
@@ -345,7 +350,7 @@ def evaluate_cross_dock(
     direct: RouteMetrics,
     shipments: List[DistributorShipment],
     depot: GeoPoint,
-    weights: StrategyWeights,
+    weights: ObjectiveWeights,
     hubs: List[FreightHub] = None,
     parallel: Optional[RouteMetrics] = None,
 ) -> CrossDockDecision:

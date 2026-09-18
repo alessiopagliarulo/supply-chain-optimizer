@@ -282,8 +282,7 @@ def post_graph_simulate(body: SimulateRequest):
             "a different scale from p10/p50/p90, which are fulfillment fractions in "
             "[0, 1]; a cvar_95 of 1.15 is not '115% fulfillment'.",
             "Disruption probabilities are an assumption from a cited FIRM-level base "
-            "rate applied per supplier; see p_disruption_calibration on /graph/metrics "
-            "and GET /stochastic/calibration to vary it.",
+            "rate applied per supplier; see p_disruption_calibration on /graph/metrics.",
             "Single-round percolation: no time dimension, no propagation between "
             "nodes, no recovery.",
         ],

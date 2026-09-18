@@ -1,14 +1,11 @@
 """
-Stage 2 — Pickup TSP over the distributors selected by Stage 1.
+Pickup TSP over a set of distributor stops.
 
 WHAT THIS IS, EXACTLY: a single-vehicle, uncapacitated, SYMMETRIC
 Travelling Salesman Problem. One vehicle leaves the depot, visits every
 selected distributor exactly once, and returns. There is no capacity
 dimension, no time window, no demand dimension and no second vehicle — so
-this is a TSP, not a VRP, even though the endpoint that ultimately calls it
-is named ``POST /api/v1/optimize/vrp``. That route name is historical and is
-kept deliberately so the public API does not break; it is not a claim about
-the model.
+this is a TSP, not a VRP.
 
 The matrix is great-circle (haversine) distance rounded to integer metres,
 so d(i, j) == d(j, i) by construction. That makes it a SYMMETRIC TSP.

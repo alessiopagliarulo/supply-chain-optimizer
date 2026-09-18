@@ -2,34 +2,29 @@
 
 This page is the reading path so you don't have to open all of them.
 
+> The sourcing-optimizer docs (CVaR efficient frontier, MILP-vs-greedy benchmark, volume
+> curve, diversification frontier, optimization design) were removed with that code and
+> are preserved at git tag `archive/sourcing-v1`. Docs below that still mention the
+> sourcing MILP or stochastic program describe that archived work.
+
 - **[OUTSTANDING_WORK.md](OUTSTANDING_WORK.md)** — the live backlog and the source of truth for
   item status, the completion criteria, and the standing gates.
 
-## Start here (top 5)
+## Start here (top 4)
 
 1. **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — the one-sentence pitch and the
    numbers behind it; everything in it is reproducible from a script in the repo.
 2. **[MODEL_CI.md](MODEL_CI.md)** — the CI gates that exist because each one
    caught a defect that actually shipped; shows the ML pipeline is checked, not
    just tested for "did it run."
-3. **[CVAR_EFFICIENT_FRONTIER.md](CVAR_EFFICIENT_FRONTIER.md)** — the cost-vs-risk
-   tradeoff curve (OR-Tools CP-SAT), with run provenance (commit, input hashes,
-   hardware) attached to the artifact rather than typed by hand.
-4. **[DATA_PROVENANCE.md](DATA_PROVENANCE.md)** — where every external dataset
+3. **[DATA_PROVENANCE.md](DATA_PROVENANCE.md)** — where every external dataset
    actually comes from, its license, and an honest account of what's live vs. a
    static snapshot.
-5. **[RESEARCH_TECHNIQUES.md](RESEARCH_TECHNIQUES.md)** — a literature-checked
+4. **[RESEARCH_TECHNIQUES.md](RESEARCH_TECHNIQUES.md)** — a literature-checked
    backlog of statistical/OR techniques, each scored on whether this project's
    real data can actually support it (including a "do not build" list).
 
 ## Then, grouped by theme
-
-### Optimization / OR
-
-- **[OPTIMIZATION_DESIGN.md](OPTIMIZATION_DESIGN.md)** — the design doc for the
-  sourcing + routing + cross-dock system (dated 2026-04-10, marked draft; read
-  as the original design rationale, not current status).
-- **[CVAR_EFFICIENT_FRONTIER.md](CVAR_EFFICIENT_FRONTIER.md)** — see above.
 
 ### ML & forecasting evidence
 
@@ -53,17 +48,8 @@ This page is the reading path so you don't have to open all of them.
 
 - **[DATA_PROVENANCE.md](DATA_PROVENANCE.md)** — see above.
 
-### Benchmarks & results
+### Impact
 
-- **[BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md)** — generated MILP-vs-greedy
-  sourcing comparison across BOMs; curated prose/caveats live inside marked
-  regions and survive regeneration.
-- **[BENCHMARK_VOLUME_CURVE.md](BENCHMARK_VOLUME_CURVE.md)** — traces a single
-  headline benchmark number back to the volume sweep that produced it, and the
-  freight-cost bug the investigation exposed.
-- **[DIVERSIFICATION_FRONTIER.md](DIVERSIFICATION_FRONTIER.md)** — how much tail
-  risk a second and third supplier actually buy, generated from
-  `diversification_frontier.json`.
 - **[IMPACT_FRAMING.md](IMPACT_FRAMING.md)** — how each dollar figure quoted
   elsewhere in the project is derived, and what each one does and does not
   license you to claim.
@@ -98,9 +84,8 @@ the index accounts for every file, but skip them on a first read:
 
 `screenshots/` (UI screenshots referenced from other docs) and the raw
 generated data files (`*.json` alongside their corresponding `*.md` — e.g.
-`cvar_frontier.json`, `benchmark_results.json`, `forecast_backtest.json`,
-`chronos_benchmark.json`, `intermittent_demand.json`, `leakage_progression.json`,
-`volume_sweep.json`, `backend_verification.json`) are data/asset artifacts, not
+`forecast_backtest.json`, `chronos_benchmark.json`, `intermittent_demand.json`,
+`leakage_progression.json`, `newsvendor.json`, `backend_verification.json`) are data/asset artifacts, not
 reading material — each is linked from its corresponding `.md` file where
 relevant.
 

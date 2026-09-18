@@ -205,35 +205,3 @@ def test_bare_solve_pickup_tsp_still_returns_just_the_order():
     assert solve_pickup_tsp(DEPOT_SC, nodes) == solve_pickup_tsp_detailed(DEPOT_SC, nodes).order
 
 
-def test_the_vrp_response_carries_the_routing_method_per_alternative():
-    """`POST /optimize/vrp` must be able to say, per alternative, which solver
-    produced the tour and whether it is proven — otherwise "optimal route" is a
-    word on a screen with no field behind it."""
-    from app.optimization.solve import DistributorMeta, optimize_bom
-    from app.optimization.sourcing import BomLine, Offer
-
-    bom = [
-        BomLine(component_id=1, mpn="PART-A", quantity=100),
-        BomLine(component_id=2, mpn="PART-B", quantity=50),
-    ]
-    offers = [
-        Offer(1, 10, "EastCoastPrime", price_usd=1.20, stock=500, moq=1, is_domestic=True),
-        Offer(1, 20, "SoutheastMid", price_usd=2.60, stock=500, moq=1, is_domestic=True),
-        Offer(2, 10, "EastCoastPrime", price_usd=5.00, stock=500, moq=1, is_domestic=True),
-        Offer(2, 20, "SoutheastMid", price_usd=2.50, stock=500, moq=1, is_domestic=True),
-    ]
-    distributors = {
-        10: DistributorMeta(10, "EastCoastPrime", 35.7796, -78.6382, "Raleigh", "NC", "USA", True, "major"),
-        20: DistributorMeta(20, "SoutheastMid", 33.7490, -84.3880, "Atlanta", "GA", "USA", True, "mid"),
-    }
-
-    resp = optimize_bom(bom, offers, distributors, DEPOT_SC)
-    for alt in resp.alternatives:
-        info = alt.routing_solver
-        assert info is not None, f"{alt.id} carries no routing_solver provenance"
-        assert info.method == METHOD_EXACT
-        assert info.proven_optimal is True
-        assert info.tours_enumerated >= 1
-        # The tour this describes is the DOMESTIC truck tour only.
-        domestic_stops = [s for s in alt.route if s.distributor_id in distributors]
-        assert info.stop_count == len(domestic_stops)

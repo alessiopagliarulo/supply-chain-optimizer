@@ -4,8 +4,7 @@
 `frontend/scripts/build-landing-data.mjs` from the committed artifacts and then committed
 itself. That buys instant first paint, but it reintroduces the exact hazard this repo has
 shipped twice: a figure that lives in the frontend and drifts away from the artifact it
-claims to describe (`frontend/src/lib/volumeDecayCurveData.ts` is the surviving example of
-the hand-transcribed pattern).
+claims to describe.
 
 The generator alone is not a guard. A generated file can be hand-edited, or left stale
 while the artifact under it is regenerated, and nothing would notice — the build would
@@ -14,9 +13,11 @@ still be green because the build only reads the committed file.
 So these tests re-derive every published value straight from the artifacts and the tracked
 DB and compare. They fail if:
   - anyone edits a number in the generated file by hand,
-  - an artifact is regenerated and the generated file is not,
-  - an artifact is regenerated from a dirty tree and reaches the page anyway,
-  - the retracted 47.25% "naive baseline" figure is published as the optimizer's edge.
+  - an artifact is regenerated and the generated file is not.
+
+The sourcing-optimizer figures this page used to carry (cost edge, CVaR leverage,
+diversification shortfall, CP-SAT solve quality) were removed with that optimizer; see
+git tag `archive/sourcing-v1`.
 
 To see them fail on purpose: change any `"value"` in landingData.ts and run this file.
 """
@@ -59,12 +60,10 @@ def _load_generated() -> dict:
         m = re.search(rf"\n  {key}: (\d+),", src)
         assert m, f"generated module has no catalogue.{key} — regenerate it"
         counts[key] = int(m.group(1))
-    caveat = json.loads(re.search(r"export const naiveBaselineCaveat = (\".*\")\n", src).group(1))
     return {
         "stats": {s["id"]: s for s in array("landingStats")},
         "proof": array("landingProofPoints"),
         "catalogue": counts,
-        "caveat": caveat,
     }
 
 
@@ -75,18 +74,6 @@ def _artifact(name: str) -> dict:
 @pytest.fixture(scope="module")
 def generated() -> dict:
     return _load_generated()
-
-
-def test_cost_edge_matches_benchmark_artifact(generated):
-    """The headline is the matched-pool comparison, not the naive-baseline one."""
-    expected = abs(_artifact("benchmark_results.json")["headline"]["primary_save_pct"])
-    assert generated["stats"]["cost-edge"]["value"] == pytest.approx(expected, abs=TOL)
-
-
-def test_cvar_leverage_matches_frontier_artifact(generated):
-    knee = _artifact("cvar_frontier.json")["primary"]["x10000"]["knee"]
-    expected = knee["vs_risk_neutral"]["usd_of_cvar_removed_per_usd_of_expected_cost"]
-    assert generated["stats"]["cvar-leverage"]["value"] == pytest.approx(expected, abs=TOL)
 
 
 def test_forecast_mape_matches_backtest_artifact(generated):
@@ -103,13 +90,6 @@ def test_wape_reduction_is_the_stated_formula(generated):
     stat = generated["stats"]["wape-reduction"]
     assert stat["value"] == pytest.approx(expected, abs=TOL)
     assert stat.get("derived") is True, "a derived number must be labelled derived on the page"
-
-
-def test_shortfall_matches_diversification_frontier(generated):
-    frontier = _artifact("diversification_frontier.json")["frontier"]
-    k4 = next(row for row in frontier if row["k"] == 4)
-    expected = k4["delta_targeted_expected_shortfall_vs_k1"]["mean"] * 100
-    assert generated["stats"]["shortfall"]["value"] == pytest.approx(expected, abs=TOL)
 
 
 def test_inference_latency_matches_chronos_artifact(generated):
@@ -186,59 +166,6 @@ def test_the_offers_are_never_described_as_live(generated):
 
     row = next(p for p in generated["proof"] if "catalogue" in p["label"].lower())
     assert "snapshot" in row["detail"].lower(), "the static vintage must be stated, not implied"
-
-
-def test_solve_quality_proof_point_matches_artifact(generated):
-    """"Converged" and "proved optimal" are different counts — publish both, conflate neither.
-
-    The artifact's own rule: converged := status == OPTIMAL (gap closed to zero) OR
-    mip_gap_pct <= 5. Of 387 solves, 337 are OPTIMAL and 347 converged. The page briefly
-    published 347 under the label "proved optimal", overstating the stronger claim by ten
-    solves. This test exists so that cannot recur.
-    """
-    sq = _artifact("cvar_frontier.json")["solve_quality"]
-    row = next(p for p in generated["proof"] if "CP-SAT" in p["label"])
-
-    assert row["value"] == f"{sq['n_converged']} of {sq['n_solves']}"
-
-    n_optimal = sq["counts_by_status"]["OPTIMAL"]
-    if n_optimal != sq["n_converged"]:
-        assert "proved optimal" not in row["label"], (
-            f"label claims {sq['n_converged']} were proved optimal, but only {n_optimal} were"
-        )
-        assert str(n_optimal) in row["detail"], (
-            "when converged > proved-optimal, the page must state the proved-optimal count too"
-        )
-        assert str(sq["convergence_gap_threshold_pct"]).rstrip("0").rstrip(".") in row["detail"], (
-            "the gap tolerance that admitted the extra solves must be stated"
-        )
-
-    assert str(sq["n_not_converged"]) in row["detail"], (
-        "the excluded non-converged solves must stay visible, not be quietly dropped"
-    )
-
-
-def test_reproduction_proof_point_matches_artifact(generated):
-    check = _artifact("diversification_frontier.json")["run5_reproduction_check"]
-    row = next(p for p in generated["proof"] if "reproduced" in p["label"])
-    assert row["value"] == f"{check['matched']} of {check['checked']}"
-
-
-def test_published_artifacts_were_generated_from_a_clean_tree(generated):
-    """A dirty-tree artifact cannot be traced to a commit, so it must not reach the page."""
-    for name in ("cvar_frontier.json", "diversification_frontier.json"):
-        dirty = _artifact(name).get("provenance", {}).get("git", {}).get("dirty")
-        assert dirty is False, f"docs/{name} stamps provenance.git.dirty={dirty}"
-
-
-def test_the_retracted_naive_baseline_figure_is_not_published_as_the_edge(generated):
-    """47.25% was once published as the optimizer's edge. It is not. It stays caveated."""
-    for stat in generated["stats"].values():
-        assert abs(stat["value"] - 47.25) > 0.01, (
-            f"stat {stat['id']} publishes the retracted naive-baseline figure"
-        )
-    assert "naive" in generated["caveat"].lower()
-
 
 
 def test_the_generator_is_deterministic_and_the_committed_file_is_current():

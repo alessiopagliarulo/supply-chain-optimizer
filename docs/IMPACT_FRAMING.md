@@ -1,5 +1,10 @@
 # Dollar-Denominated Impact Framing (P3)
 
+> **Sourcing work archived.** The sourcing optimizer this document refers to (CP-SAT
+> sourcing MILP, two-stage stochastic program / CVaR frontier, MILP-vs-greedy benchmark)
+> and the docs/artifacts it cites were removed from `main` and are preserved at git tag
+> `archive/sourcing-v1`. The repo is being rebuilt as a logistics/routing engine.
+
 Every abstract metric in this project is paired with a concrete financial
 interpretation. This note documents how each dollar figure is derived, so the
 numbers can be defended in an interview. **Real-data rule:** no dollar figure is
@@ -54,7 +59,7 @@ an assumption:
   the sum of each line's average real distributor offer price. Nothing there is
   assumed.
 - **The probability side is calibrated, not proxied.** `backend/app/graph/simulation.py`
-  now calls `build_failure_probabilities` (`backend/app/optimization/stochastic.py`),
+  now calls `build_failure_probabilities` (`backend/app/graph/disruption.py`),
   which anchors to a cited base rate — McKinsey Global Institute (Aug 2020):
   disruptions lasting a month or longer roughly every 3.7 years — converted to an
   annual Poisson rate and then to a probability over a 60-day purchase-order
@@ -69,9 +74,10 @@ an assumption:
   assumption, not a measurement: the McKinsey rate is firm-level, not per-supplier,
   so applying it to one distributor is almost certainly too high; and nothing
   establishes that centrality actually predicts disruption likelihood at all (the
-  code names this explicitly and ships the `spread=1.0` arm because of it). See
-  [`CVAR_EFFICIENT_FRONTIER.md`](CVAR_EFFICIENT_FRONTIER.md) for the full
-  calibration table and the sensitivity sweep.
+  code names this explicitly and ships the `spread=1.0` arm because of it). The
+  calibration lives in `backend/app/graph/disruption.py`; the full calibration table
+  and sensitivity sweep were in the CVaR frontier doc, archived at git tag
+  `archive/sourcing-v1`.
 
 ---
 

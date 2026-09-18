@@ -1,9 +1,8 @@
 """
 Freight cost + carbon + holding cost model.
 
-All constants are cited from published industry sources. See
-docs/OPTIMIZATION_DESIGN.md §5.1 for full
-references.
+All constants are cited from published industry sources; the citations sit
+beside each constant (here and in constants.py).
 """
 from __future__ import annotations
 
@@ -67,15 +66,15 @@ AVG_COMPONENT_KG = 0.05
 #                2013 SmartWay figure. RESOLVED 2026-09-03: the value is kept
 #                and every published label now names the 2013 SmartWay technical
 #                documentation and the EDF handbook as the route by which it is
-#                cited (constants.py, solve.py citations, OPTIMIZATION_DESIGN.md).
+#                cited (constants.py).
 #
-#   AIR (GLEC)   ``solve.CO2_AIR_KG_PER_KG_KM = 0.0005`` is 0.5 kg CO2e per
+#   AIR (GLEC)   ``CO2_AIR_KG_PER_KG_KM = 0.0005`` (archived sourcing
+#                orchestrator, tag ``archive/sourcing-v1``) is 0.5 kg CO2e per
 #                METRIC tonne-km. IATA/GLEC air factors are metric, so that one
 #                needs no conversion — kg/kg-km is dimensionless in mass.
 #                Relabelled 2026-09-03 from "ICAO 2023" to GLEC Framework v3.2
 #                (long-haul dedicated-freighter tank-to-wheel, 503 g CO2e/
-#                tonne-km); ICAO publishes no static air-freight table. See the
-#                attribution note above ``solve.CO2_AIR_KG_PER_KG_KM``.
+#                tonne-km); ICAO publishes no static air-freight table.
 #
 # Dividing weight_kg by 1000 here (i.e. treating the EPA factor as per metric
 # tonne) under-charges every truck leg by 9.28% of the correct value.

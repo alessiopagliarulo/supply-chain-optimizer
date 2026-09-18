@@ -5,10 +5,8 @@ Tasks 1-5: Distributor failure, geopolitical risk, delivery-target scenarios.
 Follows TDD RED → GREEN → REFACTOR cycle.
 """
 import pytest
-import json
 from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.models.scenario import ScenarioCache
 from app.models.distributor import Distributor

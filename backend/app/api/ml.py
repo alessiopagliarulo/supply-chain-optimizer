@@ -171,7 +171,7 @@ def _sanitized(value: Any) -> Any:
 
 #: DISPLAY BANDS for ``stress_level``. A REPORTING CONVENTION, not a decision rule
 #: and not a calibrated threshold: the optimizer consumes the PROBABILITY directly
-#: and never reads this label (``sourcing.py::_stockout_risk_premium_obj_units``). They
+#: and never reads this label. They
 #: exist so a reader gets a word next to a number — and ``stress_level == "high"``
 #: is the only thing that flips the "expect extended lead times" sentence.
 #:
@@ -286,8 +286,7 @@ class StressResponse(BaseModel):
     #: True when the frame is older than `max_observation_age_days`. REPORTED
     #: ONLY — it does not change what the optimizer does with the reading: a
     #: stale frame still prices a full surcharge. Whether it should is an owner
-    #: decision, deliberately not taken (see app/optimization/sourcing.py, the
-    #: `macro_stress = _ml.current_stress_prob` line).
+    #: decision, deliberately not taken.
     vintage_is_stale: Optional[bool] = None
     max_observation_age_days: int = STRESS_FRAME_MAX_AGE_DAYS
     #: Pre-rendered, one line, safe to print verbatim next to the percentage.

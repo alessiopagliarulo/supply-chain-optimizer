@@ -211,8 +211,6 @@ class Verifier:
 
         # --- forecasting / benchmarks -------------------------------------
         self.check("demand benchmark", "GET", "/demand/benchmark", self.always_ok)
-        self.check("benchmark summary", "GET", "/benchmark/summary", self.keys_present("n_boms"))
-        self.check("cascade heatmap", "GET", "/benchmark/cascade-heatmap", self.always_ok)
         self.check("fiedler curve", "GET", "/benchmark/fiedler-curve", self.always_ok)
         self.check("single-source parts", "GET", "/benchmark/single-source-components", self.always_ok)
 
@@ -220,9 +218,6 @@ class Verifier:
         self.check("graph metrics", "GET", "/graph/metrics", self.always_ok)
         if ids:
             self.check("graph simulate", "POST", "/graph/simulate", self.always_ok, {"bom_component_ids": ids})
-
-        # --- optimisation --------------------------------------------------
-        self.check("hub list", "GET", "/optimize/hubs", self.nonempty_list())
 
         # --- resilience ------------------------------------------------------
         if ids and dist_id:
@@ -239,14 +234,6 @@ class Verifier:
                 ("sensitivity", "/resilience/sensitivity", {"bom_component_ids": ids, "metric": "cost"}),
             ]:
                 self.check(name, "POST", path, self.always_ok, body)
-
-        # --- stochastic programme ---------------------------------------------
-        self.check("stochastic calibration", "GET", "/stochastic/calibration", self.always_ok)
-        if ids:
-            self.check(
-                "CVaR frontier", "POST", "/stochastic/frontier", self.always_ok,
-                {"items": [{"component_id": cid, "quantity": 100} for cid in ids[:3]]},
-            )
 
         # --- live pricing -------------------------------------------------------
         if mpn:
@@ -265,10 +252,6 @@ class Verifier:
                 {"component_id": ids[0], "distributor_id": dist_id, "quantity": 10},
                 expect_status=201,
             )
-
-        # VRP optimises whatever is in the cart, so it only means anything
-        # once the cart round trip above has put something there.
-        self.check("VRP solve", "POST", "/optimize/vrp", self.always_ok, {})
 
         # --- external feeds ---------------------------------------------------------
         # Feeds legitimately report "inactive" when a key is absent; that is an
