@@ -55,6 +55,7 @@ def solve_cpsat(
     instance: VrpInstance,
     time_limit_seconds: float = 10.0,
     num_workers: int = 1,
+    random_seed: int = 42,
 ) -> VrpSolution:
     """Solve ``instance`` exactly (up to the time limit) with CP-SAT."""
     t0 = time.perf_counter()
@@ -108,6 +109,7 @@ def solve_cpsat(
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_seconds)
     solver.parameters.num_workers = int(num_workers)
+    solver.parameters.random_seed = int(random_seed)
     status = solver.solve(model)
     wall = time.perf_counter() - t0
 
