@@ -1,222 +1,76 @@
 /**
- * Public, no-login landing page at `/`.
+ * Public landing page at `/`: what the app is and a link to each of its three pages.
  *
- * Renders with ZERO network requests: every number on this page is imported from
- * `generated/landingData.ts`, a build-time artifact read out of committed JSON/DB
- * files (see scripts/build-landing-data.mjs and its backend contract test). This
- * component must never import services/api, store/authStore, or anything that
- * transitively touches the network — that is the entire point of the page existing
- * outside ProtectedLayout and PublicOnly.
+ * Renders with ZERO network requests - it must work while the free-tier API is still
+ * asleep. main.tsx skips the warm-up ping on this route for the same reason, so this
+ * component must never import services/api or anything that touches the network.
  */
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  Boxes,
-  CheckCircle2,
-  Database,
-  Gauge,
-  TrendingDown,
-  Warehouse,
-} from 'lucide-react';
-import {
-  landingStats,
-  landingProofPoints,
-  catalogue,
-  type LandingStat,
-} from '../generated/landingData';
+import { ArrowRight, BarChart3, Route, Timer, type LucideIcon } from 'lucide-react';
 
-/** Small, tasteful rounding for display only — the underlying value is untouched. */
-function formatStatValue(stat: LandingStat): string {
-  const { value, unit } = stat;
-  // Values already carry deliberate precision (e.g. 4.266×, 2.24 ms); round to a
-  // reasonable display precision without ever re-deriving the number.
-  const decimals = Number.isInteger(value) ? 0 : Math.abs(value) >= 10 ? 1 : 2;
-  return `${value.toFixed(decimals)}${unit}`;
+interface Destination {
+  to: string;
+  title: string;
+  body: string;
+  icon: LucideIcon;
 }
 
-const STAT_ICONS: Record<string, typeof Gauge> = {
-  'forecast-mape': Gauge,
-  'wape-reduction': TrendingDown,
-  latency: Gauge,
-};
-
-function StatCard({ stat, index }: { stat: LandingStat; index: number }) {
-  const Icon = STAT_ICONS[stat.id] ?? Gauge;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.4, delay: index * 0.05 }}
-      className="bg-slate-800/70 border border-slate-700 rounded-xl p-6 backdrop-blur-sm flex flex-col gap-3"
-    >
-      <div className="flex items-center gap-2 text-blue-400">
-        <Icon size={18} aria-hidden="true" />
-        <span className="text-3xl font-bold text-white tracking-tight tabular-nums">
-          {formatStatValue(stat)}
-        </span>
-      </div>
-      <p className="text-slate-200 text-sm font-medium leading-snug">{stat.label}</p>
-      <p className="text-slate-400 text-xs leading-relaxed">{stat.detail}</p>
-      <p className="text-slate-500 text-[11px] font-mono mt-auto pt-2 border-t border-slate-700/60 break-all">
-        {stat.source}
-      </p>
-    </motion.div>
-  );
-}
+const PAGES: Destination[] = [
+  {
+    to: '/route-plan',
+    title: 'Route Plan',
+    body: 'Solve a capacitated vehicle routing problem with time windows on a built-in Solomon instance or your own customer CSV, and see every route on an x/y plot.',
+    icon: Route,
+  },
+  {
+    to: '/simulation',
+    title: 'Simulation',
+    body: 'Run the plan through a discrete-event simulation with random travel and service times, then tune schedule and capacity buffers against it.',
+    icon: Timer,
+  },
+  {
+    to: '/benchmarks',
+    title: 'Benchmarks',
+    body: 'Compare the exact CP-SAT model, Clarke-Wright savings and OR-Tools routing on the Solomon benchmark set against the best-known solutions.',
+    icon: BarChart3,
+  },
+];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200">
-      {/* ── Minimal header — deliberately NOT NavBar, which reads auth state ── */}
-      <header className="border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white font-semibold">
-            <Warehouse size={20} className="text-blue-400" aria-hidden="true" />
-            Electronics Supply Chain Optimizer
-          </div>
-          <Link
-            to="/login"
-            className="text-sm font-medium text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </header>
-
-      <main>
-        {/* ── Hero ─────────────────────────────────────────────────────── */}
-        <section className="max-w-6xl mx-auto px-6 pt-16 pb-12 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <span className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-medium px-3 py-1 rounded-full mb-6">
-              <Database size={12} aria-hidden="true" />
-              {catalogue.partsPriced.toLocaleString()} priced parts &middot;{' '}
-              {catalogue.distributorsQuoting} distributors &middot;{' '}
-              {catalogue.offers.toLocaleString()} offers
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight max-w-3xl mx-auto">
-              Supply-chain analytics on real electronic-component data
-            </h1>
-            <p className="text-slate-400 text-lg mt-5 max-w-2xl mx-auto leading-relaxed">
-              Supplier-network disruption analysis, Monte Carlo risk simulation, and a Prophet
-              demand forecaster run over a real catalogue of {catalogue.parts} electronic components,{' '}
-              {catalogue.partsPriced} of which are priced by {catalogue.distributorsQuoting}{' '}
-              distributors &mdash; a static 2024 Nexar/Octopart snapshot, not synthetic data and
-              not a live feed.
-            </p>
-            <div className="flex flex-col items-center gap-2 mt-8">
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-              >
-                Try the live app &mdash; demo credentials included
-                <ArrowRight size={18} aria-hidden="true" />
-              </Link>
-              <p className="text-slate-500 text-xs">
-                Free-tier backend; first load can take up to a minute to wake.
-              </p>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* ── Headline stats ───────────────────────────────────────────── */}
-        <section className="max-w-6xl mx-auto px-6 py-10">
-          <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-slate-500 mb-6">
-            Every number below traces to a committed artifact
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {landingStats.map((stat, i) => (
-              <StatCard key={stat.id} stat={stat} index={i} />
-            ))}
-          </div>
-        </section>
-
-        {/* ── Proof points ─────────────────────────────────────────────── */}
-        <section className="max-w-6xl mx-auto px-6 py-10">
-          <h2 className="text-center text-2xl font-bold text-white mb-2">
-            Verified, not asserted
-          </h2>
-          <p className="text-center text-slate-400 text-sm mb-8 max-w-xl mx-auto">
-            The credibility of an analysis is in what got checked, not what got claimed.
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-20 flex flex-col gap-10">
+        <header className="flex flex-col gap-4">
+          <p className="text-sm font-semibold text-blue-400">
+            SupplyChain<span className="text-white">IQ</span>
           </p>
-          <div className="grid grid-cols-1 gap-4 max-w-2xl mx-auto">
-            {landingProofPoints.map((point, i) => (
-              <motion.div
-                key={point.label}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ duration: 0.4, delay: i * 0.05 }}
-                className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 flex gap-4"
-              >
-                <CheckCircle2 size={20} className="text-emerald-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xl font-bold text-white tabular-nums">{point.value}</span>
-                    <span className="text-slate-200 text-sm font-medium">{point.label}</span>
-                  </div>
-                  <p className="text-slate-400 text-xs leading-relaxed">{point.detail}</p>
-                  <p className="text-slate-500 text-[11px] font-mono mt-1 break-all">{point.source}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Catalogue callout ─────────────────────────────────────────── */}
-        <section className="max-w-6xl mx-auto px-6 py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.4 }}
-            className="bg-slate-800/70 border border-slate-700 rounded-xl p-6 backdrop-blur-sm flex flex-col sm:flex-row items-center gap-4 sm:gap-8 justify-center text-center sm:text-left"
-          >
-            <Boxes size={28} className="text-indigo-400 flex-shrink-0" aria-hidden="true" />
-            <p className="text-slate-300 text-sm leading-relaxed">
-              <span className="text-white font-semibold">
-                {catalogue.parts} parts &middot; {catalogue.distributors} distributors &middot;{' '}
-                {catalogue.offers.toLocaleString()} offers.
-              </span>{' '}
-              Read from <code className="font-mono text-slate-400">backend/supply_chain.db</code> &mdash;
-              the same database the live API serves. Where real pricing or supplier data doesn&apos;t
-              exist, the app says so instead of filling the gap.
-            </p>
-          </motion.div>
-        </section>
-
-        {/* ── CTA ──────────────────────────────────────────────────────── */}
-        <section className="max-w-6xl mx-auto px-6 pt-6 pb-20 text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">See it running on real data</h2>
-          <p className="text-slate-400 text-sm max-w-xl mx-auto mb-6">
-            Sign in with the published demo account to browse the catalogue, build a BOM, and
-            stress-test it against supplier disruptions yourself.
+          <h1 className="text-3xl sm:text-4xl font-semibold text-white leading-tight">
+            Vehicle routing with time windows, stress-tested by simulation
+          </h1>
+          <p className="text-base text-slate-400 leading-relaxed max-w-2xl">
+            Plan delivery routes that respect vehicle capacity and every customer's time window, see how
+            the plan holds up when travel and service times vary, and check the solvers against the
+            standard benchmark instances.
           </p>
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-          >
-            Open the app
-            <ArrowRight size={18} aria-hidden="true" />
-          </Link>
-          <p className="text-slate-500 text-xs mt-3">
-            Demo login: <code className="font-mono">demo@example.com</code> / <code className="font-mono">demo</code>
-            {' '}&mdash; free-tier backend, first load may take up to a minute.
-          </p>
-        </section>
-      </main>
+        </header>
 
-      <footer className="border-t border-slate-800">
-        <div className="max-w-6xl mx-auto px-6 py-6 text-center text-slate-600 text-xs">
-          Built with FastAPI, Prophet, and React &mdash; every figure on this page
-          traces to a committed artifact, not a slide.
-        </div>
-      </footer>
-    </div>
+        <nav aria-label="Pages" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PAGES.map(({ to, title, body, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="group bg-slate-900 border border-slate-800 hover:border-blue-500 rounded-xl p-5 flex flex-col gap-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            >
+              <Icon className="w-6 h-6 text-blue-400" aria-hidden="true" />
+              <span className="text-lg font-semibold text-white flex items-center gap-2">
+                {title}
+                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors" aria-hidden="true" />
+              </span>
+              <span className="text-sm text-slate-400 leading-relaxed">{body}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </main>
   );
 }

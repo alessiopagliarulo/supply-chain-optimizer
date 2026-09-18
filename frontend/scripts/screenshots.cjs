@@ -2,10 +2,10 @@
 //
 // WHY THIS EXISTS
 // ---------------
-// `docs/screenshots/current/` holds a genuinely thorough walkthrough: 23 shots
-// covering login, dashboard, scheduler, live pricing, cart, checkout, benchmark,
-// all four resilience scenarios, the map, the model card, error states and three
-// mobile viewports. Every one of them is dated **2026-08-17**.
+// `docs/screenshots/current/` once held a thorough walkthrough of the sourcing-era
+// app (login, dashboard, cart, resilience, model card...), every shot dated
+// **2026-08-17**. Since issue #16 the app is three pages - Route Plan, Simulation,
+// Benchmarks - plus a landing page, and SHOTS below covers exactly those.
 //
 // A directory named `current/` that is three weeks stale is worse than no
 // directory: its own `_problems.json` still records "app has no dedicated 404
@@ -53,15 +53,25 @@ const MOBILE = { width: 390, height: 844 };
 
 /** @type {{name:string, route:string, viewport?:object, full?:boolean, settle?:number, prepare?:Function}[]} */
 const SHOTS = [
-  { name: '01-login', route: '/login', login: false },
-  { name: '02-dashboard', route: '/dashboard' },
-  { name: '03a-scheduler-list', route: '/components' },
-  { name: '05a-cart', route: '/cart' },
-  { name: '08a-resilience', route: '/resilience', settle: 20000, full: true },
-  { name: '10-model-card', route: '/model-card', settle: 20000, full: true },
-  { name: '12-newsvendor', route: '/newsvendor', settle: 30000, full: true },
-  { name: '13a-mobile-dashboard', route: '/dashboard', viewport: MOBILE },
-  { name: '13c-mobile-resilience', route: '/resilience', viewport: MOBILE, settle: 20000 },
+  { name: '01-landing', route: '/' },
+  { name: '02-route-plan', route: '/route-plan', full: true,
+    prepare: async page => {
+      await page.getByRole('button', { name: /^Solve$/ }).click({ timeout: 60000 });
+      await page.getByText('Route 1', { exact: true }).first().waitFor({ state: 'visible', timeout: 60000 });
+    } },
+  // Uses the plan the previous shot solved (kept in sessionStorage), or solves the
+  // first built-in sample when run on its own (ONLY=simulation).
+  { name: '03-simulation', route: '/simulation', full: true, settle: 60000,
+    prepare: async page => {
+      const sample = page.getByRole('button', { name: /Solve and use this sample/ });
+      if (await sample.count()) await sample.click({ timeout: 60000 });
+      await page.getByRole('button', { name: /^Run simulation$/ }).click({ timeout: 60000 });
+      await page.getByText('On-time rate', { exact: true }).first().waitFor({ state: 'visible', timeout: 60000 });
+      await page.getByRole('button', { name: /^Tune buffers$/ }).click({ timeout: 60000 });
+      await page.getByText('Chosen buffers', { exact: true }).first().waitFor({ state: 'visible', timeout: 120000 });
+    } },
+  { name: '04-benchmarks', route: '/benchmarks', full: true },
+  { name: '05-mobile-route-plan', route: '/route-plan', viewport: MOBILE },
 ];
 
 const problems = [];
@@ -79,28 +89,9 @@ function note(msg) { console.log(msg); }
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200)); });
   page.on('pageerror', e => consoleErrors.push(String(e).slice(0, 200)));
 
-  // Log in once. Everything except /login renders behind the auth guard, so a
-  // failure here would otherwise produce fourteen screenshots of the login page.
   note(`base: ${BASE}`);
-  note('logging in via the demo button…');
-  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  const loginShot = SHOTS.find(s => s.name === '01-login');
-  if (!ONLY.length || ONLY.some(o => loginShot.name.includes(o))) {
-    await page.waitForTimeout(2500);
-    await page.screenshot({ path: path.join(OUT, '01-login.png') });
-    taken.push('01-login');
-  }
-  await page.getByRole('button', { name: /demo login/i }).click({ timeout: 60000 });
-  await page.waitForTimeout(6000);
-  if (/\/login\b/.test(page.url())) {
-    console.error('::error:: demo login did not navigate away from /login — aborting.');
-    await browser.close();
-    process.exit(1);
-  }
-  note('logged in.');
 
   for (const shot of SHOTS) {
-    if (shot.login === false) continue;
     if (ONLY.length && !ONLY.some(o => shot.name.includes(o) || shot.route.includes(o))) continue;
 
     const vp = shot.viewport || DESKTOP;
@@ -111,6 +102,13 @@ function note(msg) { console.log(msg); }
     process.stdout.write(`  ${shot.name.padEnd(24)} ${shot.route} … `);
     await page.goto(BASE + shot.route, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForTimeout(3000);
+    if (shot.prepare) {
+      try {
+        await shot.prepare(page);
+      } catch (e) {
+        problems.push(`${shot.name}: prepare step failed: ${String(e).split('\n')[0]}`);
+      }
+    }
 
     // Wait for the page to stop saying it is working. Every long-running view in
     // this app renders an explicit progress string rather than an empty frame.
@@ -167,6 +165,23 @@ function note(msg) { console.log(msg); }
     });
 
     const file = path.join(OUT, `${shot.name}.png`);
+    // Every page scrolls inside its own `overflow-y-auto` container under a fixed
+    // nav, so `fullPage` alone captures one viewport of it. For a full shot, grow
+    // the viewport to the container's content height and scroll it back to the top.
+    if (shot.full) {
+      const extra = await page.evaluate(() => {
+        const s = [...document.querySelectorAll('body *')]
+          .filter(e => e.scrollHeight > e.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(e).overflowY))
+          .sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!s) return 0;
+        s.scrollTop = 0;
+        return s.scrollHeight - s.clientHeight;
+      });
+      if (extra > 0) {
+        await page.setViewportSize({ width: vp.width, height: vp.height + extra });
+        await page.waitForTimeout(800);
+      }
+    }
     await page.screenshot({ path: file, fullPage: !!shot.full });
     taken.push(shot.name);
 

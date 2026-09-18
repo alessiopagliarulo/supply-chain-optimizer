@@ -74,40 +74,30 @@ Frontend ready at: http://localhost:5173
 
 ---
 
-## 4. Log in with the demo account
+## 4. Open the app
 
-1. Open http://localhost:5173
-2. Click **"Demo Login"** — no signup required
-3. You're in as *Greenville Advanced Manufacturing* (Greenville, SC)
-
-Demo credentials (if using manual login):
-- Email: `demo@example.com`
-- Password: `demo` *(after registering; Demo Login button is easier)*
-
-The **Demo Login** button mints a private, throwaway demo account per visitor, so two
-people clicking through at the same time never see each other's cart. The
-`demo@example.com` credentials above sign you into the shared template account that
-those private carts are copied from — fine solo, but everyone using it shares one cart.
+Open http://localhost:5173. There is no login; the landing page links to the three pages.
 
 ---
 
-## 5. Full demo flow
+## 5. Demo flow
 
-### Dashboard
-Live risk scores, category breakdown, and KPI cards for 791 real electronic components.
+### Route Plan
+Pick a built-in Solomon sample (C101 or R101, 25 customers) or upload your own customer
+CSV (the page lists the columns; "Download this instance as CSV" gives you a template).
+Choose a solver and press **Solve** to see every route on an x/y plot, with total
+distance, vehicles used, feasibility and solver runtime.
 
-### Scheduler
-Select any component to see its 90-day price history and live pricing. (There is no
-per-part demand forecast here — the sparkline and "stock-out in ~N weeks" badge that
-used to appear were removed along with the tables they read from; see the README's
-"What this model can't do" section for why.)
+### Simulation
+Press **Simulate this plan** (or solve a sample on the page itself). Set variability,
+distribution, replications and seed, then **Run simulation** for on-time rate, lateness,
+completion against depot close and utilization. **Tune buffers** searches schedule and
+capacity buffers and charts the evaluated frontier.
 
-### Resilience Dashboard
-Simulate supply chain disruptions under three scenarios:
-- **Distributor Failure**: pick a distributor, see which BOMs break and rerouting cost
-- **Geopolitical Risk**: a 0.5×–5× stress dial on each component's stored risk score
-  (it is a what-if multiplier, not a live GPR/ACLED override)
-- **Delivery Target**: slide to 1–90 days and see which suppliers can hit the deadline
+### Benchmarks
+Shows the committed Solomon benchmark results (`docs/benchmark_results.json`) as a
+sortable table and a gap-vs-runtime chart per solver, with provenance. Until that file is
+committed, the page says the benchmarks are not generated yet.
 
 ---
 

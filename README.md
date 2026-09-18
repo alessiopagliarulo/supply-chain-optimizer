@@ -43,10 +43,10 @@ gated version lives.
 >
 > API reference (Swagger): **[supply-chain-api-qy8x.onrender.com/docs](https://supply-chain-api-qy8x.onrender.com/docs)**
 >
-> No signup — the login page has a one-click **Demo Login** button.
-> **The page loads instantly. The first *data* request may take 50–120 s.** Two different services sit behind those two links, and only one of them sleeps. The UI is a Render **static site** — it never spins down, and every route answers in well under a second (measured: 0.04–0.50 s, SPA rewrites included). The API is a Render **free-tier web service**, which spins down when idle, so the first call after a quiet spell waits for it to wake. The login screen says so itself: an amber *"Free-tier backend is waking up"* banner appears after 3 seconds and stays until the response lands. Once awake, the API answers in well under a second too.
+> No signup and no login - the landing page links straight to the three pages.
+> **The page loads instantly. The first *data* request may take 50–120 s.** Two different services sit behind those two links, and only one of them sleeps. The UI is a Render **static site** — it never spins down, and every route answers in well under a second (measured: 0.04–0.50 s, SPA rewrites included). The API is a Render **free-tier web service**, which spins down when idle, so the first call after a quiet spell waits for it to wake. Each page says so itself: an amber *"Free-tier backend is waking up"* banner appears after 3 seconds and stays until the response lands. Once awake, the API answers in well under a second too.
 
-**Live demo flow:** Login → browse components → add to cart → explore resilience scenarios.
+**Live demo flow:** Route Plan (solve a Solomon sample) → Simulation (stress the plan, tune buffers) → Benchmarks.
 
 ---
 
@@ -72,7 +72,7 @@ summarized here.
 
 | Metric | Where it comes from | Dollar translation |
 |--------|---------------------|--------------------|
-| **CVaR-95** (tail-risk) | Mean emergency-procurement cost multiplier over the worst-5% of 1,000 Monte Carlo cascade scenarios (`graph/simulation.py`) | **"$X of procurement spend at risk"** = real baseline BOM spend × (CVaR-95 − 1). Computed per BOM in `resilience.py` (`procurement_spend_at_risk_usd`) and shown on the Resilience page. **Caveat — read this before trusting the number:** the *spend* side is real, and the *probability* side is now calibrated, not proxied. Distributor failure probability is anchored to a cited base rate — McKinsey Global Institute (Aug 2020): disruptions lasting a month or longer roughly every 3.7 years — converted to an annual Poisson rate and then to a probability over a 60-day purchase-order exposure window; betweenness centrality only rank-orders *relative* risk around that base rate (`centrality_spread=1.0` removes centrality's effect entirely), and every probability is capped at 50%. On the live headline BOM this puts calibrated `p_fail` between 1.45% and 13.04% across its six suppliers — it no longer saturates near a fixed number. What's still assumed, not measured: the McKinsey rate is firm-level, so applying it to one distributor is almost certainly too high, and nothing establishes that centrality actually predicts disruption likelihood (the code names this and supports `spread=1.0` precisely because of it); the model is `app/graph/disruption.py`. |
+| **CVaR-95** (tail-risk) | Mean emergency-procurement cost multiplier over the worst-5% of 1,000 Monte Carlo cascade scenarios (`graph/simulation.py`) | **"$X of procurement spend at risk"** = real baseline BOM spend × (CVaR-95 − 1). Computed per BOM in `resilience.py` (`procurement_spend_at_risk_usd`); no page shows it since the web app shrank to three pages. **Caveat — read this before trusting the number:** the *spend* side is real, and the *probability* side is now calibrated, not proxied. Distributor failure probability is anchored to a cited base rate — McKinsey Global Institute (Aug 2020): disruptions lasting a month or longer roughly every 3.7 years — converted to an annual Poisson rate and then to a probability over a 60-day purchase-order exposure window; betweenness centrality only rank-orders *relative* risk around that base rate (`centrality_spread=1.0` removes centrality's effect entirely), and every probability is capped at 50%. On the live headline BOM this puts calibrated `p_fail` between 1.45% and 13.04% across its six suppliers — it no longer saturates near a fixed number. What's still assumed, not measured: the McKinsey rate is firm-level, so applying it to one distributor is almost certainly too high, and nothing establishes that centrality actually predicts disruption likelihood (the code names this and supports `spread=1.0` precisely because of it); the model is `app/graph/disruption.py`. |
 | **Forecast WAPE** (macro backtest, kept) | Walk-forward backtest (3 rolling origins, 12-month horizon) on Census M3 `A34SNO` (Manufacturers' New Orders: Computers & Electronic Products), 198 monthly obs, **pinned to ALFRED vintage 2026-08-16**: Prophet **3.13%** vs seasonal-naive **4.80%** — skill score **+34.8%**. Under the **real-time protocol** — each origin trained only on the vintage that existed on its date, because Census revises this series *in place* — Prophet is **4.13%** vs naive **5.87%**, skill **+29.6%**. The revised-data figures are optimistic by ~24%; the real-time pair is the number you could actually have achieved, and it is the one to quote ([docs/FORECAST_BACKTEST.md](docs/FORECAST_BACKTEST.md)) | **No dollar translation.** This number used to feed a "≈N weeks of safety stock" tooltip on a per-part forecast — that forecast is gone (its magnitude was `total_stock/52 × risk_score`, inferred from inventory, not measured), and the safety-stock dollar figure went with it rather than being carried over with no live consumer. The macro WAPE above is real and stands on its own as a Prophet-vs-naive comparison on an aggregate industry series; it says nothing about per-part accuracy. **What now measures demand-forecast quality:** an intermittent-demand method benchmark on 2,646 Monash car-parts series — MASE ranks the degenerate `zero` forecast 1st (mean rank 1.66) while proper scoring ranks it 4th on CRPS / 5th on scaled pinball loss, and `tsb` wins both (Friedman p < 1e-300). See [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md). That benchmark doesn't translate to dollars yet — connecting it to a purchasing decision is open work ([docs/archive/ML_API_PUSH_PLAN.md](docs/archive/ML_API_PUSH_PLAN.md) §1.4). |
 
 ### Conversion assumptions & citations
@@ -203,7 +203,7 @@ python -m uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev
 ```
 
-Open http://localhost:5173 → click **Demo Login**.
+Open http://localhost:5173 and pick a page. There is no login.
 
 ---
 
@@ -220,15 +220,14 @@ Open http://localhost:5173 → click **Demo Login**.
 
 ```
 frontend/src/
-  pages/          Landing, Dashboard, Scheduler, Cart, Resilience, Newsvendor, ModelCard,
-                  Login, Register, NotFound
-  components/     NavBar, ScenarioCard, DeltaCard, MonteCarloChart, BOMImpactTable, CiStrip,
-                  BomCostBreakdownTable, CriticalitySweepTable, DualSourcingTable, TornadoChart,
-                  DistributorSelector, ErrorBoundary, WakeNotice
-  store/          Zustand: authStore, cartStore
-  services/api.ts Axios client for all backend endpoints
+  pages/          Landing, RoutePlan, Simulation, Benchmarks, NotFound
+  components/     NavBar, RoutePlot (x/y route plot + legend), ui, ErrorBoundary, WakeNotice
+  lib/            customerCsv (upload format), benchmarks (artifact reader), colors
+  store/          Zustand: planStore (the solved plan Route Plan hands to Simulation)
+  services/api.ts Axios client for the /routing endpoints
 frontend/scripts/
-  ui-gate.cjs     the automated browser gate against the live site (see Tests)
+  ui-gate.cjs     the automated browser gate (see Tests)
+  screenshots.cjs regenerates docs/screenshots/current/
 
 backend/app/
   api/            FastAPI routers: auth, cart, components, distributors, resilience, graph,
@@ -248,7 +247,7 @@ backend/app/
 ```mermaid
 flowchart TB
     subgraph FE["Frontend — React + TypeScript"]
-        UI["Pages: Dashboard, Components, Cart,<br/>Resilience, Newsvendor, Model Card<br/>(Zustand store, Axios client)"]
+        UI["Pages: Route Plan, Simulation,<br/>Benchmarks<br/>(Zustand store, Axios client)"]
     end
 
     subgraph BE["Backend — FastAPI"]
@@ -307,53 +306,28 @@ Lead-time and demand-forecast training runs are tracked with MLflow (params, rea
 
 ---
 
-## Screenshots
+## Web app
 
-A capture of the **live deployment** at `85b2890`, taken from the demo cart a one-click
-Demo Login gives you (5 lines, 225 units). Every figure in it was a field of the response
-the API returned *at capture time*, and you can reproduce it against the live API in about
-a minute — but **the PNG now sits behind a later fix and is not current.** The prose and
-alt text beside it carry the re-derived figures; the blockquote under it says exactly what
-the PNG still shows and why. Where they disagree, the API is right and the image is stale.
+Three pages plus a landing page, no login:
 
-### `/resilience` — losing the distributor the cart leans on
+- **Route Plan** (`/route-plan`) - pick a built-in sample (real Solomon C101 and R101,
+  25-customer versions; see `backend/app/vrp/data/samples/README.md`), any Solomon
+  benchmark file present in `backend/app/vrp/data/solomon/`, or upload a customer CSV
+  (header `x,y,demand,ready,due,service_time`, depot first). Choose a solver, solve, and
+  see each route on an x/y plot with distance, vehicles, feasibility and runtime.
+- **Simulation** (`/simulation`) - run the current plan through the SimPy
+  discrete-event simulation (on-time rate, lateness mean and p95, completion against
+  depot close, utilization), then tune schedule and capacity buffers and see the
+  evaluated frontier.
+- **Benchmarks** (`/benchmarks`) - the committed `docs/benchmark_results.json`, as a
+  sortable table and a gap-vs-runtime chart per solver, with its provenance. Until the
+  benchmark script's results are committed, the page says they are not generated yet.
 
-![The Resilience Scenarios page after simulating the failure of Weyland Electronics Group Pte. Ltd. A headline banner reads "SUBSTITUTION COST - NO BOM LINE ORPHANED, $42.11 (+25.2%)" beside "MODELLED FULFILMENT (P50) 100% to 80% (-20 pts)". Four delta cards below show Total Cost 167.61 to 215.33 USD (up 28.5%), Fulfilment P50 100% to 80% (down 20 points), Delivery ETA 26.6 to 23.4 days (down 3.2 d), and Risk Score 0.220 to 0.420 (up 0.200). This capture is STALE in every figure except the substitution banner and the ETA card — the note below the following paragraphs says which and why.](docs/screenshots/resilience-distributor-failure.png)
+The lead-time model and resilience code stay in the backend and keep their API
+endpoints; they no longer have pages.
 
-The scenario fails the distributor four of the five cart lines are sourced from. Cost
-rises **25.4%** ($167.19 → $209.63) — re-sourcing **4 of 5 lines** to the next-cheapest
-surviving offer, **$42.11** of substitution on a $166.94 goods bill, the single largest
-line being `ESP32-WROOM-32UE-N4` at **+$32.95**. CVaR-95 procurement spend at risk is
-**$5.01**. Modelled fulfilment is **unchanged at 100%** (P10/P50/P90 all 1.000 on both
-sides) and the risk score is **unchanged at 0.220**.
-
-The ETA *improves* (26.6 → 23.4 days) and the page explains why instead of hiding it: the
-ETA is the slowest line of the plan priced beside it, and the cheap Singapore supplier is
-also the distant one, so being forced onto the next-cheapest surviving offer lands the BOM
-sooner while costing more. **No** BOM line is orphaned, all 5 keep a supplier, and here
-that really does mean no fulfilment impact — the endpoint says so in its own `hedging`
-block rather than leaving zeros to be read as a broken computation. The honest summary is
-that losing this distributor costs money and *buys* time, and nothing else.
-
-> **These figures were re-derived on 2026-09-04 from the live API at `56f439e` and the
-> screenshot has not caught up.** The PNG was captured while `graph/builder.py` still
-> held out 20% of the supplier–part links (the 20% holdout carve described under *How
-> this was built*, below), so the Monte Carlo ran on a graph of **5,789 edges instead of
-> 7,363** — 1,574 of the 8,176 offer rows never entered it — and it starved BOM lines of
-> suppliers that really exist. That manufactured a **20-point median-fulfilment drop**,
-> and because `scenario_risk = baseline_risk + fulfilment_drop`, it manufactured the
-> **+0.200 risk rise** on top of it. On the corrected graph both deltas are exactly
-> **0.0** — so the PNG still shows a `MODELLED FULFILMENT (P50) 100% → 80% (-20 pts)`
-> headline, a `$167.61 → $215.33 (+28.5%)` cost card, a `Risk Score 0.220 → 0.420` card,
-> and a `$9.01` CVaR-95 spend-at-risk line — **none of which the API returns any more**
-> (it now returns `167.19 → 209.63`, fulfilment flat at 1.000, risk flat at 0.220, and
-> `procurement_spend_at_risk_usd = 5.01`). The `$42.11 (+25.2%)` substitution banner
-> beside them is **not** stale, and an earlier revision of this section wrongly listed it
-> as retired: the live endpoint still returns `substitution_delta_usd = 42.11` exactly
-> (`209.05 − 166.94`), re-verified 2026-09-08. It is the cards around that figure the
-> corrected graph moved, not the figure itself. The fulfilment headline does not render at
-> all now, because there is no impact for it to report; only the ETA card (26.6 → 23.4 d)
-> survives unchanged. **The PNG is queued for re-capture.**
+Screenshots of all three pages: [`docs/screenshots/current/`](docs/screenshots/current/)
+(regenerate with `npm run screenshots`; `_manifest.json` records the commit and URL).
 
 ---
 
@@ -371,8 +345,12 @@ GET  /api/v1/ml/model-info                   # served lead-time artifact provena
 GET  /api/v1/demand/benchmark                # intermittent-demand method benchmark (Croston/SBA/TSB, CRPS+MASE, Monash car parts)
 GET  /api/v1/feeds/status                    # feed freshness: download date, plus observation date where the feed publishes one (today: GPR)
 GET  /api/v1/benchmark/fiedler-curve         # sequential-removal Fiedler λ₂ curve
+GET  /api/v1/routing/instances               # built-in samples + Solomon files, and the request caps
+GET  /api/v1/routing/instances/{id}          # one named instance: coordinates, nodes, fleet
 POST /api/v1/routing/solve                   # CVRPTW route plan (CP-SAT exact, Clarke-Wright, OR-Tools routing), validated
+POST /api/v1/routing/simulate                # SimPy DES of a route plan: on-time rate, lateness, completion, utilization
 POST /api/v1/routing/tune-buffers            # Buffer-tuning optimization: find schedule/capacity buffers balancing on-time rate against cost/slack via DES simulation
+GET  /api/v1/routing/benchmarks              # docs/benchmark_results.json as committed, or available: false
 ```
 
 Full API reference (live Swagger UI): **https://supply-chain-api-qy8x.onrender.com/docs** — or http://localhost:8000/docs when running locally  
@@ -415,18 +393,19 @@ and their published-artifact pins, resilience API, auth guards, feed integration
 ### Frontend
 
 The frontend **does** have an automated test suite. It is a browser gate, not a unit-test
-runner, and it runs against the **live deployment**:
+runner, and it runs against the **live deployment** or a local build:
 
 ```bash
 cd frontend
 BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
+# or: npm run build && npx vite preview --port 4173 &  API=http://localhost:8000 npm run ui-gate
 ```
 
-The last full run (2026-09-07, before the sourcing pages were removed) was 256 passed,
-0 failed across 10 routes. `scripts/ui-gate.cjs` drives a real Chromium over **every
-authenticated route at 4 viewports** (390 / 768 / **1280** / 1440 — 1280 is there because
-a nav regression lived exactly at that breakpoint) and asserts what a human would
-otherwise have to notice:
+The last full run (2026-09-18, local build against a local API, after the app shrank to
+three pages) was 104 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
+**every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
+checks that every removed sourcing-era path renders the 404 page, and asserts what a human
+would otherwise have to notice:
 
 - **horizontal overflow**, measured against the real scroll container — every route renders
   inside `overflow-y-auto`, so `document.scrollWidth` reports a false clean
