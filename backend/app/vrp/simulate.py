@@ -257,10 +257,14 @@ def simulate_once(
         result.actual_travel_times.update(vehicle.actual_travel_times)
         result.actual_service_times.update(vehicle.actual_service_times)
 
-        if vehicle.route:
-            utilization = sum(
-                float(instance.nodes[c].service_time) for c in vehicle.route
-            ) / (vehicle.return_time - vehicle.depart_time) if vehicle.return_time and vehicle.depart_time else 0
+        if vehicle.route and vehicle.return_time is not None and vehicle.depart_time is not None:
+            duration = vehicle.return_time - vehicle.depart_time
+            if duration > 0:
+                utilization = sum(
+                    float(instance.nodes[c].service_time) for c in vehicle.route
+                ) / duration
+            else:
+                utilization = 0
             result.vehicle_utilization.append(utilization)
 
     return result
