@@ -285,6 +285,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     for s in solvers:
         if s not in SOLVERS:
             parser.error(f"unknown solver {s}")
+    if args.time_limit <= 0:
+        parser.error("time limit must be positive")
 
     cases = [(name, size) for name in names for size in sizes]
     work = [(name, size, solvers, args.time_limit, args.seed) for name, size in cases]

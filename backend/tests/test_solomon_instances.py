@@ -203,6 +203,14 @@ class TestBenchmarkRunner:
         with pytest.raises(SystemExit):
             benchmark_solomon.main(["--instances", "Z999", "--output", "/dev/null"])
 
+    @pytest.mark.parametrize("limit", ["0", "-1"])
+    def test_rejects_non_positive_time_limit(self, limit, tmp_path):
+        out = tmp_path / "out.json"
+        with pytest.raises(SystemExit) as exc:
+            benchmark_solomon.main(["--instances", "C101", "--sizes", "25", "--time-limit", limit, "--output", str(out)])
+        assert exc.value.code == 2
+        assert not out.exists()
+
 
 class TestCommittedArtifact:
     """docs/benchmark_results.json must be exactly what the script produces from the committed inputs."""
