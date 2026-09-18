@@ -20,6 +20,14 @@ and ``ortools`` above that.
 
 from __future__ import annotations
 
+from app.vrp.buffer_tuning import (
+    BufferCandidate,
+    BufferTuningResult,
+    apply_buffers,
+    apply_capacity_buffer,
+    apply_schedule_buffer,
+    tune_buffers,
+)
 from app.vrp.cpsat import solve_cpsat
 from app.vrp.model import (
     STATUS_FEASIBLE,
@@ -34,6 +42,7 @@ from app.vrp.model import (
 )
 from app.vrp.ortools_routing import solve_ortools
 from app.vrp.savings import solve_clarke_wright
+from app.vrp.simulate import SimulationResults, simulate
 from app.vrp.validate import build_solution, validate_routes
 
 #: Largest instance ``method="auto"`` sends to the exact CP-SAT model.
@@ -67,15 +76,23 @@ __all__ = [
     "STATUS_INFEASIBLE",
     "STATUS_NO_SOLUTION",
     "STATUS_OPTIMAL",
+    "BufferCandidate",
+    "BufferTuningResult",
     "Node",
     "RouteReport",
+    "SimulationResults",
     "ValidationReport",
     "VrpInstance",
     "VrpSolution",
+    "apply_buffers",
+    "apply_capacity_buffer",
+    "apply_schedule_buffer",
     "build_solution",
+    "simulate",
     "solve",
     "solve_clarke_wright",
     "solve_cpsat",
     "solve_ortools",
+    "tune_buffers",
     "validate_routes",
 ]
