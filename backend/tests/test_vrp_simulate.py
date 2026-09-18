@@ -3,8 +3,6 @@
 Every test uses small instances that can be checked by hand or verified deterministically.
 """
 
-import math
-
 import pytest
 
 from app.vrp import Node, VrpInstance, solve_cpsat

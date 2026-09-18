@@ -24,7 +24,7 @@ import simpy
 from app.vrp.model import VrpInstance, VrpSolution
 
 
-DistributionFactory = Callable[[random.Random], Callable[[], float]]
+DistributionFactory = Callable[[random.Random], Callable[[float], float]]
 
 
 def lognormal_factory(variability: float) -> DistributionFactory:
@@ -158,7 +158,6 @@ class VehicleSimulation:
             if wait_time > 0:
                 yield self.env.timeout(wait_time)
 
-            service_start = self.env.now
             nominal_service = float(node.service_time)
             actual_service = self.service_time_sampler(nominal_service)
             self.actual_service_times[customer] = actual_service
