@@ -1,80 +1,96 @@
 #!/usr/bin/env python3
 """
-Download Solomon CVRPTW benchmark instances.
+Regenerate the Solomon instance files in ``backend/app/vrp/data/solomon/``.
 
-This script downloads the standard Solomon CVRPTW instance set from the
-Gehring & Homberger repository. Six families (C1, C2, R1, R2, RC1, RC2)
-with 100 customers each, plus 25- and 50-customer subsets.
+Downloads SINTEF TOP's backup of Solomon's 56 100-customer instance files,
+checks its sha256, writes each 100-customer file unchanged (``c101.txt``) and
+derives the standard 25- and 50-customer versions (``c101_25.txt``,
+``c101_50.txt``): the same header and depot with only the first 25 / 50
+customer rows, which is how Solomon defines them.
 
-Usage:
-    python backend/scripts/download_solomon_instances.py
+The files are committed, so this is only needed to audit or rebuild them:
+
+    python backend/scripts/download_solomon_instances.py          # rewrite the files
+    python backend/scripts/download_solomon_instances.py --check  # verify, write nothing
 """
 
-import urllib.request
-from pathlib import Path
+from __future__ import annotations
+
+import argparse
+import hashlib
+import io
 import sys
+import urllib.request
+import zipfile
+from pathlib import Path
 
-# Solomon instances are hosted at the Vrptw.com repository maintained by
-# Gehring & Homberger. We download from the standard academic source.
-BASE_URL = "https://www.mech.kuleuven.be/en/cib/op/data/text/"
+URL = "https://www.sintef.no/globalassets/project/top/vrptw/solomon/solomon-100.zip"
+SHA256 = "8a0a72cbe6b7f8f9988ace4ebde0378ec34943acaaac47f2c408915e41887747"
+# The SINTEF site answers the default urllib User-Agent with 403.
+USER_AGENT = "Mozilla/5.0 (compatible; supply-chain-optimizer solomon fetch)"
 
-FAMILIES = ["C1", "C2", "R1", "R2", "RC1", "RC2"]
-SIZES = [25, 50, 100]
-
-INSTANCES = [
-    # C family: 25 customers in C101.txt, 50 in C1_50.txt, 100 in C1_100.txt
-    *[(f, size) for f in FAMILIES for size in SIZES],
-]
-
-
-def download_instance(family: str, size: int, output_dir: Path) -> bool:
-    """Download a single instance file."""
-    # File naming convention: C101.txt for C1/25, C1_50.txt for C1/50, C1_100.txt for C1/100
-    if size == 25:
-        filename = f"{family}01.txt"
-    else:
-        filename = f"{family}_{size}.txt"
-
-    url = f"{BASE_URL}{filename}"
-    output_file = output_dir / filename
-
-    if output_file.exists():
-        print(f"✓ {filename} already exists")
-        return True
-
-    print(f"Downloading {filename}...", end=" ", flush=True)
-    try:
-        urllib.request.urlretrieve(url, output_file)
-        print("✓")
-        return True
-    except urllib.error.URLError as e:
-        print(f"✗ failed: {e}")
-        return False
+DATA_DIR = Path(__file__).resolve().parent.parent / "app" / "vrp" / "data" / "solomon"
+# Lines before the depot row: name, blank, VEHICLE, NUMBER CAPACITY, values, blank,
+# CUSTOMER, CUST NO. header, blank. The depot row follows, then one row per customer.
+HEADER_LINES = 9
+SUBSET_SIZES = (25, 50)
 
 
-def main():
-    data_dir = Path(__file__).parent.parent / "app" / "vrp" / "data" / "solomon"
-    data_dir.mkdir(parents=True, exist_ok=True)
+def fetch_zip() -> bytes:
+    request = urllib.request.Request(URL, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        data = response.read()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != SHA256:
+        raise SystemExit(f"sha256 mismatch for {URL}: got {digest}, expected {SHA256}")
+    return data
 
-    print(f"Downloading Solomon instances to {data_dir}")
-    print()
 
-    failed = []
-    for family in FAMILIES:
-        print(f"{family} family:")
-        for size in SIZES:
-            if not download_instance(family, size, data_dir):
-                failed.append((family, size))
-        print()
+def subset(text: bytes, num_customers: int) -> bytes:
+    """The first ``num_customers`` customers of a 100-customer file, LF line endings."""
+    lines = text.decode("ascii").splitlines()
+    return ("\n".join(lines[: HEADER_LINES + 1 + num_customers]) + "\n").encode("ascii")
 
-    if failed:
-        print(f"Failed to download {len(failed)} instance(s):")
-        for family, size in failed:
-            print(f"  - {family} ({size} customers)")
-        sys.exit(1)
-    else:
-        print("✓ All instances downloaded successfully")
+
+def build_files() -> dict[str, bytes]:
+    files: dict[str, bytes] = {}
+    with zipfile.ZipFile(io.BytesIO(fetch_zip())) as archive:
+        for member in sorted(archive.namelist()):
+            if not member.lower().endswith(".txt"):
+                continue
+            stem = Path(member).stem.lower()
+            raw = archive.read(member)
+            files[f"{stem}.txt"] = raw
+            for size in SUBSET_SIZES:
+                files[f"{stem}_{size}.txt"] = subset(raw, size)
+    if len(files) != 56 * 3:
+        raise SystemExit(f"expected 168 instance files, built {len(files)}")
+    return files
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--check", action="store_true", help="compare with the committed files; write nothing")
+    args = parser.parse_args()
+
+    files = build_files()
+    if args.check:
+        stale = [
+            name
+            for name, data in files.items()
+            if not (DATA_DIR / name).is_file() or (DATA_DIR / name).read_bytes() != data
+        ]
+        for name in stale:
+            print(f"differs: {name}")
+        print(f"{len(files) - len(stale)}/{len(files)} files match {URL}")
+        return 1 if stale else 0
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for name, data in files.items():
+        (DATA_DIR / name).write_bytes(data)
+    print(f"wrote {len(files)} files to {DATA_DIR}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

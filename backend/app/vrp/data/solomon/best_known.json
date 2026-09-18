@@ -1,0 +1,1171 @@
+{
+  "_comment": "Published reference values for the Solomon (1987) VRPTW instances, transcribed by parsing the source tables below (not typed by hand). Values are stored exactly as published. null means the source lists no optimum for that case.",
+  "sources": {
+    "sintef_best_known": {
+      "title": "SINTEF TOP, Solomon benchmark, 100 customers: best known solutions",
+      "url": "https://www.sintef.no/projectweb/top/vrptw/100-customers/",
+      "retrieved": "2026-09-18",
+      "applies_to": [
+        100
+      ],
+      "objective": "hierarchical: 1) minimize number of vehicles, 2) minimize total distance",
+      "distance_convention": "Euclidean distance and time in double precision; total distance rounded to two decimals",
+      "notes": "r111 is quoted by SINTEF as 1096.73* (checker value 1096.72658305008); r205 and rc101 carry SINTEF's footnote that earlier values 994.42 / 1696.94 came from a rounding error."
+    },
+    "solomon_optimal": {
+      "title": "M. M. Solomon, Optimal Solutions for C1/C2, R1/R2 and RC1/RC2 problems (last updated 2005-03-24)",
+      "url": [
+        "http://web.cba.neu.edu/~msolomon/c1c2solu.htm",
+        "http://web.cba.neu.edu/~msolomon/r1r2solu.htm",
+        "http://web.cba.neu.edu/~msolomon/rc12solu.htm"
+      ],
+      "archived_copies": [
+        "https://web.archive.org/web/20210731183659/http://web.cba.neu.edu/~msolomon/c1c2solu.htm",
+        "https://web.archive.org/web/20210731193817/http://web.cba.neu.edu/~msolomon/r1r2solu.htm",
+        "https://web.archive.org/web/20210731183114/http://web.cba.neu.edu/~msolomon/rc12solu.htm"
+      ],
+      "retrieved": "2026-09-18",
+      "applies_to": [
+        25,
+        50
+      ],
+      "objective": "minimize total distance (vehicle count is whatever the optimal routes use)",
+      "distance_convention": "exact-method convention: each arc's Euclidean distance (and travel time) truncated to one decimal. Checked here: CP-SAT with truncated one-decimal arithmetic reproduces the published optima (e.g. C101.25 = 191.3, R101.25 = 617.1, RC101.25 = 461.1)."
+    }
+  },
+  "references": {
+    "BBB": "J. Berger, M. Barkaoui and O. Braysy, A Parallel Hybrid Genetic Algorithm for the Vehicle Routing Problem with Time Windows, working paper, Defense Research Establishment Valcartier, 2001.",
+    "BVH": "R. Bent and P. Van Hentenryck, A Two-Stage Hybrid Local Search for the Vehicle Routing Problem with Time Windows, Technical Report CS-01-06, Brown University, 2001.",
+    "CC": "Z. J. Czech and P. Czarnas, A Parallel Simulated Annealing for the Vehicle Routing Problem with Time Windows, Proc. 10th Euromicro Workshop on Parallel, Distributed and Network-based Processing, 2002, 376-383.",
+    "CLM": "J.-F. Cordeau, G. Laporte and A. Mercier, A Unified Tabu Search Heuristic for Vehicle Routing Problems with Time Windows, Working Paper CRT-00-03, Centre for Research on Transportation, Montreal, 2000.",
+    "GCC": "A. Debudaj-Grabysz, Z. J. Czech and P. Czarnas, Silesia University of Technology and University of Wroclaw, 2004.",
+    "GTA": "L. M. Gambardella, E. Taillard and G. Agazzi, MACS-VRPTW: A Multiple Ant Colony System for Vehicle Routing Problems with Time Windows, in New Ideas in Optimization, McGraw-Hill, 1999, 63-76.",
+    "H": "J. Homberger, Verteilt-parallele Metaheuristiken zur Tourenplanung, Gaber, Wiesbaden, 2000.",
+    "HG": "J. Homberger and H. Gehring, Two Evolutionary Metaheuristics for the Vehicle Routing Problem with Time Windows, INFOR 37, 1999, 297-318.",
+    "IKMUY": "T. Ibaraki, M. Kubo, T. Masuda, T. Uno and M. Yagiura, Effective Local Search Algorithms for the Vehicle Routing Problem with General Time Windows, working paper, Kyoto University, 2001.",
+    "LLH": "H. Li, A. Lim and J. Huang, Local Search with Annealing-like Restarts to Solve the VRPTW, working paper, National University of Singapore, 2001.",
+    "MBD": "D. Mester, O. Braysy and W. Dullaert, A Multi-parametric Evolution Strategies Algorithm for Vehicle Routing Problems, working paper, University of Haifa, 2005.",
+    "RGP": "L. M. Rousseau, M. Gendreau and G. Pesant, Using Constraint-Based Operators to Solve the Vehicle Routing Problem with Time Windows, Journal of Heuristics 8, 2002, 43-58.",
+    "RP": "S. Ropke and D. Pisinger, A general heuristic for vehicle routing problems, technical report, University of Copenhagen.",
+    "RT": "Y. Rochat and E. D. Taillard, Probabilistic Diversification and Intensification in Local Search for Vehicle Routing, Journal of Heuristics 1, 1995, 147-167.",
+    "SSSD": "G. Schrimpf, J. Schneider, H. Stamm-Wilbrandt and G. Dueck, Record Breaking Optimization Results Using the Ruin and Recreate Principle, Journal of Computational Physics 159, 2000, 139-171.",
+    "S97": "P. Shaw, A New Local Search Algorithm Providing High Quality Solutions to Vehicle Routing Problems, working paper, University of Strathclyde, 1997.",
+    "S98": "P. Shaw, Using Constraint Programming and Local Search Methods to Solve Vehicle Routing Problems, CP98, LNCS, Springer, 1998, 417-431.",
+    "TBGGP": "E. Taillard, P. Badeau, M. Gendreau, F. Guertin and J.-Y. Potvin, A Tabu Search Heuristic for the Vehicle Routing Problem with Time Windows, Transportation Science 31, 1997, 170-186.",
+    "WL": "M. Woch and P. Lebkowski, Sequential Simulated Annealing for the Vehicle Routing Problem with Time Windows, Decision Making in Manufacturing and Services 3, 2009, 87-100.",
+    "C": "A. Chabrier, Vehicle Routing Problem with Elementary Shortest Path based Column Generation, Computers and Operations Research, 2005.",
+    "CR": "W. Cook and J. L. Rich, A parallel cutting plane algorithm for the vehicle routing problem with time windows, working paper, Rice University, 1999.",
+    "DLP": "E. Danna and C. Le Pape, Accelerating branch-and-price with local search: A case study on the vehicle routing problem with time windows, in Column Generation, Kluwer, 2005, 99-130.",
+    "IV": "S. Irnich and D. Villeneuve, The shortest path problem with k-cycle elimination (k >= 3): Improving a branch-and-price algorithm for the VRPTW, INFORMS Journal on Computing, 2005.",
+    "KDMSS": "N. Kohl, J. Desrosiers, O. B. G. Madsen, M. M. Solomon and F. Soumis, 2-Path Cuts for the Vehicle Routing Problem with Time Windows, Transportation Science 33(1), 1999, 101-116.",
+    "KLM": "B. Kallehauge, J. Larsen and O. B. G. Madsen, Lagrangean duality and non-differentiable optimization applied on routing with time windows - experimental results, report IMM-REP-2000-8, Technical University of Denmark, 2000.",
+    "L": "J. Larsen, Parallelization of the vehicle routing problem with time windows, Ph.D. thesis IMM-PHD-1999-62, Technical University of Denmark, 1999."
+  },
+  "instances": {
+    "C101": {
+      "25": {
+        "vehicles": 3,
+        "distance": 191.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 362.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C102": {
+      "25": {
+        "vehicles": 3,
+        "distance": 190.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 361.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C103": {
+      "25": {
+        "vehicles": 3,
+        "distance": 190.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 361.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.06,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C104": {
+      "25": {
+        "vehicles": 3,
+        "distance": 186.9,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 358.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 824.78,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C105": {
+      "25": {
+        "vehicles": 3,
+        "distance": 191.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 362.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C106": {
+      "25": {
+        "vehicles": 3,
+        "distance": 191.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 362.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C107": {
+      "25": {
+        "vehicles": 3,
+        "distance": 191.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 362.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C108": {
+      "25": {
+        "vehicles": 3,
+        "distance": 191.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 362.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C109": {
+      "25": {
+        "vehicles": 3,
+        "distance": 191.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 362.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 828.94,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C201": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.7,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 360.2,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 591.56,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C202": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.7,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 360.2,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 591.56,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C203": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.7,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 359.8,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 591.17,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C204": {
+      "25": {
+        "vehicles": 2,
+        "distance": 213.1,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 2,
+        "distance": 350.1,
+        "reference": "KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 590.6,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C205": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.7,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 359.8,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 588.88,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C206": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.7,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 359.8,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 588.49,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C207": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.5,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 359.6,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 588.29,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "C208": {
+      "25": {
+        "vehicles": 2,
+        "distance": 214.5,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 2,
+        "distance": 350.5,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 588.32,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "R101": {
+      "25": {
+        "vehicles": 8,
+        "distance": 617.1,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 12,
+        "distance": 1044.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 19,
+        "distance": 1650.8,
+        "reference": "H",
+        "source": "sintef_best_known"
+      }
+    },
+    "R102": {
+      "25": {
+        "vehicles": 7,
+        "distance": 547.1,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 11,
+        "distance": 909.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 17,
+        "distance": 1486.12,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "R103": {
+      "25": {
+        "vehicles": 5,
+        "distance": 454.6,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 9,
+        "distance": 772.9,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 13,
+        "distance": 1292.68,
+        "reference": "LLH",
+        "source": "sintef_best_known"
+      }
+    },
+    "R104": {
+      "25": {
+        "vehicles": 4,
+        "distance": 416.9,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 625.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 9,
+        "distance": 1007.31,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "R105": {
+      "25": {
+        "vehicles": 6,
+        "distance": 530.5,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 9,
+        "distance": 899.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 14,
+        "distance": 1377.11,
+        "reference": "RT",
+        "source": "sintef_best_known"
+      }
+    },
+    "R106": {
+      "25": {
+        "vehicles": 3,
+        "distance": 465.4,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 793.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 12,
+        "distance": 1252.03,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "R107": {
+      "25": {
+        "vehicles": 4,
+        "distance": 424.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 7,
+        "distance": 711.1,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 1104.66,
+        "reference": "S97",
+        "source": "sintef_best_known"
+      }
+    },
+    "R108": {
+      "25": {
+        "vehicles": 4,
+        "distance": 397.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 617.7,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 9,
+        "distance": 960.88,
+        "reference": "BBB",
+        "source": "sintef_best_known"
+      }
+    },
+    "R109": {
+      "25": {
+        "vehicles": 5,
+        "distance": 441.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 8,
+        "distance": 786.8,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 11,
+        "distance": 1194.73,
+        "reference": "HG",
+        "source": "sintef_best_known"
+      }
+    },
+    "R110": {
+      "25": {
+        "vehicles": 4,
+        "distance": 444.1,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 7,
+        "distance": 697.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 1118.84,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "R111": {
+      "25": {
+        "vehicles": 5,
+        "distance": 428.8,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 7,
+        "distance": 707.2,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 1096.73,
+        "reference": "RGP",
+        "source": "sintef_best_known"
+      }
+    },
+    "R112": {
+      "25": {
+        "vehicles": 4,
+        "distance": 393.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 630.2,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 9,
+        "distance": 982.14,
+        "reference": "GTA",
+        "source": "sintef_best_known"
+      }
+    },
+    "R201": {
+      "25": {
+        "vehicles": 4,
+        "distance": 463.3,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 791.9,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 4,
+        "distance": 1252.37,
+        "reference": "HG",
+        "source": "sintef_best_known"
+      }
+    },
+    "R202": {
+      "25": {
+        "vehicles": 4,
+        "distance": 410.5,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 698.5,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 1191.7,
+        "reference": "RGP",
+        "source": "sintef_best_known"
+      }
+    },
+    "R203": {
+      "25": {
+        "vehicles": 3,
+        "distance": 391.4,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 605.3,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 939.5,
+        "reference": "WL",
+        "source": "sintef_best_known"
+      }
+    },
+    "R204": {
+      "25": {
+        "vehicles": 2,
+        "distance": 355.0,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 2,
+        "distance": 506.4,
+        "reference": "IV",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 2,
+        "distance": 825.52,
+        "reference": "BVH",
+        "source": "sintef_best_known"
+      }
+    },
+    "R205": {
+      "25": {
+        "vehicles": 3,
+        "distance": 393.0,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 4,
+        "distance": 690.1,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 994.43,
+        "reference": "RGP",
+        "source": "sintef_best_known"
+      }
+    },
+    "R206": {
+      "25": {
+        "vehicles": 3,
+        "distance": 374.4,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 4,
+        "distance": 632.4,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 906.14,
+        "reference": "SSSD",
+        "source": "sintef_best_known"
+      }
+    },
+    "R207": {
+      "25": {
+        "vehicles": 3,
+        "distance": 361.6,
+        "reference": "KLM",
+        "source": "solomon_optimal"
+      },
+      "50": null,
+      "100": {
+        "vehicles": 2,
+        "distance": 890.61,
+        "reference": "RP",
+        "source": "sintef_best_known"
+      }
+    },
+    "R208": {
+      "25": {
+        "vehicles": 1,
+        "distance": 328.2,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "50": null,
+      "100": {
+        "vehicles": 2,
+        "distance": 726.82,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "R209": {
+      "25": {
+        "vehicles": 2,
+        "distance": 370.7,
+        "reference": "KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 4,
+        "distance": 600.6,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 909.16,
+        "reference": "H",
+        "source": "sintef_best_known"
+      }
+    },
+    "R210": {
+      "25": {
+        "vehicles": 3,
+        "distance": 404.6,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 4,
+        "distance": 645.6,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 939.37,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "R211": {
+      "25": {
+        "vehicles": 2,
+        "distance": 350.9,
+        "reference": "KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 535.5,
+        "reference": "IV+DLP",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 2,
+        "distance": 885.71,
+        "reference": "WL",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC101": {
+      "25": {
+        "vehicles": 4,
+        "distance": 461.1,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 8,
+        "distance": 944.0,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 14,
+        "distance": 1696.95,
+        "reference": "TBGGP",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC102": {
+      "25": {
+        "vehicles": 3,
+        "distance": 351.8,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 7,
+        "distance": 822.5,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 12,
+        "distance": 1554.75,
+        "reference": "TBGGP",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC103": {
+      "25": {
+        "vehicles": 3,
+        "distance": 332.8,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 710.9,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 11,
+        "distance": 1261.67,
+        "reference": "S98",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC104": {
+      "25": {
+        "vehicles": 3,
+        "distance": 306.6,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 545.8,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 1135.48,
+        "reference": "CLM",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC105": {
+      "25": {
+        "vehicles": 4,
+        "distance": 411.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 8,
+        "distance": 855.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 13,
+        "distance": 1629.44,
+        "reference": "BBB",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC106": {
+      "25": {
+        "vehicles": 3,
+        "distance": 345.5,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 723.2,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 11,
+        "distance": 1424.73,
+        "reference": "BBB",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC107": {
+      "25": {
+        "vehicles": 3,
+        "distance": 298.3,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 642.7,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 11,
+        "distance": 1230.48,
+        "reference": "S97",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC108": {
+      "25": {
+        "vehicles": 3,
+        "distance": 294.5,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 6,
+        "distance": 598.1,
+        "reference": "KDMSS",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 10,
+        "distance": 1139.82,
+        "reference": "TBGGP",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC201": {
+      "25": {
+        "vehicles": 3,
+        "distance": 360.2,
+        "reference": "CR+L",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 684.8,
+        "reference": "L+KLM",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 4,
+        "distance": 1406.94,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC202": {
+      "25": {
+        "vehicles": 3,
+        "distance": 338.0,
+        "reference": "CR+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 613.6,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 1365.65,
+        "reference": "GCC",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC203": {
+      "25": {
+        "vehicles": 3,
+        "distance": 326.9,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 4,
+        "distance": 555.3,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 1049.62,
+        "reference": "CC",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC204": {
+      "25": {
+        "vehicles": 3,
+        "distance": 299.7,
+        "reference": "C",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 3,
+        "distance": 444.2,
+        "reference": "DLP",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 798.46,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC205": {
+      "25": {
+        "vehicles": 3,
+        "distance": 338.0,
+        "reference": "L+KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 630.2,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 4,
+        "distance": 1297.65,
+        "reference": "MBD",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC206": {
+      "25": {
+        "vehicles": 3,
+        "distance": 324.0,
+        "reference": "KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 5,
+        "distance": 610.0,
+        "reference": "IV+C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 1146.32,
+        "reference": "H",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC207": {
+      "25": {
+        "vehicles": 3,
+        "distance": 298.3,
+        "reference": "KLM",
+        "source": "solomon_optimal"
+      },
+      "50": {
+        "vehicles": 4,
+        "distance": 558.6,
+        "reference": "C",
+        "source": "solomon_optimal"
+      },
+      "100": {
+        "vehicles": 3,
+        "distance": 1061.14,
+        "reference": "BVH",
+        "source": "sintef_best_known"
+      }
+    },
+    "RC208": {
+      "25": {
+        "vehicles": 2,
+        "distance": 269.1,
+        "reference": "C",
+        "source": "solomon_optimal"
+      },
+      "50": null,
+      "100": {
+        "vehicles": 3,
+        "distance": 828.14,
+        "reference": "IKMUY",
+        "source": "sintef_best_known"
+      }
+    }
+  }
+}

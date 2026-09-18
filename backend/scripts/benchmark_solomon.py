@@ -1,391 +1,299 @@
 #!/usr/bin/env python3
 """
-Comprehensive benchmark of CVRPTW solvers against all Solomon instances.
+Benchmark the CVRPTW solvers on the Solomon instances and write the results artifact.
 
-Runs all 56 base instances (C101-C109, C201-C208, R101-R112, R201-R211,
-RC101-RC108, RC201-RC208) at each of 3 sizes (25, 50, 100 customers) with
-all three solvers (CP-SAT, Clarke-Wright, OR-Tools).
+Runs every solver (CP-SAT exact, Clarke-Wright savings, OR-Tools routing) on
+every Solomon instance (56 instances x 25/50/100 customers = 168 cases) with
+a fixed per-solve time limit and seed, re-checks every solution with the
+shared validator, and writes ``docs/benchmark_results.json``. That file is the
+data source for the Benchmarks page; it is produced only by this script and
+is never edited by hand.
 
-Total: 56 instances × 3 sizes × 3 solvers = 504 solver runs.
-With 10s time limit per solver, total ~1.4 hours.
+    cd backend
+    python scripts/benchmark_solomon.py                      # full run, ~1 hour
+    python scripts/benchmark_solomon.py --instances C101,R201 --sizes 25 \\
+        --output /tmp/solomon.json                           # a quick subset
 
-Results saved as machine-readable JSON with per-instance best-known values
-and full provenance (data URL, SHA256, source citations).
+This is a generator, not a test: the test suite only exercises it on a tiny
+subset (tests/test_solomon_instances.py).
 
-Usage:
-    python backend/scripts/benchmark_solomon_full.py [--small]
+WHAT IS RECORDED per solver run: status, feasibility (shared validator),
+vehicles used, total distance in double precision (from the coordinates, not
+the scaled integers), runtime, and the gap to the published reference value:
 
-    --small: run only a few instances for quick validation
+* 100 customers - vs the SINTEF best known (fewest vehicles, then distance,
+  double precision): ``gap_percent`` compares ``distance``.
+* 25 / 50 customers - vs Solomon's proven optima, which use distances
+  truncated to one decimal per arc: ``gap_percent`` compares
+  ``distance_one_decimal`` (the same routes measured that way), so a proven
+  optimum reads 0.0 and nothing can read below it.
+
+The solvers minimise distance only, so on 100 customers a solution may use
+more vehicles than the hierarchical best known and still be shorter; the
+negative gap is then real and ``vehicle_gap`` shows the extra vehicles.
 """
 
+from __future__ import annotations
+
 import argparse
+import hashlib
 import json
 import os
 import platform
+import subprocess
 import sys
 import time
-from dataclasses import asdict, dataclass
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+BACKEND = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND))
 
-from app.vrp import solve
-from app.vrp.solomon import get_best_known, load_solomon
+import ortools  # noqa: E402
 
+from app.vrp import solve_clarke_wright, solve_cpsat, solve_ortools, validate_routes  # noqa: E402
+from app.vrp.model import VrpSolution  # noqa: E402
+from app.vrp.solomon import (  # noqa: E402
+    DATA_DIR,
+    INSTANCE_NAMES,
+    SCALE,
+    SIZES,
+    best_known_sources,
+    family_of,
+    get_best_known,
+    instance_path,
+    read_solomon,
+    route_distance,
+)
 
-# All 56 base Solomon instances
-BASE_INSTANCES = [
-    # C family (clustered, 9 instances)
-    "C101", "C102", "C103", "C104", "C105", "C106", "C107", "C108", "C109",
-    # C2 family (clustered, long TW, 8 instances)
-    "C201", "C202", "C203", "C204", "C205", "C206", "C207", "C208",
-    # R family (random, 12 instances)
-    "R101", "R102", "R103", "R104", "R105", "R106",
-    "R107", "R108", "R109", "R110", "R111", "R112",
-    # R2 family (random, long TW, 11 instances)
-    "R201", "R202", "R203", "R204", "R205", "R206",
-    "R207", "R208", "R209", "R210", "R211",
-    # RC family (random-clustered, 8 instances)
-    "RC101", "RC102", "RC103", "RC104", "RC105", "RC106", "RC107", "RC108",
-    # RC2 family (random-clustered, long TW, 8 instances)
-    "RC201", "RC202", "RC203", "RC204", "RC205", "RC206", "RC207", "RC208",
-]
-
-# Per-instance best-known solutions from SINTEF + literature
-# Format: (instance_name, num_customers) -> (best_vehicles, best_distance, source)
-BEST_KNOWN_PER_INSTANCE: Dict[Tuple[str, int], Tuple[int, int, str]] = {
-    # C1 family (short time windows)
-    ("C101", 25): (2, 191, "SINTEF"),
-    ("C102", 25): (3, 190, "SINTEF"),
-    ("C103", 25): (3, 190, "SINTEF"),
-    ("C104", 25): (3, 186, "SINTEF"),
-    ("C105", 25): (3, 186, "SINTEF"),
-    ("C106", 25): (3, 186, "SINTEF"),
-    ("C107", 25): (3, 186, "SINTEF"),
-    ("C108", 25): (3, 186, "SINTEF"),
-    ("C109", 25): (3, 186, "SINTEF"),
-    ("C101", 50): (3, 359, "SINTEF"),
-    ("C102", 50): (4, 359, "SINTEF"),
-    ("C103", 50): (5, 359, "SINTEF"),
-    ("C104", 50): (4, 351, "SINTEF"),
-    ("C105", 50): (5, 351, "SINTEF"),
-    ("C106", 50): (5, 351, "SINTEF"),
-    ("C107", 50): (5, 351, "SINTEF"),
-    ("C108", 50): (5, 351, "SINTEF"),
-    ("C109", 50): (5, 351, "SINTEF"),
-    ("C101", 100): (10, 828, "SINTEF"),
-    ("C102", 100): (10, 828, "SINTEF"),
-    ("C103", 100): (10, 828, "SINTEF"),
-    ("C104", 100): (10, 824, "SINTEF"),
-    ("C105", 100): (10, 824, "SINTEF"),
-    ("C106", 100): (10, 824, "SINTEF"),
-    ("C107", 100): (10, 824, "SINTEF"),
-    ("C108", 100): (10, 824, "SINTEF"),
-    ("C109", 100): (10, 824, "SINTEF"),
-
-    # C2 family (long time windows)
-    ("C201", 25): (2, 591, "SINTEF"),
-    ("C202", 25): (3, 591, "SINTEF"),
-    ("C203", 25): (3, 591, "SINTEF"),
-    ("C204", 25): (2, 590, "SINTEF"),
-    ("C205", 25): (2, 588, "SINTEF"),
-    ("C206", 25): (2, 588, "SINTEF"),
-    ("C207", 25): (2, 588, "SINTEF"),
-    ("C208", 25): (2, 588, "SINTEF"),
-    ("C201", 50): (3, 1124, "SINTEF"),
-    ("C202", 50): (4, 1122, "SINTEF"),
-    ("C203", 50): (5, 1120, "SINTEF"),
-    ("C204", 50): (4, 1118, "SINTEF"),
-    ("C205", 50): (4, 1116, "SINTEF"),
-    ("C206", 50): (4, 1114, "SINTEF"),
-    ("C207", 50): (4, 1112, "SINTEF"),
-    ("C208", 50): (4, 1110, "SINTEF"),
-    ("C201", 100): (10, 2103, "SINTEF"),
-    ("C202", 100): (11, 2097, "SINTEF"),
-    ("C203", 100): (11, 2091, "SINTEF"),
-    ("C204", 100): (11, 2085, "SINTEF"),
-    ("C205", 100): (11, 2079, "SINTEF"),
-    ("C206", 100): (12, 2073, "SINTEF"),
-    ("C207", 100): (12, 2069, "SINTEF"),
-    ("C208", 100): (12, 2059, "SINTEF"),
-
-    # R1 family (random, short TW)
-    ("R101", 25): (6, 233, "SINTEF"),
-    ("R102", 25): (6, 223, "SINTEF"),
-    ("R103", 25): (5, 218, "SINTEF"),
-    ("R104", 25): (4, 198, "SINTEF"),
-    ("R105", 25): (5, 228, "SINTEF"),
-    ("R106", 25): (5, 215, "SINTEF"),
-    ("R107", 25): (5, 207, "SINTEF"),
-    ("R108", 25): (4, 198, "SINTEF"),
-    ("R109", 25): (5, 208, "SINTEF"),
-    ("R110", 25): (4, 196, "SINTEF"),
-    ("R111", 25): (5, 208, "SINTEF"),
-    ("R112", 25): (4, 195, "SINTEF"),
-    ("R101", 50): (9, 463, "SINTEF"),
-    ("R102", 50): (9, 448, "SINTEF"),
-    ("R103", 50): (8, 411, "SINTEF"),
-    ("R104", 50): (7, 370, "SINTEF"),
-    ("R105", 50): (8, 457, "SINTEF"),
-    ("R106", 50): (8, 424, "SINTEF"),
-    ("R107", 50): (8, 416, "SINTEF"),
-    ("R108", 50): (7, 387, "SINTEF"),
-    ("R109", 50): (8, 420, "SINTEF"),
-    ("R110", 50): (7, 382, "SINTEF"),
-    ("R111", 50): (8, 413, "SINTEF"),
-    ("R112", 50): (8, 399, "SINTEF"),
-    ("R101", 100): (20, 1044, "SINTEF"),
-    ("R102", 100): (20, 1001, "SINTEF"),
-    ("R103", 100): (19, 934, "SINTEF"),
-    ("R104", 100): (18, 860, "SINTEF"),
-    ("R105", 100): (19, 1002, "SINTEF"),
-    ("R106", 100): (19, 948, "SINTEF"),
-    ("R107", 100): (19, 923, "SINTEF"),
-    ("R108", 100): (18, 877, "SINTEF"),
-    ("R109", 100): (19, 924, "SINTEF"),
-    ("R110", 100): (19, 897, "SINTEF"),
-    ("R111", 100): (19, 921, "SINTEF"),
-    ("R112", 100): (18, 876, "SINTEF"),
-
-    # R2 family (random, long TW)
-    ("R201", 25): (3, 485, "SINTEF"),
-    ("R202", 25): (3, 475, "SINTEF"),
-    ("R203", 25): (3, 460, "SINTEF"),
-    ("R204", 25): (2, 360, "SINTEF"),
-    ("R205", 25): (3, 471, "SINTEF"),
-    ("R206", 25): (3, 453, "SINTEF"),
-    ("R207", 25): (3, 440, "SINTEF"),
-    ("R208", 25): (2, 350, "SINTEF"),
-    ("R209", 25): (3, 459, "SINTEF"),
-    ("R210", 25): (3, 439, "SINTEF"),
-    ("R211", 25): (2, 327, "SINTEF"),
-    ("R201", 50): (7, 1001, "SINTEF"),
-    ("R202", 50): (7, 987, "SINTEF"),
-    ("R203", 50): (7, 948, "SINTEF"),
-    ("R204", 50): (6, 794, "SINTEF"),
-    ("R205", 50): (7, 985, "SINTEF"),
-    ("R206", 50): (7, 936, "SINTEF"),
-    ("R207", 50): (7, 909, "SINTEF"),
-    ("R208", 50): (6, 813, "SINTEF"),
-    ("R209", 50): (7, 947, "SINTEF"),
-    ("R210", 50): (7, 914, "SINTEF"),
-    ("R211", 50): (6, 758, "SINTEF"),
-    ("R201", 100): (12, 1917, "SINTEF"),
-    ("R202", 100): (12, 1896, "SINTEF"),
-    ("R203", 100): (12, 1781, "SINTEF"),
-    ("R204", 100): (11, 1618, "SINTEF"),
-    ("R205", 100): (12, 1872, "SINTEF"),
-    ("R206", 100): (12, 1758, "SINTEF"),
-    ("R207", 100): (12, 1699, "SINTEF"),
-    ("R208", 100): (11, 1575, "SINTEF"),
-    ("R209", 100): (12, 1764, "SINTEF"),
-    ("R210", 100): (12, 1703, "SINTEF"),
-    ("R211", 100): (11, 1461, "SINTEF"),
-
-    # RC1 family (random-clustered, short TW)
-    ("RC101", 25): (4, 208, "SINTEF"),
-    ("RC102", 25): (3, 205, "SINTEF"),
-    ("RC103", 25): (3, 204, "SINTEF"),
-    ("RC104", 25): (3, 202, "SINTEF"),
-    ("RC105", 25): (4, 204, "SINTEF"),
-    ("RC106", 25): (3, 203, "SINTEF"),
-    ("RC107", 25): (3, 203, "SINTEF"),
-    ("RC108", 25): (3, 202, "SINTEF"),
-    ("RC101", 50): (7, 476, "SINTEF"),
-    ("RC102", 50): (8, 468, "SINTEF"),
-    ("RC103", 50): (8, 454, "SINTEF"),
-    ("RC104", 50): (8, 443, "SINTEF"),
-    ("RC105", 50): (8, 451, "SINTEF"),
-    ("RC106", 50): (8, 443, "SINTEF"),
-    ("RC107", 50): (8, 438, "SINTEF"),
-    ("RC108", 50): (8, 436, "SINTEF"),
-    ("RC101", 100): (13, 1087, "SINTEF"),
-    ("RC102", 100): (15, 1062, "SINTEF"),
-    ("RC103", 100): (15, 1013, "SINTEF"),
-    ("RC104", 100): (15, 969, "SINTEF"),
-    ("RC105", 100): (15, 1046, "SINTEF"),
-    ("RC106", 100): (15, 1000, "SINTEF"),
-    ("RC107", 100): (15, 969, "SINTEF"),
-    ("RC108", 100): (15, 960, "SINTEF"),
-
-    # RC2 family (random-clustered, long TW)
-    ("RC201", 25): (3, 675, "SINTEF"),
-    ("RC202", 25): (3, 665, "SINTEF"),
-    ("RC203", 25): (3, 655, "SINTEF"),
-    ("RC204", 25): (3, 638, "SINTEF"),
-    ("RC205", 25): (3, 671, "SINTEF"),
-    ("RC206", 25): (3, 661, "SINTEF"),
-    ("RC207", 25): (2, 569, "SINTEF"),
-    ("RC208", 25): (2, 542, "SINTEF"),
-    ("RC201", 50): (5, 1342, "SINTEF"),
-    ("RC202", 50): (6, 1325, "SINTEF"),
-    ("RC203", 50): (6, 1283, "SINTEF"),
-    ("RC204", 50): (6, 1236, "SINTEF"),
-    ("RC205", 50): (6, 1310, "SINTEF"),
-    ("RC206", 50): (6, 1273, "SINTEF"),
-    ("RC207", 50): (5, 1090, "SINTEF"),
-    ("RC208", 50): (5, 998, "SINTEF"),
-    ("RC201", 100): (9, 2591, "SINTEF"),
-    ("RC202", 100): (11, 2559, "SINTEF"),
-    ("RC203", 100): (11, 2468, "SINTEF"),
-    ("RC204", 100): (11, 2367, "SINTEF"),
-    ("RC205", 100): (11, 2545, "SINTEF"),
-    ("RC206", 100): (11, 2459, "SINTEF"),
-    ("RC207", 100): (10, 2099, "SINTEF"),
-    ("RC208", 100): (10, 1946, "SINTEF"),
-}
+DEFAULT_OUTPUT = BACKEND.parent / "docs" / "benchmark_results.json"
+SOLVERS = ("cpsat", "clarke_wright", "ortools")
+DATA_URL = "https://www.sintef.no/globalassets/project/top/vrptw/solomon/solomon-100.zip"
+DATA_SHA256 = "8a0a72cbe6b7f8f9988ace4ebde0378ec34943acaaac47f2c408915e41887747"
 
 
-@dataclass
-class BenchmarkResult:
-    """One solver's result on one instance."""
-    instance: str
-    num_customers: int
-    solver: str
-    vehicles_used: int
-    total_distance: int
-    gap_percent: Optional[float]
-    runtime_seconds: float
-    feasible: bool
-    solver_status: str
-    best_known_distance: Optional[int] = None
-    best_known_vehicles: Optional[int] = None
-    best_known_source: Optional[str] = None
+def run_solver(solver: str, instance, time_limit: float, seed: int) -> VrpSolution:
+    if solver == "cpsat":
+        return solve_cpsat(instance, time_limit_seconds=time_limit, random_seed=seed)
+    if solver == "clarke_wright":
+        return solve_clarke_wright(instance)
+    if solver == "ortools":
+        return solve_ortools(instance, time_limit_seconds=time_limit)
+    raise ValueError(f"unknown solver {solver!r}")
 
 
-def compute_gap(actual: int, best_known: Optional[int]) -> Optional[float]:
-    """Compute gap percentage vs best-known solution."""
-    if best_known is None or best_known == 0:
-        return None
-    return 100 * (actual - best_known) / best_known
+def gap(value: float, reference: float) -> float:
+    return round(100.0 * (value - reference) / reference, 3)
 
 
-def run_benchmark(
-    instance_name: str, num_customers: int, time_limit_seconds: float = 10.0, random_seed: int = 42
-) -> List[BenchmarkResult]:
-    """Run all solvers on one Solomon instance with fixed seed."""
-    results: List[BenchmarkResult] = []
-
-    try:
-        instance = load_solomon(instance_name, num_customers)
-    except FileNotFoundError:
-        print(f"  ✗ Instance file not found: {instance_name}/{num_customers}")
-        return []
-
-    best_known_info = BEST_KNOWN_PER_INSTANCE.get((instance_name, num_customers))
-    best_veh = best_known_info[0] if best_known_info else None
-    best_dist = best_known_info[1] if best_known_info else None
-    best_source = best_known_info[2] if best_known_info else None
-
-    for solver in ["cpsat", "clarke_wright", "ortools"]:
-        # CP-SAT only works well on smaller instances
-        if solver == "cpsat" and num_customers > 50:
-            print(f"    {solver:20} (skipped - too large)")
-            continue
-
-        print(f"    {solver:20}", end=" ", flush=True)
-
-        start_time = time.time()
-        try:
-            solution = solve(instance, method=solver, time_limit_seconds=time_limit_seconds, random_seed=random_seed)
-        except Exception as e:
-            print(f"✗ error: {e}")
-            continue
-        elapsed = time.time() - start_time
-
-        gap = compute_gap(solution.total_cost, best_dist)
-        gap_str = f"{gap:+.1f}%" if gap is not None else "N/A"
-
-        feas_str = "✓" if solution.feasible else "✗"
-        print(f"{feas_str} {solution.total_cost:5d}  {gap_str:>7}  {elapsed:6.2f}s")
-
-        result = BenchmarkResult(
-            instance=instance_name,
-            num_customers=num_customers,
-            solver=solver,
-            vehicles_used=solution.vehicles_used,
-            total_distance=solution.total_cost,
-            gap_percent=gap,
-            runtime_seconds=elapsed,
-            feasible=solution.feasible,
-            solver_status=solution.status,
-            best_known_distance=best_dist,
-            best_known_vehicles=best_veh,
-            best_known_source=best_source,
+def run_case(args: tuple) -> List[dict]:
+    """All solvers on one (instance, size). Top-level so a process pool can run it."""
+    name, size, solvers, time_limit, seed = args
+    raw = read_solomon(name, size)
+    instance = raw.to_vrp()
+    reference = get_best_known(name, size)
+    records = []
+    for solver in solvers:
+        t0 = time.perf_counter()
+        solution = run_solver(solver, instance, time_limit, seed)
+        runtime = time.perf_counter() - t0
+        # Re-check with the shared validator here, independent of the solver's own path.
+        report = validate_routes(instance, solution.routes)
+        if report.feasible != solution.feasible:
+            raise RuntimeError(f"{name}/{size}/{solver}: validator disagrees with the solver's own validation")
+        has_routes = bool(solution.routes)
+        distance = route_distance(raw.coords, solution.routes) if has_routes else None
+        distance_1dp = route_distance(raw.coords, solution.routes, truncate_one_decimal=True) if has_routes else None
+        record = {
+            "instance": name,
+            "family": family_of(name),
+            "num_customers": size,
+            "solver": solver,
+            "status": solution.status,
+            "solver_status": solution.stats.get("solver_status", solution.stats.get("routing_status")),
+            "feasible": report.feasible,
+            "proven_optimal": solution.proven_optimal,
+            "vehicles_used": solution.vehicles_used,
+            "distance": round(distance, 2) if distance is not None else None,
+            "distance_one_decimal": round(distance_1dp, 1) if distance_1dp is not None else None,
+            "gap_percent": None,
+            "vehicle_gap": None,
+            "runtime_seconds": round(runtime, 3),
+            "reference": reference,
+            "violations": report.violations[:3],
+            "routes": solution.routes,
+        }
+        if reference is not None and report.feasible and has_routes:
+            # Gaps use the reported (rounded) distances so a reader can reproduce them from the file.
+            measured = (
+                record["distance_one_decimal"] if reference["source"] == "solomon_optimal" else record["distance"]
+            )
+            record["gap_percent"] = gap(measured, reference["distance"])
+            record["vehicle_gap"] = solution.vehicles_used - reference["vehicles"]
+        records.append(record)
+        shown = f"{record['distance']:9.2f}" if distance is not None else "        -"
+        shown_gap = f"{record['gap_percent']:+7.2f}%" if record["gap_percent"] is not None else "       -"
+        print(
+            f"{name:>6}/{size:<3} {solver:<13} {solution.status:<11} veh {solution.vehicles_used:>2} "
+            f"dist {shown} gap {shown_gap} {runtime:6.2f}s",
+            flush=True,
         )
-        results.append(result)
-
-    return results
+    return records
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Comprehensive benchmark of CVRPTW solvers")
-    parser.add_argument("--small", action="store_true", help="Run only a few instances")
-    args = parser.parse_args()
+def summarize(results: List[dict]) -> List[dict]:
+    """Per solver and size: how many feasible, mean gap where a reference exists, mean runtime."""
+    rows = []
+    for size in sorted({r["num_customers"] for r in results}):
+        for solver in SOLVERS:
+            runs = [r for r in results if r["num_customers"] == size and r["solver"] == solver]
+            if not runs:
+                continue
+            gaps = [r["gap_percent"] for r in runs if r["gap_percent"] is not None]
+            rows.append(
+                {
+                    "num_customers": size,
+                    "solver": solver,
+                    "runs": len(runs),
+                    "feasible": sum(r["feasible"] for r in runs),
+                    "proven_optimal": sum(r["proven_optimal"] for r in runs),
+                    "with_reference": len(gaps),
+                    "mean_gap_percent": round(sum(gaps) / len(gaps), 3) if gaps else None,
+                    "mean_runtime_seconds": round(sum(r["runtime_seconds"] for r in runs) / len(runs), 3),
+                }
+            )
+    return rows
 
-    # Determine which instances and sizes to run
-    if args.small:
-        instances = ["C101", "R101", "RC101"]
-        sizes = [25, 50]
-    else:
-        instances = BASE_INSTANCES
-        sizes = [25, 50, 100]
 
-    all_results: List[BenchmarkResult] = []
+def data_digest(cases: List[tuple]) -> str:
+    """sha256 over the instance files used, in run order, so a reader can confirm the inputs."""
+    h = hashlib.sha256()
+    for name, size in cases:
+        path = instance_path(name, size)
+        h.update(path.name.encode())
+        h.update(path.read_bytes())
+    return h.hexdigest()
 
-    print()
-    print("Comprehensive Solomon CVRPTW Benchmark")
-    print("=" * 70)
-    print(f"Instances: {len(instances)}")
-    print(f"Sizes: {sizes}")
-    print(f"Total: {len(instances)} instances × {len(sizes)} sizes × 3 solvers")
-    print("=" * 70)
-    print()
 
-    for instance in instances:
-        print(f"{instance}:")
-        for size in sizes:
-            print(f"  {size:3d} customers:")
-            results = run_benchmark(instance, size, time_limit_seconds=10.0)
-            all_results.extend(results)
-        print()
+def git_commit() -> Optional[str]:
+    try:
+        out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=BACKEND, capture_output=True, text=True, check=True)
+        return out.stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
-    # Save results as JSON
-    results_dir = Path(__file__).parent.parent.parent / "docs"
-    results_dir.mkdir(parents=True, exist_ok=True)
-    results_file = results_dir / "benchmark_results.json"
 
-    # Add provenance
-    provenance = {
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+def provenance(
+    cases: List[tuple], solvers: List[str], time_limit: float, seed: int, jobs: int, argv: List[str]
+) -> dict:
+    return {
+        "generated_by": "backend/scripts/benchmark_solomon.py",
+        "command": " ".join(["python", "scripts/benchmark_solomon.py", *argv]),
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "git_commit": git_commit(),
         "platform": platform.platform(),
+        "machine": platform.machine(),
+        "cpu_count": os.cpu_count(),
         "python_version": platform.python_version(),
-        "time_limit_seconds": 10.0,
-        "random_seed": 42,
-        "data_source": {
-            "instances": "SINTEF TOP VRPTW",
-            "url": "https://www.sintef.no/projectweb/top/vrptw/",
-            "sha256": "8a0a72cbe6b7f8f9988ace4ebde0378ec34943acaaac47f2c408915e41887747",
+        "ortools_version": ortools.__version__,
+        "time_limit_seconds": time_limit,
+        "random_seed": seed,
+        "parallel_jobs": jobs,
+        "solvers": {
+            "cpsat": f"CP-SAT exact model, 1 search worker, random_seed={seed}, stops at the time limit",
+            "clarke_wright": "Clarke-Wright savings, one deterministic pass; ignores the time limit",
+            "ortools": "OR-Tools routing, PATH_CHEAPEST_ARC + GUIDED_LOCAL_SEARCH until the time limit; "
+            "the search has no random seed, so results vary only with how much search fits in the time limit",
         },
-        "best_known_sources": {
-            "100_customers": "Gehring & Homberger (2002) SINTEF TOP VRPTW https://www.sintef.no/projectweb/top/vrptw/bestknown.html",
-            "50_customers": "SINTEF TOP VRPTW (derived from 100-customer solutions)",
-            "25_customers": "SINTEF TOP VRPTW (derived from 100-customer solutions)",
+        "runtime_note": "runtime_seconds is wall time of the whole solver call, model building included",
+        "integer_scale": SCALE,
+        "distance_note": (
+            "Solvers work on integers: distance = Euclidean x 100 rounded, travel time = Euclidean x 100 rounded up "
+            "(so every validated schedule is feasible in real arithmetic). Reported distance is recomputed from the "
+            "coordinates in double precision; distance_one_decimal truncates each arc to one decimal."
+        ),
+        "gap_note": (
+            "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. "
+            "25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. "
+            "null when there is no feasible solution or no published reference."
+        ),
+        "data": {
+            "instances": "Solomon (1987) VRPTW instances, SINTEF TOP backup",
+            "url": DATA_URL,
+            "sha256": DATA_SHA256,
+            "files": str(DATA_DIR.relative_to(BACKEND.parent)),
+            "files_sha256": data_digest(cases),
+            "subsets": "25/50-customer versions are the first 25/50 customers of each 100-customer file",
         },
+        "best_known": best_known_sources(),
+        "instances": sorted({name for name, _ in cases}, key=INSTANCE_NAMES.index),
+        "sizes": sorted({size for _, size in cases}),
     }
 
-    output = {
-        "provenance": provenance,
-        "results": [asdict(r) for r in all_results],
+
+def write_json(path: Path, payload: dict) -> None:
+    """Indented JSON, but one line per result so the file stays readable and diffable."""
+    results = payload["results"]
+    head = {k: v for k, v in payload.items() if k != "results"}
+    text = json.dumps(head, indent=2)[:-2]  # drop the closing "\n}"
+    lines = [json.dumps(r, separators=(", ", ": ")) for r in results]
+    text += ',\n  "results": [\n    ' + ",\n    ".join(lines) + "\n  ]\n}\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
+def parse_list(value: str) -> List[str]:
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="Benchmark the CVRPTW solvers on the Solomon instances.")
+    parser.add_argument("--instances", default="all", help="comma-separated names (e.g. C101,R201) or 'all'")
+    parser.add_argument("--sizes", default="25,50,100", help="comma-separated customer counts from 25,50,100")
+    parser.add_argument("--solvers", default=",".join(SOLVERS), help=f"comma-separated from {','.join(SOLVERS)}")
+    parser.add_argument("--time-limit", type=float, default=10.0, help="per-solve time limit in seconds")
+    parser.add_argument("--seed", type=int, default=42, help="CP-SAT random seed")
+    parser.add_argument("--jobs", type=int, default=1, help="cases solved in parallel (1 = most faithful runtimes)")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="where to write the JSON artifact")
+    args = parser.parse_args(argv)
+    argv = list(sys.argv[1:] if argv is None else argv)
+
+    names = INSTANCE_NAMES if args.instances == "all" else [n.upper() for n in parse_list(args.instances)]
+    sizes = [int(s) for s in parse_list(args.sizes)]
+    solvers = parse_list(args.solvers)
+    for n in names:
+        if n not in INSTANCE_NAMES:
+            parser.error(f"unknown instance {n}")
+    for s in sizes:
+        if s not in SIZES:
+            parser.error(f"size must be one of {SIZES}")
+    for s in solvers:
+        if s not in SOLVERS:
+            parser.error(f"unknown solver {s}")
+
+    cases = [(name, size) for name in names for size in sizes]
+    work = [(name, size, solvers, args.time_limit, args.seed) for name, size in cases]
+    print(
+        f"{len(cases)} cases x {len(solvers)} solvers, {args.time_limit:g}s limit, seed {args.seed}, {args.jobs} job(s)"
+    )
+    if args.jobs > 1:
+        with ProcessPoolExecutor(max_workers=args.jobs) as pool:
+            per_case = list(pool.map(run_case, work))
+    else:
+        per_case = [run_case(w) for w in work]
+    results: List[dict] = [r for records in per_case for r in records]
+
+    payload: Dict[str, object] = {
+        "schema_version": 1,
+        "provenance": provenance(cases, solvers, args.time_limit, args.seed, args.jobs, argv),
+        "summary": summarize(results),
+        "results": results,
     }
-
-    with open(results_file, "w") as f:
-        json.dump(output, f, indent=2)
-
-    print(f"Results saved to {results_file}")
-    print(f"Total solver runs: {len(all_results)}")
+    write_json(args.output, payload)
+    print(f"wrote {len(results)} results to {args.output}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

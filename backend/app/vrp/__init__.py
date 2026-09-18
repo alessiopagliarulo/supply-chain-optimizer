@@ -51,21 +51,20 @@ EXACT_MAX_CUSTOMERS = 15
 METHODS = ("auto", "cpsat", "clarke_wright", "ortools")
 
 
-def solve(instance: VrpInstance, method: str = "auto", time_limit_seconds: float = 5.0, random_seed: int = 42) -> VrpSolution:
+def solve(instance: VrpInstance, method: str = "auto", time_limit_seconds: float = 5.0) -> VrpSolution:
     """Solve ``instance`` with the named solver path.
 
     ``time_limit_seconds`` bounds CP-SAT and OR-Tools routing; Clarke-Wright
-    is a single greedy pass and ignores it. ``random_seed`` is used by
-    CP-SAT and OR-Tools for reproducibility; Clarke-Wright is deterministic.
+    is a single greedy pass and ignores it.
     """
     if method == "auto":
         method = "cpsat" if instance.num_customers <= EXACT_MAX_CUSTOMERS else "ortools"
     if method == "cpsat":
-        return solve_cpsat(instance, time_limit_seconds=time_limit_seconds, random_seed=random_seed)
+        return solve_cpsat(instance, time_limit_seconds=time_limit_seconds)
     if method == "clarke_wright":
         return solve_clarke_wright(instance)
     if method == "ortools":
-        return solve_ortools(instance, time_limit_seconds=time_limit_seconds, random_seed=random_seed)
+        return solve_ortools(instance, time_limit_seconds=time_limit_seconds)
     raise ValueError(f"unknown method {method!r}; expected one of {METHODS}")
 
 
