@@ -15,11 +15,15 @@ guided local search never stops early). So the time limit is capped at
 ``MAX_TIME_LIMIT_SECONDS``, the instance size at ``MAX_CUSTOMERS``, and the
 exact CP-SAT path at ``MAX_EXACT_CUSTOMERS`` customers. The handler is a plain
 ``def`` so FastAPI runs it in its thread pool instead of on the event loop.
+
+Every integer in the request is capped at ``MAX_VALUE`` and every coordinate at
+``MAX_COORDINATE``, so route sums and time cumuls stay far inside the 64-bit
+range CP-SAT and OR-Tools routing work in; an oversized value is a 422.
 """
 from __future__ import annotations
 
 import dataclasses
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -31,25 +35,29 @@ router = APIRouter(prefix="/routing", tags=["routing"])
 MAX_CUSTOMERS = 200
 MAX_EXACT_CUSTOMERS = 25
 MAX_TIME_LIMIT_SECONDS = 10.0
+MAX_VALUE = 10**9
+MAX_COORDINATE = 10**5
+
+Value = Annotated[int, Field(ge=0, le=MAX_VALUE)]
 
 
 class NodeIn(BaseModel):
-    x: Optional[float] = None
-    y: Optional[float] = None
-    demand: int = Field(0, ge=0)
-    ready: int = Field(0, ge=0)
-    due: int = Field(..., ge=0)
-    service_time: int = Field(0, ge=0)
+    x: Optional[float] = Field(None, ge=-MAX_COORDINATE, le=MAX_COORDINATE)
+    y: Optional[float] = Field(None, ge=-MAX_COORDINATE, le=MAX_COORDINATE)
+    demand: Value = 0
+    ready: Value = 0
+    due: Value
+    service_time: Value = 0
 
 
 class SolveRequest(BaseModel):
     nodes: List[NodeIn] = Field(..., min_length=1, max_length=MAX_CUSTOMERS + 1, description="Depot first.")
-    distance_matrix: Optional[List[List[int]]] = Field(
+    distance_matrix: Optional[List[List[Value]]] = Field(
         None, description="Integer distances; also the travel times. Omit to use scaled Euclidean distance of x/y."
     )
     scale: int = Field(1, ge=1, le=1000, description="Multiplier applied to Euclidean distances before rounding.")
     num_vehicles: int = Field(..., ge=1, le=MAX_CUSTOMERS)
-    vehicle_capacity: int = Field(..., ge=0)
+    vehicle_capacity: Value
     method: Literal["auto", "cpsat", "clarke_wright", "ortools"] = "auto"
     time_limit_seconds: float = Field(2.0, gt=0, le=MAX_TIME_LIMIT_SECONDS)
 

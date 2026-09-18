@@ -348,3 +348,36 @@ def test_api_rejects_missing_distances_and_oversized_exact_requests(client):
 
     bad_window = {**CROSS_PAYLOAD, "nodes": [{"x": 0, "y": 0, "ready": 5, "due": 1}]}
     assert client.post("/api/v1/routing/solve", json=bad_window).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"vehicle_capacity": 10**19},
+        {"nodes": [{"x": 0, "y": 0, "due": 10**19}, {"x": 1, "y": 1, "demand": 1, "due": OPEN}]},
+        {"nodes": [{"x": 0, "y": 0, "due": OPEN}, {"x": 1, "y": 1, "demand": 10**10, "due": OPEN}]},
+        {"nodes": [{"x": 0, "y": 0, "due": OPEN}, {"x": 1, "y": 1, "service_time": 10**10, "due": OPEN}]},
+        {"nodes": [{"x": 0, "y": 0, "due": OPEN}, {"x": 1e300, "y": 1, "demand": 1, "due": OPEN}]},
+        {
+            "nodes": [{"due": OPEN}, {"demand": 1, "due": OPEN}],
+            "distance_matrix": [[0, 2**62], [2**62, 0]],
+        },
+    ],
+)
+def test_api_rejects_values_beyond_the_solver_integer_range(client, override):
+    resp = client.post("/api/v1/routing/solve", json={**CROSS_PAYLOAD, **override, "method": "cpsat"})
+    assert resp.status_code == 422, resp.text
+
+
+def test_api_solves_at_the_value_caps(client):
+    from app.api.routing import MAX_VALUE
+
+    payload = {
+        "nodes": [{"due": MAX_VALUE}, {"demand": 1, "due": MAX_VALUE}],
+        "distance_matrix": [[0, 10**8], [10**8, 0]],
+        "num_vehicles": 1,
+        "vehicle_capacity": MAX_VALUE,
+        "method": "cpsat",
+    }
+    body = client.post("/api/v1/routing/solve", json=payload).json()
+    assert body["status"] == "optimal" and body["total_cost"] == 2 * 10**8
