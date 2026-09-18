@@ -193,6 +193,8 @@ class TestBenchmarkRunner:
             assert r["runtime_seconds"] < 5
         cpsat = results[0]
         assert cpsat["status"] == "optimal"
+        assert cpsat["proven_optimal_scaled_model"] is True
+        assert cpsat["gap_measured_on"] == "distance_one_decimal"
         # CP-SAT proves the real-distance optimum; measured with one-decimal arcs it is the published optimum.
         assert cpsat["distance_one_decimal"] == pytest.approx(191.3)
         assert data["summary"][0]["runs"] == 1
@@ -239,10 +241,14 @@ class TestCommittedArtifact:
             one_dp = round(route_distance(raw.coords, r["routes"], truncate_one_decimal=True), 1)
             assert r["distance_one_decimal"] == one_dp, label
             ref = r["reference"]
+            expected_field = None if ref is None else (
+                "distance_one_decimal" if ref["source"] == "solomon_optimal" else "distance"
+            )
+            assert r["gap_measured_on"] == expected_field, label
             if ref is None or not r["feasible"]:
                 assert r["gap_percent"] is None, label
                 continue
-            measured = one_dp if ref["source"] == "solomon_optimal" else r["distance"]
+            measured = r[expected_field]
             assert r["gap_percent"] == pytest.approx(100 * (measured - ref["distance"]) / ref["distance"], abs=1e-3), (
                 label
             )

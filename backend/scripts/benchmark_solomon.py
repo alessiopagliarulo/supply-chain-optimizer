@@ -19,14 +19,20 @@ subset (tests/test_solomon_instances.py).
 
 WHAT IS RECORDED per solver run: status, feasibility (shared validator),
 vehicles used, total distance in double precision (from the coordinates, not
-the scaled integers), runtime, and the gap to the published reference value:
+the scaled integers), runtime, and the gap to the published reference value,
+measured in that reference's convention (``gap_measured_on`` names the field):
 
 * 100 customers - vs the SINTEF best known (fewest vehicles, then distance,
   double precision): ``gap_percent`` compares ``distance``.
 * 25 / 50 customers - vs Solomon's proven optima, which use distances
   truncated to one decimal per arc: ``gap_percent`` compares
-  ``distance_one_decimal`` (the same routes measured that way), so a proven
-  optimum reads 0.0 and nothing can read below it.
+  ``distance_one_decimal`` (the same routes measured that way), so nothing
+  feasible can read below 0.0.
+
+``proven_optimal_scaled_model`` is CP-SAT's proof on the solver's own integer
+model (distance x100 rounded, travel time x100 rounded up). That model is
+stricter than either reference convention, so a proven solution can still show
+a positive gap: it is optimal for the scaled model, not for the reference's.
 
 The solvers minimise distance only, so on 100 customers a solution may use
 more vehicles than the hierarchical best known and still be shorter; the
@@ -113,10 +119,11 @@ def run_case(args: tuple) -> List[dict]:
             "status": solution.status,
             "solver_status": solution.stats.get("solver_status", solution.stats.get("routing_status")),
             "feasible": report.feasible,
-            "proven_optimal": solution.proven_optimal,
+            "proven_optimal_scaled_model": solution.proven_optimal,
             "vehicles_used": solution.vehicles_used,
             "distance": round(distance, 2) if distance is not None else None,
             "distance_one_decimal": round(distance_1dp, 1) if distance_1dp is not None else None,
+            "gap_measured_on": None,
             "gap_percent": None,
             "vehicle_gap": None,
             "runtime_seconds": round(runtime, 3),
@@ -124,12 +131,13 @@ def run_case(args: tuple) -> List[dict]:
             "violations": report.violations[:3],
             "routes": solution.routes,
         }
+        if reference is not None:
+            record["gap_measured_on"] = (
+                "distance_one_decimal" if reference["source"] == "solomon_optimal" else "distance"
+            )
         if reference is not None and report.feasible and has_routes:
             # Gaps use the reported (rounded) distances so a reader can reproduce them from the file.
-            measured = (
-                record["distance_one_decimal"] if reference["source"] == "solomon_optimal" else record["distance"]
-            )
-            record["gap_percent"] = gap(measured, reference["distance"])
+            record["gap_percent"] = gap(record[record["gap_measured_on"]], reference["distance"])
             record["vehicle_gap"] = solution.vehicles_used - reference["vehicles"]
         records.append(record)
         shown = f"{record['distance']:9.2f}" if distance is not None else "        -"
@@ -157,7 +165,7 @@ def summarize(results: List[dict]) -> List[dict]:
                     "solver": solver,
                     "runs": len(runs),
                     "feasible": sum(r["feasible"] for r in runs),
-                    "proven_optimal": sum(r["proven_optimal"] for r in runs),
+                    "proven_optimal_scaled_model": sum(r["proven_optimal_scaled_model"] for r in runs),
                     "with_reference": len(gaps),
                     "mean_gap_percent": round(sum(gaps) / len(gaps), 3) if gaps else None,
                     "mean_runtime_seconds": round(sum(r["runtime_seconds"] for r in runs) / len(runs), 3),
@@ -216,7 +224,13 @@ def provenance(
         "gap_note": (
             "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. "
             "25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. "
-            "null when there is no feasible solution or no published reference."
+            "gap_measured_on names the field compared. null when there is no feasible solution or no "
+            "published reference."
+        ),
+        "optimality_note": (
+            "proven_optimal_scaled_model is CP-SAT's optimality proof on the integer model above, not on the "
+            "reference's convention. Travel time rounded up makes that model stricter, so a proven solution can "
+            "still have a positive gap_percent."
         ),
         "data": {
             "instances": "Solomon (1987) VRPTW instances, SINTEF TOP backup",
@@ -285,7 +299,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     results: List[dict] = [r for records in per_case for r in records]
 
     payload: Dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "provenance": provenance(cases, solvers, args.time_limit, args.seed, args.jobs, argv),
         "summary": summarize(results),
         "results": results,

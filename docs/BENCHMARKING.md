@@ -84,14 +84,16 @@ One row per solver per case:
 
 - `status` (`optimal` / `feasible` / `infeasible` / `no_solution`),
   `solver_status`, `feasible` (the shared validator's verdict, re-checked by
-  the script), `proven_optimal`;
+  the script), `proven_optimal_scaled_model` (see below);
 - `vehicles_used`, `routes` (customer ids, depot implicit);
 - `distance` - total route length in double precision, from the coordinates;
 - `distance_one_decimal` - the same routes with each arc truncated to one
   decimal (the 25/50-customer convention);
-- `gap_percent` - vs the reference, measured in the reference's convention
-  (`distance` for 100 customers, `distance_one_decimal` for 25/50). `null` when
-  the solution is not feasible or there is no reference;
+- `gap_measured_on` - which distance the gap compares, in the reference's
+  convention: `distance` for 100 customers (SINTEF), `distance_one_decimal` for
+  25/50 (Solomon). `null` when there is no reference;
+- `gap_percent` - vs the reference, on `gap_measured_on`. `null` when the
+  solution is not feasible or there is no reference;
 - `vehicle_gap` - vehicles used minus the reference's vehicles;
 - `runtime_seconds` - wall time of the solver call, model building included.
 
@@ -113,6 +115,12 @@ files, and the reference sources. `summary` aggregates per solver and size.
 - **25/50-customer gaps are never negative.** A feasible solution cannot beat
   a proven optimum under the optimum's own convention; the artifact test
   asserts this.
+- **`proven_optimal_scaled_model` does not mean a 0.0 gap.** It is CP-SAT's
+  proof on the solver's own integer model. Travel time rounded up (x100) is
+  stricter than either reference convention, so on tight time windows the
+  proven solution can be longer than the published optimum and show a positive
+  gap (for example R105/50). It is optimal for the scaled model, not for the
+  reference's.
 - **CP-SAT** is the exact model; with 10 s and one worker it proves optimality
   on many 25/50-customer cases and some 100-customer ones, and otherwise
   reports the best solution found or none.
