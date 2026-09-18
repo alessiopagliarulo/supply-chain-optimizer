@@ -46,7 +46,7 @@ def test_zero_schedule_buffer_returns_same_instance():
 
     assert buffered.travel_time == inst.travel_time
     assert len(buffered.nodes) == len(inst.nodes)
-    for orig, buf in zip(inst.nodes, buffered.nodes):
+    for orig, buf in zip(inst.nodes, buffered.nodes, strict=True):
         assert buf.service_time == orig.service_time
 
 

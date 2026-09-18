@@ -372,6 +372,7 @@ GET  /api/v1/demand/benchmark                # intermittent-demand method benchm
 GET  /api/v1/feeds/status                    # feed freshness: download date, plus observation date where the feed publishes one (today: GPR)
 GET  /api/v1/benchmark/fiedler-curve         # sequential-removal Fiedler λ₂ curve
 POST /api/v1/routing/solve                   # CVRPTW route plan (CP-SAT exact, Clarke-Wright, OR-Tools routing), validated
+POST /api/v1/routing/tune-buffers            # Buffer-tuning optimization: find schedule/capacity buffers balancing on-time rate against cost/slack via DES simulation
 ```
 
 Full API reference (live Swagger UI): **https://supply-chain-api-qy8x.onrender.com/docs** — or http://localhost:8000/docs when running locally  

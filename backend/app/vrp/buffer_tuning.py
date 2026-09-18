@@ -22,7 +22,7 @@ Returns the evaluated frontier (buffer -> KPIs), the chosen buffers, and setting
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from app.vrp.model import Node, VrpInstance, VrpSolution
@@ -70,9 +70,11 @@ def apply_schedule_buffer(instance: VrpInstance, buffer_pct: float) -> VrpInstan
         return instance
 
     factor = 1.0 + buffer_pct / 100.0
+    travel_time = instance.travel_time
+    assert travel_time is not None
 
     buffered_travel = [
-        [int(round(t * factor)) for t in row] for row in instance.travel_time
+        [int(round(t * factor)) for t in row] for row in travel_time
     ]
 
     buffered_nodes = []
