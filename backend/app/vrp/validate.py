@@ -15,6 +15,7 @@ ready time, start each service at ``max(arrival, ready)``. That schedule is
 feasible whenever any schedule for the same visit order is, so checking it is
 enough.
 """
+
 from __future__ import annotations
 
 import numbers

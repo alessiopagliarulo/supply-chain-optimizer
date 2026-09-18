@@ -526,7 +526,7 @@ Both `ruff check app` (`All checks passed!`) and `mypy app` (`Success: no issues
 in `pyproject.toml` comments so they can be picked up later without fighting
 in-flight edits elsewhere in the repo:
 
-- **`ruff format`**: **62 of 70** backend files would be reformatted (`ruff format app
+- **`ruff format`**: **62 of 77** backend files would be reformatted (`ruff format app
   --check`) — the codebase predates a formatter convention. Not added as a CI gate yet:
   running it would touch nearly every file. Run locally and land as its own PR when
   convenient.

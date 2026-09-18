@@ -17,6 +17,7 @@ already checked by :func:`validate_routes`):
 ``method="auto"`` picks ``cpsat`` up to :data:`EXACT_MAX_CUSTOMERS` customers
 and ``ortools`` above that.
 """
+
 from __future__ import annotations
 
 from app.vrp.cpsat import solve_cpsat

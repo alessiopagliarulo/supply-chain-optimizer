@@ -25,6 +25,7 @@ CONVENTIONS
   each. A route is the ordered list of customers one vehicle visits; the depot
   is implicit at both ends and never appears inside a route.
 """
+
 from __future__ import annotations
 
 import math
@@ -109,10 +110,7 @@ class VrpInstance:
         """
         if len(coords) != len(nodes):
             raise ValueError("coords and nodes must have the same length")
-        matrix = [
-            [int(round(math.dist(a, b) * scale)) for b in coords]
-            for a in coords
-        ]
+        matrix = [[int(round(math.dist(a, b) * scale)) for b in coords] for a in coords]
         return cls(
             nodes=nodes,
             distance=matrix,
@@ -148,9 +146,9 @@ class ValidationReport:
 
 
 #: Solution statuses, strongest first.
-STATUS_OPTIMAL = "optimal"          # feasible and proven optimal (CP-SAT only)
-STATUS_FEASIBLE = "feasible"        # feasible, not proven optimal
-STATUS_INFEASIBLE = "infeasible"    # routes returned, but the validator rejects them
+STATUS_OPTIMAL = "optimal"  # feasible and proven optimal (CP-SAT only)
+STATUS_FEASIBLE = "feasible"  # feasible, not proven optimal
+STATUS_INFEASIBLE = "infeasible"  # routes returned, but the validator rejects them
 STATUS_NO_SOLUTION = "no_solution"  # the solver returned no routes at all
 
 

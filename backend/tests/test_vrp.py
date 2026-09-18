@@ -3,6 +3,7 @@
 Every instance here is small enough to check by hand or by brute force, and
 every solver call is bounded to well under a second.
 """
+
 import itertools
 import math
 
@@ -37,9 +38,7 @@ def cross(capacity=2, vehicles=2, windows=None):
     """
     coords = [(0, 0), (0, 10), (0, 20), (10, 0), (20, 0)]
     windows = windows or {}
-    nodes = [Node(0, 0, OPEN)] + [
-        Node(1, *windows.get(i, (0, OPEN))) for i in range(1, 5)
-    ]
+    nodes = [Node(0, 0, OPEN)] + [Node(1, *windows.get(i, (0, OPEN))) for i in range(1, 5)]
     return VrpInstance.from_coordinates(coords, nodes, num_vehicles=vehicles, vehicle_capacity=capacity)
 
 

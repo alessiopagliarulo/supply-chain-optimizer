@@ -20,6 +20,7 @@ Every integer in the request is capped at ``MAX_VALUE`` and every coordinate at
 ``MAX_COORDINATE``, so route sums and time cumuls stay far inside the 64-bit
 range CP-SAT and OR-Tools routing work in; an oversized value is a 422.
 """
+
 from __future__ import annotations
 
 import dataclasses

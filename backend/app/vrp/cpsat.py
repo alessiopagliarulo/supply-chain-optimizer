@@ -37,6 +37,7 @@ unaffected. It is also what the deployed API can afford (one uvicorn worker
 on 0.5 CPU, see ``render.yaml``), and it makes solves deterministic. Raise
 ``num_workers`` only in a process that never loads pyarrow.
 """
+
 from __future__ import annotations
 
 import time
@@ -70,9 +71,7 @@ def solve_cpsat(
 
     if any(nodes[i].demand > cap for i in instance.customers):
         # No vehicle can carry this customer's demand; the load domain below would be empty.
-        return build_solution(
-            instance, METHOD, None, time.perf_counter() - t0, stats={"solver_status": "INFEASIBLE"}
-        )
+        return build_solution(instance, METHOD, None, time.perf_counter() - t0, stats={"solver_status": "INFEASIBLE"})
 
     model = cp_model.CpModel()
     load = {i: model.new_int_var(nodes[i].demand, cap, f"load_{i}") for i in instance.customers}
@@ -130,6 +129,4 @@ def solve_cpsat(
                 node = succ[node]
             routes.append(route)
 
-    return build_solution(
-        instance, METHOD, routes, wall, proven_optimal=status == cp_model.OPTIMAL, stats=stats
-    )
+    return build_solution(instance, METHOD, routes, wall, proven_optimal=status == cp_model.OPTIMAL, stats=stats)

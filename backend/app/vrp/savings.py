@@ -26,6 +26,7 @@ routes are returned anyway and the shared validator marks the solution
 ``infeasible`` with the reason. It is deterministic: ties are broken by node
 index.
 """
+
 from __future__ import annotations
 
 import time

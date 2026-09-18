@@ -21,6 +21,7 @@ trades quality for latency. The result is a good local optimum, never a proof:
 disjunctions), so when the search finds nothing the solution is
 ``no_solution``.
 """
+
 from __future__ import annotations
 
 import time
@@ -65,9 +66,7 @@ def solve_ortools(instance: VrpInstance, time_limit_seconds: float = 5.0) -> Vrp
     routing.SetArcCostEvaluatorOfAllVehicles(dist_idx)
 
     demand_idx = routing.RegisterUnaryTransitCallback(demand_cb)
-    routing.AddDimensionWithVehicleCapacity(
-        demand_idx, 0, [instance.vehicle_capacity] * vehicles, True, "Capacity"
-    )
+    routing.AddDimensionWithVehicleCapacity(demand_idx, 0, [instance.vehicle_capacity] * vehicles, True, "Capacity")
 
     time_idx = routing.RegisterTransitCallback(time_cb)
     # Cumuls above the depot's due time are never feasible (the vehicle still has to
