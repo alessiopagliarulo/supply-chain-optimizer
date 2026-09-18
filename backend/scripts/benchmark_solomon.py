@@ -81,7 +81,7 @@ def run_benchmark(
 
         start_time = time.time()
         try:
-            solution = solve(instance, method=solver, time_limit_seconds=time_limit_seconds)
+            solution = solve(instance, method=solver, time_limit_seconds=time_limit_seconds, seed=42)
         except Exception as e:
             print(f"✗ error: {e}")
             continue
