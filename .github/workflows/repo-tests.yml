@@ -13,6 +13,12 @@ name: Repo — Tests (plain CI, no agent)
 # `test` script is not failed for lacking one; it is skipped with a log line. Same for Prisma
 # and for the Python path. A repo that matches nothing at all ends green with a clear
 # "nothing to run" notice rather than a confusing red tick.
+#
+# THIS COPY IS REPO-SPECIFIC. Its `python` job runs on macOS/arm64 with Python 3.13 and
+# downloads the Chronos weights because this repo's committed Prophet and Chronos artifacts
+# are generated on that platform and pinned under a strict tolerance. A project copying this
+# workflow should revert the `python` job to `ubuntu-latest` and drop the Chronos download
+# step unless it has the same artifacts.
 
 on:
   workflow_dispatch:
