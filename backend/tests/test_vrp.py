@@ -206,12 +206,6 @@ def test_cpsat_rejects_a_customer_heavier_than_any_vehicle():
     assert solve_cpsat(inst).status == STATUS_NO_SOLUTION
 
 
-def test_cpsat_hint_does_not_change_the_optimum():
-    inst = clustered(n=8, seed=4)
-    hinted = solve_cpsat(inst, hint_routes=solve_clarke_wright(inst).routes)
-    assert hinted.proven_optimal and hinted.total_cost == solve_cpsat(inst).total_cost
-
-
 # ── Clarke-Wright savings ────────────────────────────────────────────────────
 
 

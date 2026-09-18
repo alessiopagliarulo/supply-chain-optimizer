@@ -39,9 +39,8 @@ on 0.5 CPU, see ``render.yaml``), and it makes solves deterministic. Raise
 """
 from __future__ import annotations
 
-import itertools
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from ortools.sat.python import cp_model
 
@@ -55,13 +54,8 @@ def solve_cpsat(
     instance: VrpInstance,
     time_limit_seconds: float = 10.0,
     num_workers: int = 1,
-    hint_routes: Optional[List[List[int]]] = None,
 ) -> VrpSolution:
-    """Solve ``instance`` exactly (up to the time limit) with CP-SAT.
-
-    ``hint_routes``, when given, seeds the search (e.g. a Clarke-Wright
-    solution); it never changes what counts as optimal.
-    """
+    """Solve ``instance`` exactly (up to the time limit) with CP-SAT."""
     t0 = time.perf_counter()
     if instance.num_customers == 0:
         return build_solution(instance, METHOD, [], time.perf_counter() - t0, proven_optimal=True)
@@ -111,14 +105,6 @@ def solve_cpsat(
             model.add(load[j] >= load[i] + nodes[j].demand).only_enforce_if(lit)
 
     model.minimize(sum(dist[i][j] * lit for (i, j), lit in arcs.items()))
-
-    if hint_routes:
-        used: set[tuple[int, int]] = set()
-        for r in hint_routes:
-            path = [0, *r, 0]
-            used.update(itertools.pairwise(path))
-        for key, lit in arcs.items():
-            model.add_hint(lit, key in used)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_seconds)
