@@ -116,39 +116,188 @@ jobs:
 
       # DEPLOY THE COMMIT WE GATED - NOT WHATEVER IS NEWEST ON main (issue #5).
       #
-      # These steps used to POST an empty body, which Render reads as "deploy the
-      # latest commit on the connected branch": the SHA gated above was thrown
-      # away, and while the Model CI poll waited (up to 15 minutes) main's tip
-      # could move to a commit whose gates never ran.
+      # This step used to POST an empty body to each service, which Render reads
+      # as "deploy the latest commit on the connected branch": the SHA gated
+      # above was thrown away, and while the Model CI poll waited (up to 15
+      # minutes) main's tip could move to a commit whose gates never ran.
       #
-      # Both steps now run .github/scripts/render-deploy.sh, which sends
-      # {"commitId": "$SHA"}, prints Render's deploy id and reported commit, and
-      # goes red unless Render positively names the gated commit (a refusal, a
-      # different commit, or no commit at all). `SHA` is bound to
-      # steps.commit.outputs.sha, the SAME output the gate polled on, never
-      # github.sha recomputed on its own. The script's header documents each
-      # Render reply; test_deploy_pins_the_gated_commit.py runs the script
-      # against each one and checks the binding.
+      # Now every request is {"commitId": "$SHA"}, with SHA bound to
+      # steps.commit.outputs.sha, the SAME output the gate polled on (never
+      # github.sha recomputed on its own). The step is green only when Render
+      # positively names the gated commit for both services; a refusal, another
+      # commit, or no commit at all turns it red. Render's replies:
+      #   non-2xx  refused, with Render's own text printed.
+      #   201      the reply is the deploy; its commit.id must equal $SHA.
+      #   202      queued behind a deploy in progress, empty body: the queued
+      #            deploy of $SHA is looked up in the service's deploy list.
       #
-      # The script is read from the gated commit itself, not from main's tip.
-      - name: Check out the deploy script at the gated commit
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.commit.outputs.sha }}
-          sparse-checkout: .github/scripts
-          persist-credentials: false
-
-      - name: Trigger backend deploy (supply-chain-api)
+      # KEEPING THE TWO SERVICES TOGETHER. Both deploys are requested first
+      # (backend, then frontend) and confirmed after, so a failure cannot land
+      # between them. If Render refuses the backend, the frontend is never
+      # asked and production is unchanged. If it accepts the backend and refuses
+      # the frontend, the backend deploy is cancelled. If either reports another
+      # commit, every deploy this run started is cancelled. When a cancel is not
+      # possible the log says PRODUCTION MAY BE SPLIT, so it is never silent.
+      #
+      # The logic lives in this file on purpose, not in a script beside it:
+      # GitHub only lets a token with the `workflows` permission change files
+      # under .github/workflows/, and the loop's token has none. A script
+      # elsewhere in the repo would run next to RENDER_API_KEY without that
+      # protection. test_deploy_pins_the_gated_commit.py extracts this `run:`
+      # block and runs it against a stubbed curl for each Render reply.
+      - name: Deploy the gated commit to Render (backend, then frontend)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           SHA: ${{ steps.commit.outputs.sha }}
-        run: bash .github/scripts/render-deploy.sh srv-d98ru31o3t8c73ed9dig supply-chain-api
+        run: |
+          set -euo pipefail
+          api="https://api.render.com/v1"
+          services=(srv-d98ru31o3t8c73ed9dig srv-d98ru9ss728c73c85bqg)
+          labels=(supply-chain-api supply-chain-ui)
 
-      # Deliberately not `if: always()`: when the backend deploy is refused or
-      # cannot be confirmed as the gated commit, the frontend is held back too,
-      # so nothing more ships until that is understood. Re-run the job after.
-      - name: Trigger frontend deploy (supply-chain-ui)
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          SHA: ${{ steps.commit.outputs.sha }}
-        run: bash .github/scripts/render-deploy.sh srv-d98ru9ss728c73c85bqg supply-chain-ui
+          # ── Preflight: nothing is sent to Render unless all of it passes ──────────
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "::error::jq is not installed, so the deploy request cannot be built. Nothing was sent to Render."
+            exit 1
+          fi
+          if ! [[ "${SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::'${SHA:-}' is not a full 40-character commit id. Nothing was sent to Render."
+            exit 1
+          fi
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "::error::RENDER_API_KEY is not set. Nothing was sent to Render."
+            exit 1
+          fi
+          # Built in an assignment, so a jq failure stops the script here (set -e)
+          # instead of collapsing to an empty body inside curl's arguments.
+          body="$(jq -cn --arg sha "$SHA" '{commitId: $sha}')"
+          if [ "$(jq -r '.commitId // empty' <<<"$body")" != "$SHA" ]; then
+            echo "::error::The deploy request '$body' does not name the gated commit $SHA. Nothing was sent to Render."
+            exit 1
+          fi
+
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          # render METHOD PATH [JSON]: the reply body lands in $tmp/out and the HTTP
+          # status is printed; 000 when curl could not reach Render at all.
+          render() {
+            local args=(-sS -o "$tmp/out" -w '%{http_code}' -X "$1" "$api$2"
+                        -H "Authorization: Bearer $RENDER_API_KEY" -H "Accept: application/json")
+            if [ -n "${3:-}" ]; then args+=(-H "Content-Type: application/json" -d "$3"); fi
+            : >"$tmp/out"
+            local code
+            code="$(curl "${args[@]}")" || code=000
+            printf '%s' "${code: -3}"
+          }
+          is_2xx() { [ "$1" -ge 200 ] && [ "$1" -lt 300 ]; }
+          lower() { tr 'A-F' 'a-f'; }
+
+          # confirm I: which deploy did Render start for service I, and of which commit?
+          # Sets deploy_id and built (empty when Render never said).
+          confirm() {
+            local i="$1" f="$tmp/post$1" code="${codes[$1]}"
+            deploy_id="" built=""
+            if [ -s "$f" ]; then
+              if ! jq -e 'type == "object"' "$f" >/dev/null 2>&1; then
+                echo "${labels[$i]}: Render answered HTTP $code with a body that is not a JSON object: $(cat "$f")"
+                return
+              fi
+              deploy_id="$(jq -r '.id // empty' "$f")"
+              built="$(jq -r '.commit.id // empty' "$f" | lower)"
+            fi
+            if [ -n "$built" ]; then return; fi
+            if [ "$code" != "202" ]; then
+              echo "${labels[$i]}: Render's reply (HTTP $code) names no commit: $(cat "$f")"
+              return
+            fi
+            # 202: queued behind a deploy in progress, empty body. Find the queued deploy
+            # of exactly $SHA, created no earlier than a minute before our request, so an
+            # older deploy of the same commit cannot vouch for this one.
+            echo "${labels[$i]}: Render queued the deploy (HTTP 202, empty body); looking it up"
+            local attempt list_code match
+            for attempt in 1 2 3 4 5 6; do
+              list_code="$(render GET "/services/${services[$i]}/deploys?limit=20")"
+              if is_2xx "$list_code"; then
+                if match="$(jq -r --arg sha "$SHA" --argjson since "$((requested_at - 60))" '
+                    [ .[].deploy
+                      | select((.commit.id // "" | ascii_downcase) == $sha)
+                      | select((.createdAt | sub("\\.[0-9]+"; "") | sub("[+]00:?00$"; "Z")
+                                | fromdateiso8601) >= $since) ]
+                    | first // empty | .id' "$tmp/out" 2>"$tmp/jqerr")"; then
+                  if [ -n "$match" ]; then deploy_id="$match" built="$SHA"; return; fi
+                else
+                  echo "${labels[$i]}: could not read Render's deploy list: $(cat "$tmp/jqerr"); body: $(cat "$tmp/out")"
+                fi
+              else
+                echo "${labels[$i]}: listing deploys returned HTTP $list_code $(cat "$tmp/out")"
+              fi
+              if [ "$attempt" -lt 6 ]; then sleep "${RENDER_LOOKUP_SLEEP:-5}"; fi
+            done
+          }
+
+          # cancel I ID: ask Render to cancel a deploy this run started.
+          cancel() {
+            local code
+            code="$(render POST "/services/${services[$1]}/deploys/$2/cancel")"
+            if is_2xx "$code"; then
+              echo "${labels[$1]}: cancelled deploy $2"
+            else
+              echo "::error::${labels[$1]}: could not cancel deploy $2 (HTTP $code): $(cat "$tmp/out"). PRODUCTION MAY BE SPLIT: check Render and cancel or redeploy by hand."
+              cancel_failed=1
+            fi
+          }
+
+          # ── Phase 1: ask Render for both deploys, backend first ──────────────────
+          requested_at="$(date -u +%s)"
+          codes=()
+          for i in 0 1; do
+            codes[i]="$(render POST "/services/${services[$i]}/deploys" "$body")"
+            cp "$tmp/out" "$tmp/post$i"
+            if is_2xx "${codes[$i]}"; then continue; fi
+            echo "::error::Render refused the ${labels[$i]} deploy (HTTP ${codes[$i]}): $(cat "$tmp/post$i")"
+            if [ "$i" -eq 0 ]; then
+              echo "Nothing was deployed: the frontend was not asked, so production is unchanged."
+              exit 1
+            fi
+            # The backend was accepted and the frontend refused. Cancel the backend so
+            # the two services stay on the same release.
+            cancel_failed=0
+            confirm 0
+            if [ -n "$deploy_id" ]; then
+              cancel 0 "$deploy_id"
+            else
+              echo "::error::${labels[0]}: Render accepted the deploy but gave no deploy id to cancel. PRODUCTION MAY BE SPLIT: check Render."
+              cancel_failed=1
+            fi
+            if [ "$cancel_failed" -eq 0 ]; then
+              echo "Both services stay on their current release. Re-run this job once Render accepts the frontend deploy."
+            fi
+            exit 1
+          done
+
+          # ── Phase 2: confirm each deploy is the gated commit ─────────────────────
+          ids=()
+          mismatch=0 unconfirmed=0
+          for i in 0 1; do
+            confirm "$i"
+            ids[i]="$deploy_id"
+            echo "${labels[$i]}: Render deploy ${deploy_id:-<no id>} is building commit ${built:-<not reported>} (gated commit $SHA)"
+            if [ -z "$built" ]; then unconfirmed=1
+            elif [ "$built" != "$SHA" ]; then mismatch=1
+            fi
+          done
+
+          if [ "$mismatch" -eq 1 ]; then
+            echo "::error::Render is building a commit other than the gated one ($SHA). Cancelling every deploy this run started, so no unverified commit ships and both services stay together."
+            cancel_failed=0
+            for i in 0 1; do
+              if [ -n "${ids[$i]}" ]; then cancel "$i" "${ids[$i]}"; fi
+            done
+            exit 1
+          fi
+          if [ "$unconfirmed" -eq 1 ]; then
+            echo "::error::Render accepted both deploy requests, each naming commitId $SHA, but did not confirm which commit it is building for every service (see above). No result is not a good result: check Render before re-running."
+            exit 1
+          fi
+          echo "Both services are deploying exactly the gated commit $SHA."
