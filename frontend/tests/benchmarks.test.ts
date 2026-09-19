@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { SUPPORTED_SCHEMA_VERSION, parseBenchmarks } from '../src/lib/benchmarks';
+import { SUPPORTED_SCHEMA_VERSION, gapLabel, parseBenchmarks, ranksVehiclesFirst, vehicleGapLabel } from '../src/lib/benchmarks';
 
 const ARTIFACT = fileURLToPath(new URL('../../docs/benchmark_results.json', import.meta.url));
 const artifact = JSON.parse(readFileSync(ARTIFACT, 'utf8')) as {
@@ -45,6 +45,8 @@ describe('parseBenchmarks on docs/benchmark_results.json', () => {
       expect(row.distance).toBe(raw.distance);
       expect(row.gap_percent).toBe(raw.gap_percent);
       expect(row.gap_measured_on).toBe(raw.gap_measured_on);
+      expect(row.gap_comparable).toBe(raw.gap_comparable);
+      expect(row.vehicle_gap).toBe(raw.vehicle_gap);
       expect(row.runtime_seconds).toBe(raw.runtime_seconds);
       expect(row.reference?.distance ?? null).toBe(ref?.distance ?? null);
       expect(row.reference?.vehicles ?? null).toBe(ref?.vehicles ?? null);
@@ -79,6 +81,50 @@ describe('parseBenchmarks on docs/benchmark_results.json', () => {
     expect(p.best_known_sources.map((b) => b.applies_to)).toEqual(Object.values(sources).map((b) => b.applies_to));
     expect(p.time_limit_seconds).toBe(artifact.provenance.time_limit_seconds);
     expect(p.generated_at).toBe(artifact.provenance.generated_at);
+  });
+});
+
+describe('vehicles first, then distance', () => {
+  // The SINTEF best known for RC202/100 uses 3 vehicles. Before this rule the page showed an
+  // OR-Tools run with 7 vehicles at -16.0%, as if it beat the best known by driving less.
+  const rc202 = parsed.rows.filter((r) => r.instance === 'RC202' && r.num_customers === 100);
+
+  it('shows RC202/100 runs with extra vehicles as not comparable, with the vehicle gap', () => {
+    expect(rc202.map((r) => r.reference?.vehicles)).toEqual([3, 3, 3]);
+    const extra = rc202.filter((r) => r.feasible && r.vehicles_used > 3);
+    expect(extra.length).toBeGreaterThan(0);
+    for (const r of extra) {
+      expect(r.gap_comparable).toBe(false);
+      expect(r.gap_percent).toBeNull();
+      expect(gapLabel(r)).toBe('not comparable');
+      expect(vehicleGapLabel(r)).toBe(`+${r.vehicles_used - 3}`);
+    }
+  });
+
+  it('never shows a distance gap for a different vehicle count on 100 customers', () => {
+    for (const r of parsed.rows.filter((row) => row.num_customers === 100 && row.vehicle_gap !== null)) {
+      expect(r.gap_comparable).toBe(r.vehicle_gap === 0);
+      if (r.vehicle_gap !== 0) expect(gapLabel(r)).toBe('not comparable');
+    }
+  });
+
+  it('has no plotted gap below zero', () => {
+    const plotted = parsed.rows.filter((r) => r.gap_percent !== null);
+    expect(plotted.length).toBeGreaterThan(0);
+    expect(plotted.filter((r) => r.gap_percent! < 0)).toEqual([]);
+  });
+
+  it('reads which reference ranks vehicles first from the provenance', () => {
+    const vehiclesFirst = parsed.provenance.best_known_sources.filter(ranksVehiclesFirst);
+    expect(vehiclesFirst.map((s) => s.applies_to)).toEqual([[100]]);
+  });
+
+  it('labels comparable gaps and missing comparisons', () => {
+    const comparable = parsed.rows.find((r) => r.gap_comparable === true && r.gap_percent !== null)!;
+    expect(gapLabel(comparable)).toBe(`+${comparable.gap_percent!.toFixed(2)}%`);
+    const none = parsed.rows.find((r) => r.reference === null)!;
+    expect(gapLabel(none)).toBe('-');
+    expect(vehicleGapLabel(none)).toBe('-');
   });
 });
 

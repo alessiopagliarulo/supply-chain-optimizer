@@ -11,7 +11,18 @@ import {
   YAxis,
 } from 'recharts';
 import { errorMessage, routingApi, type BenchmarksResponse } from '../services/api';
-import { SUPPORTED_SCHEMA_VERSION, parseBenchmarks, sortRows, type BenchmarkRow, type ParsedBenchmarks, type SortKey } from '../lib/benchmarks';
+import {
+  SUPPORTED_SCHEMA_VERSION,
+  gapLabel,
+  parseBenchmarks,
+  ranksVehiclesFirst,
+  sortRows,
+  vehicleGapLabel,
+  type BenchmarkRow,
+  type BestKnownSource,
+  type ParsedBenchmarks,
+  type SortKey,
+} from '../lib/benchmarks';
 import { solverColor } from '../lib/colors';
 import { Busy, Card, ErrorBox, Page } from '../components/ui';
 
@@ -21,14 +32,15 @@ const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
   { key: 'solver', label: 'Solver', numeric: false },
   { key: 'status', label: 'Status', numeric: false },
   { key: 'vehicles_used', label: 'Vehicles', numeric: true },
+  { key: 'vehicle_gap', label: 'Vehicle gap', numeric: true },
   { key: 'distance', label: 'Distance', numeric: true },
-  { key: 'gap_percent', label: 'Gap vs best known', numeric: true },
+  { key: 'gap_percent', label: 'Distance gap', numeric: true },
   { key: 'runtime_seconds', label: 'Runtime (s)', numeric: true },
 ];
 
-const dash = '-';
-const fmtGap = (g: number | null) => (g === null ? dash : `${g >= 0 ? '+' : ''}${g.toFixed(2)}%`);
 const fmtStatus = (s: string) => s.replace(/_/g, ' ');
+const notComparableTitle = (r: BenchmarkRow) =>
+  `Used ${r.vehicles_used} vehicles; the best known uses ${r.reference?.vehicles ?? '?'}. The best known ranks fewest vehicles first, so distances are only compared at the same vehicle count.`;
 const fmtReference = (r: BenchmarkRow) =>
   r.reference === null
     ? 'not published'
@@ -40,7 +52,7 @@ function GapTooltip({ active, payload }: { active?: boolean; payload?: { payload
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 flex flex-col gap-0.5">
       <span className="font-semibold">{`${r.instance} · ${r.num_customers} customers · ${r.solver}`}</span>
-      <span>{`Gap ${fmtGap(r.gap_percent)} · runtime ${r.runtime_seconds.toFixed(2)} s`}</span>
+      <span>{`Distance gap ${gapLabel(r)} · vehicles ${vehicleGapLabel(r)} · runtime ${r.runtime_seconds.toFixed(2)} s`}</span>
       <span>{`Distance ${r.distance === null ? 'no solution' : r.distance.toFixed(2)} · best known ${fmtReference(r)}`}</span>
     </div>
   );
@@ -49,38 +61,51 @@ function GapTooltip({ active, payload }: { active?: boolean; payload?: { payload
 function GapRuntimeChart({ rows }: { rows: BenchmarkRow[] }) {
   const solvers = [...new Set(rows.map((r) => r.solver))].sort();
   const plotted = rows.filter((r) => r.gap_percent !== null);
+  const otherFleet = rows.filter((r) => r.gap_comparable === false);
+  const fleetNote =
+    otherFleet.length === 0
+      ? null
+      : `${otherFleet.length} ${otherFleet.length === 1 ? 'row is' : 'rows are'} not plotted because the solver used a different number of vehicles than the best-known solution, so its distance cannot be compared. Their vehicle gap is in the table.`;
   if (plotted.length === 0) {
-    return <p className="text-sm text-slate-400">No row in this selection has a gap to plot.</p>;
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-slate-400">No row in this selection has a comparable distance gap to plot.</p>
+        {fleetNote && <p className="text-xs text-slate-400 leading-relaxed">{fleetNote}</p>}
+      </div>
+    );
   }
   return (
-    <div className="h-80 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <ScatterChart margin={{ top: 8, right: 16, bottom: 28, left: 8 }}>
-          <CartesianGrid stroke="#1e293b" />
-          <XAxis
-            type="number"
-            dataKey="runtime_seconds"
-            name="Runtime"
-            unit=" s"
-            domain={[0, 'auto']}
-            tick={{ fill: '#94a3b8', fontSize: 12 }}
-            label={{ value: 'Runtime (seconds)', position: 'insideBottom', offset: -16, fill: '#94a3b8', fontSize: 12 }}
-          />
-          <YAxis
-            type="number"
-            dataKey="gap_percent"
-            name="Gap"
-            unit="%"
-            tick={{ fill: '#94a3b8', fontSize: 12 }}
-            width={56}
-          />
-          <Tooltip content={<GapTooltip />} cursor={{ stroke: '#475569' }} />
-          <Legend verticalAlign="top" height={32} wrapperStyle={{ fontSize: 12, color: '#cbd5e1' }} />
-          {solvers.map((s, i) => (
-            <Scatter key={s} name={s} data={plotted.filter((r) => r.solver === s)} fill={solverColor(s, i)} />
-          ))}
-        </ScatterChart>
-      </ResponsiveContainer>
+    <div className="flex flex-col gap-2">
+      <div className="h-80 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 8, right: 16, bottom: 28, left: 8 }}>
+            <CartesianGrid stroke="#1e293b" />
+            <XAxis
+              type="number"
+              dataKey="runtime_seconds"
+              name="Runtime"
+              unit=" s"
+              domain={[0, 'auto']}
+              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              label={{ value: 'Runtime (seconds)', position: 'insideBottom', offset: -16, fill: '#94a3b8', fontSize: 12 }}
+            />
+            <YAxis
+              type="number"
+              dataKey="gap_percent"
+              name="Distance gap"
+              unit="%"
+              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              width={56}
+            />
+            <Tooltip content={<GapTooltip />} cursor={{ stroke: '#475569' }} />
+            <Legend verticalAlign="top" height={32} wrapperStyle={{ fontSize: 12, color: '#cbd5e1' }} />
+            {solvers.map((s, i) => (
+              <Scatter key={s} name={s} data={plotted.filter((r) => r.solver === s)} fill={solverColor(s, i)} />
+            ))}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+      {fleetNote && <p className="text-xs text-slate-400 leading-relaxed">{fleetNote}</p>}
     </div>
   );
 }
@@ -144,8 +169,17 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
               </td>
               <td className={`py-1.5 px-2 whitespace-nowrap ${r.feasible ? 'text-emerald-400' : 'text-red-400'}`}>{fmtStatus(r.status)}</td>
               <td className="py-1.5 px-2 text-right">{r.vehicles_used}</td>
-              <td className="py-1.5 px-2 text-right">{r.distance === null ? 'no solution' : r.distance.toFixed(2)}</td>
-              <td className="py-1.5 px-2 text-right">{fmtGap(r.gap_percent)}</td>
+              <td className={`py-1.5 px-2 text-right whitespace-nowrap ${r.gap_comparable === false ? 'text-amber-300' : ''}`}>
+                {vehicleGapLabel(r)}
+              </td>
+              <td className="py-1.5 px-2 text-right whitespace-nowrap">{r.distance === null ? 'no solution' : r.distance.toFixed(2)}</td>
+              {r.gap_comparable === false ? (
+                <td className="py-1.5 px-2 text-right whitespace-nowrap text-slate-500" title={notComparableTitle(r)}>
+                  {gapLabel(r)}
+                </td>
+              ) : (
+                <td className="py-1.5 px-2 text-right">{gapLabel(r)}</td>
+              )}
               <td className="py-1.5 px-2 text-right">{r.runtime_seconds.toFixed(2)}</td>
               <td className={`py-1.5 px-2 text-right whitespace-nowrap ${r.reference === null ? 'text-slate-500' : ''}`}>
                 {fmtReference(r)}
@@ -155,6 +189,28 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+const sizesLabel = (sources: BestKnownSource[]) =>
+  [...new Set(sources.flatMap((s) => s.applies_to))].sort((a, b) => a - b).join('- and ');
+
+/** The plain-English note on how rows are compared, with the sizes each reference table covers. */
+function ComparisonNote({ sources }: { sources: BestKnownSource[] }) {
+  const vehiclesFirst = sizesLabel(sources.filter(ranksVehiclesFirst));
+  const distanceOnly = sizesLabel(sources.filter((s) => !ranksVehiclesFirst(s)));
+  // Without a vehicles-first reference every gap is a plain distance comparison: nothing to explain.
+  if (!vehiclesFirst) return null;
+  return (
+    <Card title="How results are compared">
+      <p className="text-sm text-slate-300 leading-relaxed">
+        {`The ${vehiclesFirst}-customer best-known solutions are ranked by number of trucks first, then by total distance. `}
+        Sending out more trucks can shorten the total distance, but that does not beat a solution that needed fewer
+        trucks. So a distance gap is only shown when the solver used the same number of trucks as the best known;
+        otherwise the table shows the difference in trucks and marks the distance gap &quot;not comparable&quot;.
+        {distanceOnly && ` The ${distanceOnly}-customer references rank on distance alone, so those gaps are always compared directly.`}
+      </p>
+    </Card>
   );
 }
 
@@ -227,10 +283,12 @@ function Results({ data }: { data: ParsedBenchmarks }) {
   return (
     <>
       <SizeFilter sizes={sizes} value={size} onChange={setSize} />
-      <Card title="Gap vs runtime, per solver">
+      <ComparisonNote sources={data.provenance.best_known_sources} />
+      <Card title="Distance gap vs runtime, per solver">
         <p className="text-xs text-slate-400 leading-relaxed">
-          One point per instance, size and solver. Gap is the percentage by which a solver's total distance exceeds
-          the best-known distance; rows with no feasible solution or no published best-known value are not plotted.
+          One point per instance, size and solver. The distance gap is the percentage by which a solver's total
+          distance exceeds the best-known distance. Rows with no feasible solution, no published best-known value, or a
+          different number of vehicles than the best known are not plotted.
         </p>
         <GapRuntimeChart rows={rows} />
       </Card>

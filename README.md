@@ -339,6 +339,9 @@ Three pages plus a landing page, no login:
 - **Benchmarks** (`/benchmarks`) - the committed `docs/benchmark_results.json`, as a
   sortable table and a gap-vs-runtime chart per solver, filterable by instance size, with
   its provenance. Sizes with no published reference show "not published", never a number.
+  SINTEF's 100-customer best known ranks fewest vehicles first, so a distance gap is only
+  shown when the solver used the same number of vehicles; other rows show the vehicle gap
+  and "not comparable".
   The page's reader is tested against the real artifact (`npm test` in `frontend/`).
 
 The lead-time model and resilience code stay in the backend and keep their API
