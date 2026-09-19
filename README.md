@@ -354,6 +354,9 @@ Screenshots of all three pages: [`docs/screenshots/current/`](docs/screenshots/c
 ```
 POST /api/v1/auth/demo                       # one-click demo login
 GET  /api/v1/components                      # 791 real electronic components
+GET  /api/v1/distributors                    # 92 distributors with city coordinates (filters: country, component_id, category, bbox, located_only)
+GET  /api/v1/distributors/{id}/components     # every component a distributor carries, with its 2024 offer
+GET  /api/v1/catalogue/provenance            # what the catalogue is: frozen 2024 snapshot, not live; coordinate precision
 GET  /api/v1/graph/metrics                   # Fiedler value, centrality, HHI, k-core
 POST /api/v1/resilience/distributor-failure  # simulate distributor outage -> cost/ETA/risk delta
 POST /api/v1/resilience/geopolitical-risk    # what-if risk-score stress dial (reads no live feed)

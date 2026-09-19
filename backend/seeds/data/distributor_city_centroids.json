@@ -1,0 +1,294 @@
+{
+  "source": "OpenStreetMap Nominatim (https://nominatim.openstreetmap.org), data (c) OpenStreetMap contributors, ODbL",
+  "retrieved": "2026-09-19",
+  "generator": "backend/seeds/geocode_distributor_cities.py",
+  "centroids": {
+    "Amsterdam|NH|Netherlands": {
+      "lat": 52.3731,
+      "lng": 4.8925,
+      "osm_display_name": "Amsterdam, Noord-Holland, Nederland",
+      "osm_type": "relation",
+      "osm_id": 271110
+    },
+    "Atlanta|GA|USA": {
+      "lat": 33.7545,
+      "lng": -84.3898,
+      "osm_display_name": "Atlanta, Fulton County, Georgia, United States",
+      "osm_type": "relation",
+      "osm_id": 119557
+    },
+    "Bangkok|BKK|Thailand": {
+      "lat": 13.7393,
+      "lng": 100.5166,
+      "osm_display_name": "กรุงเทพ, 1, ถนนรองเมือง, หัวลำโพง, แขวงรองเมือง, เขตปทุมวัน, กรุงเทพมหานคร, 10330, ประเทศไทย",
+      "osm_type": "node",
+      "osm_id": 7769630266
+    },
+    "Belmont|CA|USA": {
+      "lat": 37.5165,
+      "lng": -122.2942,
+      "osm_display_name": "Belmont, San Mateo County, California, 94002, United States",
+      "osm_type": "relation",
+      "osm_id": 9959750
+    },
+    "Berlin|Berlin|Germany": {
+      "lat": 52.5034,
+      "lng": 13.3387,
+      "osm_display_name": "Berlin, Tauentzienstraße, City West, Charlottenburg, Charlottenburg-Wilmersdorf, Berlin, 10789, Deutschland",
+      "osm_type": "node",
+      "osm_id": 313826576
+    },
+    "Birmingham|West Midlands|UK": {
+      "lat": 52.4949,
+      "lng": -1.8518,
+      "osm_display_name": "Birmingham, West Midlands, England, United Kingdom",
+      "osm_type": "relation",
+      "osm_id": 162378
+    },
+    "Boston|MA|USA": {
+      "lat": 42.3588,
+      "lng": -71.0578,
+      "osm_display_name": "Boston, Suffolk County, Massachusetts, United States",
+      "osm_type": "relation",
+      "osm_id": 2315704
+    },
+    "Cambridge|Cambs|UK": {
+      "lat": 52.1976,
+      "lng": 0.1392,
+      "osm_display_name": "Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, United Kingdom",
+      "osm_type": "relation",
+      "osm_id": 295355
+    },
+    "Centennial|CO|USA": {
+      "lat": 39.5792,
+      "lng": -104.8769,
+      "osm_display_name": "Centennial, Arapahoe County, Colorado, United States",
+      "osm_type": "relation",
+      "osm_id": 112951
+    },
+    "Chandler|AZ|USA": {
+      "lat": 33.3062,
+      "lng": -111.8412,
+      "osm_display_name": "Chandler, Maricopa County, Arizona, United States",
+      "osm_type": "relation",
+      "osm_id": 110798
+    },
+    "Charlotte|NC|USA": {
+      "lat": 35.2272,
+      "lng": -80.8431,
+      "osm_display_name": "Charlotte, Mecklenburg County, North Carolina, United States",
+      "osm_type": "relation",
+      "osm_id": 177415
+    },
+    "Chicago|IL|USA": {
+      "lat": 41.8756,
+      "lng": -87.6244,
+      "osm_display_name": "Chicago, South Chicago Township, Cook County, Illinois, United States",
+      "osm_type": "relation",
+      "osm_id": 122604
+    },
+    "Colchester|Essex|UK": {
+      "lat": 51.8897,
+      "lng": 0.8995,
+      "osm_display_name": "Colchester, Essex, England, CO1 1SP, United Kingdom",
+      "osm_type": "node",
+      "osm_id": 21503243
+    },
+    "Dallas|TX|USA": {
+      "lat": 32.7763,
+      "lng": -96.7969,
+      "osm_display_name": "Dallas, Dallas County, Texas, United States",
+      "osm_type": "relation",
+      "osm_id": 6571629
+    },
+    "Edinburgh|Scotland|UK": {
+      "lat": 55.9533,
+      "lng": -3.1884,
+      "osm_display_name": "City of Edinburgh, Alba / Scotland, United Kingdom",
+      "osm_type": "relation",
+      "osm_id": 1920901
+    },
+    "Fort Worth|TX|USA": {
+      "lat": 32.7532,
+      "lng": -97.3327,
+      "osm_display_name": "Fort Worth, Tarrant County, Texas, United States",
+      "osm_type": "relation",
+      "osm_id": 115274
+    },
+    "Frankfurt|Hesse|Germany": {
+      "lat": 50.1106,
+      "lng": 8.6821,
+      "osm_display_name": "Frankfurt am Main, Hessen, Deutschland",
+      "osm_type": "relation",
+      "osm_id": 62400
+    },
+    "Hong Kong|HK|China": {
+      "lat": 22.2818,
+      "lng": 114.1583,
+      "osm_display_name": "香港 Hong Kong, 中国",
+      "osm_type": "relation",
+      "osm_id": 20044132
+    },
+    "Leeds|Yorkshire|UK": {
+      "lat": 53.7974,
+      "lng": -1.5438,
+      "osm_display_name": "Leeds, West Yorkshire, England, LS1 6AL, United Kingdom",
+      "osm_type": "node",
+      "osm_id": 358309
+    },
+    "London|London|UK": {
+      "lat": 51.5156,
+      "lng": -0.092,
+      "osm_display_name": "City of London, Greater London, England, United Kingdom",
+      "osm_type": "relation",
+      "osm_id": 51800
+    },
+    "Los Angeles|CA|USA": {
+      "lat": 34.0537,
+      "lng": -118.2428,
+      "osm_display_name": "Los Angeles, Los Angeles County, California, United States",
+      "osm_type": "relation",
+      "osm_id": 207359
+    },
+    "Mansfield|TX|USA": {
+      "lat": 32.5635,
+      "lng": -97.142,
+      "osm_display_name": "Mansfield, Tarrant County, Texas, 76063, United States",
+      "osm_type": "relation",
+      "osm_id": 6571654
+    },
+    "Monheim am Rhein|North Rhine-Westphalia|Germany": {
+      "lat": 51.0909,
+      "lng": 6.8812,
+      "osm_display_name": "Monheim am Rhein, Kreis Mettmann, Nordrhein-Westfalen, 40789, Deutschland",
+      "osm_type": "relation",
+      "osm_id": 33070
+    },
+    "Mountain View|CA|USA": {
+      "lat": 37.3894,
+      "lng": -122.0832,
+      "osm_display_name": "Mountain View, Santa Clara County, California, United States",
+      "osm_type": "relation",
+      "osm_id": 1544956
+    },
+    "Naperville|IL|USA": {
+      "lat": 41.7729,
+      "lng": -88.1479,
+      "osm_display_name": "Naperville, Naperville Township, DuPage County, Illinois, United States",
+      "osm_type": "relation",
+      "osm_id": 124885
+    },
+    "New York|NY|USA": {
+      "lat": 40.7127,
+      "lng": -74.006,
+      "osm_display_name": "New York, United States",
+      "osm_type": "relation",
+      "osm_id": 175905
+    },
+    "Newburyport|MA|USA": {
+      "lat": 42.8117,
+      "lng": -70.8719,
+      "osm_display_name": "Newburyport, Essex County, Massachusetts, 01950, United States",
+      "osm_type": "relation",
+      "osm_id": 2385554
+    },
+    "Oceanside|CA|USA": {
+      "lat": 33.1959,
+      "lng": -117.3795,
+      "osm_display_name": "Oceanside, San Diego County, California, United States",
+      "osm_type": "relation",
+      "osm_id": 2305280
+    },
+    "Oslo|Oslo|Norway": {
+      "lat": 59.9724,
+      "lng": 10.7757,
+      "osm_display_name": "Oslo, Norge",
+      "osm_type": "relation",
+      "osm_id": 2775550
+    },
+    "Phoenix|AZ|USA": {
+      "lat": 33.4484,
+      "lng": -112.0741,
+      "osm_display_name": "Phoenix, Maricopa County, Arizona, United States",
+      "osm_type": "relation",
+      "osm_id": 111257
+    },
+    "Pointe-Claire|QC|Canada": {
+      "lat": 45.4567,
+      "lng": -73.8067,
+      "osm_display_name": "Pointe-Claire, Agglomération de Montréal, Montréal (région administrative), Québec, Canada",
+      "osm_type": "relation",
+      "osm_id": 197576
+    },
+    "San Francisco|CA|USA": {
+      "lat": 37.7879,
+      "lng": -122.4075,
+      "osm_display_name": "San Francisco, California, United States",
+      "osm_type": "relation",
+      "osm_id": 111968
+    },
+    "San Jose|CA|USA": {
+      "lat": 37.3362,
+      "lng": -121.8906,
+      "osm_display_name": "San Jose, Santa Clara County, California, United States",
+      "osm_type": "relation",
+      "osm_id": 112143
+    },
+    "Shenzhen|Guangdong|China": {
+      "lat": 22.5446,
+      "lng": 114.0545,
+      "osm_display_name": "深圳市, 广东省, 中国",
+      "osm_type": "relation",
+      "osm_id": 3464353
+    },
+    "Singapore|SG|Singapore": {
+      "lat": 1.2894,
+      "lng": 103.8447,
+      "osm_display_name": "Singapore General Hospital, Singapore River, Central Region, Singapore",
+      "osm_type": "relation",
+      "osm_id": 19910283
+    },
+    "Thief River Falls|MN|USA": {
+      "lat": 48.1172,
+      "lng": -96.1771,
+      "osm_display_name": "Thief River Falls, Pennington County, Minnesota, United States",
+      "osm_type": "relation",
+      "osm_id": 137676
+    },
+    "Tokyo|Tokyo|Japan": {
+      "lat": 35.6813,
+      "lng": 139.7667,
+      "osm_display_name": "東京, 1, 丸の内一丁目, 丸の内, 千代田区, 東京都, 100-0005, 日本",
+      "osm_type": "node",
+      "osm_id": 2149761647
+    },
+    "Vista|CA|USA": {
+      "lat": 33.2021,
+      "lng": -117.2425,
+      "osm_display_name": "Vista, San Diego County, California, United States",
+      "osm_type": "relation",
+      "osm_id": 253611
+    },
+    "Warsaw|Masovia|Poland": {
+      "lat": 52.232,
+      "lng": 21.0067,
+      "osm_display_name": "Warszawa, województwo mazowieckie, Polska",
+      "osm_type": "relation",
+      "osm_id": 336075
+    },
+    "Wernberg-Köblitz|Bavaria|Germany": {
+      "lat": 49.537,
+      "lng": 12.1509,
+      "osm_display_name": "Wernberg-Köblitz, Landkreis Schwandorf, Bayern, 92533, Deutschland",
+      "osm_type": "relation",
+      "osm_id": 962204
+    },
+    "Wilmington|MA|USA": {
+      "lat": 42.5465,
+      "lng": -71.1737,
+      "osm_display_name": "Wilmington, Middlesex County, Massachusetts, 01887, United States",
+      "osm_type": "relation",
+      "osm_id": 1842130
+    }
+  }
+}
