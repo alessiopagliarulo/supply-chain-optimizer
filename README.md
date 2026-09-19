@@ -432,9 +432,10 @@ npm run ui-gate:ci   # build, serve on 127.0.0.1:4173, gate it, tear the server 
 BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
 ```
 
-The last full run (2026-09-18, local build against a local API, after the app shrank to
-three pages) was 104 passed, 0 failed — a hand-recorded figure from a hand-run gate, which
-is exactly what issue #8 is about. `scripts/ui-gate.cjs` drives a real Chromium over
+The last full run (2026-09-19, `npm run ui-gate:ci` — a local build with the live API
+proxied in) was **123 passed, 0 failed**. That figure is still hand-recorded from a hand-run
+gate, which is exactly what issue #8 is about; the one command above is at least
+reproducible. `scripts/ui-gate.cjs` drives a real Chromium over
 **every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
 checks that every removed sourcing-era path renders the 404 page, and asserts what a human
 would otherwise have to notice:
