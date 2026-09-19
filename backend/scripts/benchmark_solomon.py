@@ -13,6 +13,8 @@ is never edited by hand.
     python scripts/benchmark_solomon.py                      # full run, ~1 hour
     python scripts/benchmark_solomon.py --instances C101,R201 --sizes 25 \\
         --output /tmp/solomon.json                           # a quick subset
+    python scripts/benchmark_solomon.py --rescore ../docs/benchmark_results.json
+                                                             # re-derive comparisons, no re-solve
 
 This is a generator, not a test: the test suite only exercises it on a tiny
 subset (tests/test_solomon_instances.py).
@@ -107,7 +109,10 @@ def compare_to_reference(vehicles_used: int, measured_distance: float, reference
     count the distance gap is not comparable and the vehicle gap is the
     comparison. Solomon's optima rank on distance alone, so theirs always is.
     """
-    ranks_vehicles_first = best_known_sources()["sources"][reference["source"]]["ranks_vehicles_first"]
+    # A source that does not declare its ranking is treated as vehicles-first: the stricter reading,
+    # which never presents a different-fleet distance as comparable.
+    source = best_known_sources()["sources"].get(reference["source"], {})
+    ranks_vehicles_first = source.get("ranks_vehicles_first", True)
     comparable = not ranks_vehicles_first or vehicles_used == reference["vehicles"]
     return {
         # Gaps use the reported (rounded) distances so a reader can reproduce them from the file.
@@ -225,6 +230,22 @@ def git_commit() -> Optional[str]:
         return None
 
 
+GAP_NOTE = (
+    "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. "
+    "25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. "
+    "gap_measured_on names the field compared. The SINTEF best known ranks fewest vehicles first, then "
+    "distance, so a 100-customer gap is only comparable when vehicles_used equals the reference's vehicles: "
+    "gap_comparable says whether it is, and when it is false gap_percent is null and vehicle_gap is the "
+    "comparison. Solomon's 25/50 optima rank on distance alone, so their gaps are always comparable. "
+    "gap_percent and gap_comparable are null when there is no feasible solution or no published reference. "
+    "summary.mean_gap_percent averages comparable gaps only, over summary.gap_comparable of the runs: at 100 "
+    "customers those are only the runs that matched the best-known fleet size, so that mean is not the "
+    "solver's performance over all runs. summary.with_reference and "
+    "more_vehicles_than_reference / fewer_vehicles_than_reference count every feasible run with a reference, "
+    "at every size; infeasible runs have no vehicle comparison."
+)
+
+
 def provenance(
     cases: List[tuple], solvers: List[str], time_limit: float, seed: int, jobs: int, argv: List[str]
 ) -> dict:
@@ -254,19 +275,7 @@ def provenance(
             "(so every validated schedule is feasible in real arithmetic). Reported distance is recomputed from the "
             "coordinates in double precision; distance_one_decimal truncates each arc to one decimal."
         ),
-        "gap_note": (
-            "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. "
-            "25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. "
-            "gap_measured_on names the field compared. The SINTEF best known ranks fewest vehicles first, then "
-            "distance, so a 100-customer gap is only comparable when vehicles_used equals the reference's vehicles: "
-            "gap_comparable says whether it is, and when it is false gap_percent is null and vehicle_gap is the "
-            "comparison. Solomon's 25/50 optima rank on distance alone, so their gaps are always comparable. "
-            "gap_percent and gap_comparable are null when there is no feasible solution or no published reference. "
-            "summary.mean_gap_percent averages comparable gaps only, over summary.gap_comparable of the runs: at 100 "
-            "customers those are only the runs that matched the best-known fleet size, so that mean is not the "
-            "solver's performance over all runs. more_vehicles_than_reference / fewer_vehicles_than_reference count "
-            "every run with a reference, at every size."
-        ),
+        "gap_note": GAP_NOTE,
         "optimality_note": (
             "proven_optimal_scaled_model is CP-SAT's optimality proof on the integer model above, not on the "
             "reference's convention. Travel time rounded up makes that model stricter, so a proven solution can "
@@ -297,6 +306,34 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(text)
 
 
+def rescore(payload: dict, argv: List[str]) -> dict:
+    """Recompute every derived field of an existing artifact from its recorded solutions.
+
+    The solutions (routes, distances, feasibility, runtimes) are kept exactly as solved; only the
+    comparison to the reference and the summary are recomputed with the current rules. Re-solving
+    would re-roll OR-Tools and CP-SAT runs whose results depend on how much search fits in the
+    time limit, which is not what a change to the comparison should do.
+    """
+    results = payload["results"]
+    for r in results:
+        reference = get_best_known(r["instance"], r["num_customers"])
+        r["reference"] = reference
+        r.update({"gap_percent": None, "gap_comparable": None, "vehicle_gap": None})
+        if reference is not None and r["feasible"] and r["routes"]:
+            r.update(compare_to_reference(r["vehicles_used"], r[r["gap_measured_on"]], reference))
+    prov = dict(payload["provenance"])
+    prov["gap_note"] = GAP_NOTE
+    prov["best_known"] = best_known_sources()
+    prov["rescored"] = {
+        "command": " ".join(["python", "scripts/benchmark_solomon.py", *argv]),
+        "rescored_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "git_commit": git_commit(),
+        "note": "comparison fields and summary recomputed from the recorded solutions; nothing was re-solved. "
+        "command, generated_at and git_commit above describe the solve.",
+    }
+    return {"schema_version": 3, "provenance": prov, "summary": summarize(results), "results": results}
+
+
 def parse_list(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
@@ -310,8 +347,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--seed", type=int, default=42, help="CP-SAT random seed")
     parser.add_argument("--jobs", type=int, default=1, help="cases solved in parallel (1 = most faithful runtimes)")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="where to write the JSON artifact")
+    parser.add_argument(
+        "--rescore",
+        type=Path,
+        metavar="ARTIFACT",
+        help="recompute the comparison fields and summary of ARTIFACT from its recorded solutions, "
+        "without re-solving, and write the result to --output",
+    )
     args = parser.parse_args(argv)
     argv = list(sys.argv[1:] if argv is None else argv)
+
+    if args.rescore is not None:
+        payload = rescore(json.loads(args.rescore.read_text()), argv)
+        write_json(args.output, payload)
+        print(f"rescored {len(payload['results'])} results from {args.rescore} into {args.output}")
+        return 0
 
     names = INSTANCE_NAMES if args.instances == "all" else [n.upper() for n in parse_list(args.instances)]
     sizes = [int(s) for s in parse_list(args.sizes)]

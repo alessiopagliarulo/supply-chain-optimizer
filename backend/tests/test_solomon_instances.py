@@ -233,6 +233,29 @@ class TestBenchmarkRunner:
         assert summary["mean_gap_percent"] is None
         assert summary["more_vehicles_than_reference"] == 1
 
+    def test_rescore_keeps_the_solutions_and_rederives_the_rest(self, tmp_path):
+        solved = tmp_path / "solved.json"
+        argv = ["--instances", "RC202", "--sizes", "25,100", "--solvers", "clarke_wright", "--output", str(solved)]
+        assert benchmark_solomon.main(argv) == 0
+        original = json.loads(solved.read_text())
+        # Blank the derived fields, as an artifact from older rules would have them wrong.
+        stale = json.loads(solved.read_text())
+        stale["summary"] = []
+        for r in stale["results"]:
+            r.update({"gap_percent": -99.0, "gap_comparable": None, "vehicle_gap": None})
+        stale_path = tmp_path / "stale.json"
+        stale_path.write_text(json.dumps(stale))
+        out = tmp_path / "rescored.json"
+        assert benchmark_solomon.main(["--rescore", str(stale_path), "--output", str(out)]) == 0
+        rescored = json.loads(out.read_text())
+        assert rescored["results"] == original["results"]
+        assert rescored["summary"] == original["summary"]
+        prov = rescored["provenance"]
+        assert prov["command"] == original["provenance"]["command"]
+        assert prov["generated_at"] == original["provenance"]["generated_at"]
+        assert prov["rescored"]["command"].endswith(f"--rescore {stale_path} --output {out}")
+        assert prov["best_known"] == best_known_sources()
+
     def test_rejects_unknown_instance(self):
         with pytest.raises(SystemExit):
             benchmark_solomon.main(["--instances", "Z999", "--output", "/dev/null"])
@@ -327,10 +350,25 @@ class TestCommittedArtifact:
             scored = [r for r in runs if r["gap_comparable"] is not None]
             assert s["gap_comparable"] == len(gaps)
             assert s["with_reference"] == len(scored)
-            # Fleet counters cover every run with a reference, comparable or not, at every size.
-            assert s["more_vehicles_than_reference"] == sum(r["vehicle_gap"] > 0 for r in scored)
-            assert s["fewer_vehicles_than_reference"] == sum(r["vehicle_gap"] < 0 for r in scored)
             assert s["mean_gap_percent"] == (pytest.approx(sum(gaps) / len(gaps), abs=1e-3) if gaps else None)
+
+    def test_fleet_counters_cover_every_feasible_run_with_a_reference(self, data):
+        # The claim the docs and the page make, checked from the raw solution fields rather than
+        # from the comparison fields the script derives: every feasible run with a published
+        # reference is counted, at every size, comparable or not.
+        for s in data["summary"]:
+            runs = [
+                r for r in data["results"] if r["num_customers"] == s["num_customers"] and r["solver"] == s["solver"]
+            ]
+            counted = [r for r in runs if r["feasible"] and r["reference"] is not None]
+            label = (s["num_customers"], s["solver"])
+            assert s["with_reference"] == len(counted), label
+            assert s["more_vehicles_than_reference"] == sum(
+                r["vehicles_used"] > r["reference"]["vehicles"] for r in counted
+            ), label
+            assert s["fewer_vehicles_than_reference"] == sum(
+                r["vehicles_used"] < r["reference"]["vehicles"] for r in counted
+            ), label
 
 
 class TestCompareToReference:
@@ -360,8 +398,20 @@ class TestCompareToReference:
 
     def test_sources_declare_their_ranking(self):
         sources = best_known_sources()["sources"]
+        for key, source in sources.items():
+            assert isinstance(source.get("ranks_vehicles_first"), bool), key
         assert sources["sintef_best_known"]["ranks_vehicles_first"] is True
         assert sources["solomon_optimal"]["ranks_vehicles_first"] is False
+
+    def test_a_source_without_a_declared_ranking_is_compared_vehicles_first(self, monkeypatch):
+        real = best_known_sources()
+        undeclared = {
+            k: {f: v for f, v in s.items() if f != "ranks_vehicles_first"} for k, s in real["sources"].items()
+        }
+        monkeypatch.setattr(benchmark_solomon, "best_known_sources", lambda: {**real, "sources": undeclared})
+        ref = get_best_known("C101", 25)
+        out = benchmark_solomon.compare_to_reference(ref["vehicles"] + 1, 260.3, ref)
+        assert out == {"gap_percent": None, "gap_comparable": False, "vehicle_gap": 1}
 
     def test_solomon_optima_compare_on_distance_whatever_the_vehicles(self):
         # Solomon's 25/50 optima minimise distance only, so a different fleet size is still comparable.

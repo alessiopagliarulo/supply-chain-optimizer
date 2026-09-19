@@ -24,6 +24,17 @@ for example:
 python scripts/benchmark_solomon.py --instances C101 --sizes 25 --output /tmp/solomon.json
 ```
 
+When only the comparison rules or the summary change, recompute them from the
+recorded solutions instead of re-solving (OR-Tools and CP-SAT results depend on
+how much search fits in the time limit, so a re-solve re-rolls them):
+
+```bash
+python scripts/benchmark_solomon.py --rescore ../docs/benchmark_results.json
+```
+
+That rewrites every comparison field and the summary, keeps every route,
+distance and runtime, and records the rescore under `provenance.rescored`.
+
 The full run is a generator, not a test. The test suite
 (`backend/tests/test_solomon_instances.py`) runs the script end-to-end on one
 25-customer case in a couple of seconds.
@@ -111,10 +122,11 @@ One row per solver per case:
 `provenance` records the command, git commit, platform, Python and OR-Tools
 versions, time limit, seed, data URL and sha256, a sha256 over the 168 input
 files, and the reference sources. `summary` aggregates per solver and size:
-`with_reference` runs with something to compare, `gap_comparable` of those with
-a comparable distance gap, `more_vehicles_than_reference` /
-`fewer_vehicles_than_reference` over every run with a reference (comparable or
-not, at every size), and `mean_gap_percent` over the comparable gaps only.
+`with_reference` feasible runs with a published reference, `gap_comparable` of
+those with a comparable distance gap, `more_vehicles_than_reference` /
+`fewer_vehicles_than_reference` over every feasible run with a reference
+(comparable or not, at every size; an infeasible run has no vehicle
+comparison), and `mean_gap_percent` over the comparable gaps only.
 
 **Read `mean_gap_percent` with its count.** It is computed over
 `gap_comparable` of `runs`. At 25/50 customers that is every feasible run with
