@@ -429,8 +429,9 @@ BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
 # or: npm run build && npx vite preview --port 4173 &  API=http://localhost:8000 npm run ui-gate
 ```
 
-The last full run (2026-09-18, local build against a local API, after the app shrank to
-three pages) was 104 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
+The last full run (2026-09-19, local build against a local API, after the Benchmarks page
+gained its averages table and axe began running at 390px as well as 1440px) was 127 passed,
+0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
 **every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
 checks that every removed sourcing-era path renders the 404 page, and asserts what a human
 would otherwise have to notice:

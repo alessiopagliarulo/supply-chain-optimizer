@@ -21,7 +21,7 @@
     "runtime_note": "runtime_seconds is wall time of the whole solver call, model building included",
     "integer_scale": 100,
     "distance_note": "Solvers work on integers: distance = Euclidean x 100 rounded, travel time = Euclidean x 100 rounded up (so every validated schedule is feasible in real arithmetic). Reported distance is recomputed from the coordinates in double precision; distance_one_decimal truncates each arc to one decimal.",
-    "gap_note": "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. 25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. gap_measured_on names the field compared. The SINTEF best known ranks fewest vehicles first, then distance, so a 100-customer gap is only comparable when vehicles_used equals the reference's vehicles: gap_comparable says whether it is, and when it is false gap_percent is null and vehicle_gap is the comparison. Solomon's 25/50 optima rank on distance alone, so their gaps are always comparable. gap_percent and gap_comparable are null when there is no feasible solution or no published reference. summary.mean_gap_percent averages comparable gaps only.",
+    "gap_note": "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. 25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. gap_measured_on names the field compared. The SINTEF best known ranks fewest vehicles first, then distance, so a 100-customer gap is only comparable when vehicles_used equals the reference's vehicles: gap_comparable says whether it is, and when it is false gap_percent is null and vehicle_gap is the comparison. Solomon's 25/50 optima rank on distance alone, so their gaps are always comparable. gap_percent and gap_comparable are null when there is no feasible solution or no published reference. summary.mean_gap_percent averages comparable gaps only, over summary.gap_comparable of the runs: at 100 customers those are only the runs that matched the best-known fleet size, so that mean is not the solver's performance over all runs. summary.with_reference and more_vehicles_than_reference / fewer_vehicles_than_reference count every feasible run with a reference, at every size; infeasible runs have no vehicle comparison.",
     "optimality_note": "proven_optimal_scaled_model is CP-SAT's optimality proof on the integer model above, not on the reference's convention. Travel time rounded up makes that model stricter, so a proven solution can still have a positive gap_percent.",
     "data": {
       "instances": "Solomon (1987) VRPTW instances, SINTEF TOP backup",
@@ -41,6 +41,7 @@
             100
           ],
           "objective": "hierarchical: 1) minimize number of vehicles, 2) minimize total distance",
+          "ranks_vehicles_first": true,
           "distance_convention": "Euclidean distance and time in double precision; total distance rounded to two decimals",
           "notes": "r111 is quoted by SINTEF as 1096.73* (checker value 1096.72658305008); r205 and rc101 carry SINTEF's footnote that earlier values 994.42 / 1696.94 came from a rounding error."
         },
@@ -62,6 +63,7 @@
             50
           ],
           "objective": "minimize total distance (vehicle count is whatever the optimal routes use)",
+          "ranks_vehicles_first": false,
           "distance_convention": "exact-method convention: each arc's Euclidean distance (and travel time) truncated to one decimal. Checked here: CP-SAT with truncated one-decimal arithmetic reproduces the published optima (e.g. C101.25 = 191.3, R101.25 = 617.1, RC101.25 = 461.1)."
         }
       },
@@ -156,7 +158,13 @@
       25,
       50,
       100
-    ]
+    ],
+    "rescored": {
+      "command": "python scripts/benchmark_solomon.py --rescore ../docs/benchmark_results.json",
+      "rescored_at": "2026-09-19T20:22:14Z",
+      "git_commit": "78f54352061d881883546fd915cd7f40d7c7e78e",
+      "note": "comparison fields and summary recomputed from the recorded solutions; nothing was re-solved. command, generated_at and git_commit above describe the solve."
+    }
   },
   "summary": [
     {
@@ -167,8 +175,8 @@
       "proven_optimal_scaled_model": 36,
       "with_reference": 56,
       "gap_comparable": 56,
-      "more_vehicles_than_reference": 0,
-      "fewer_vehicles_than_reference": 0,
+      "more_vehicles_than_reference": 2,
+      "fewer_vehicles_than_reference": 2,
       "mean_gap_percent": 0.109,
       "mean_runtime_seconds": 4.558
     },
@@ -180,7 +188,7 @@
       "proven_optimal_scaled_model": 0,
       "with_reference": 56,
       "gap_comparable": 56,
-      "more_vehicles_than_reference": 0,
+      "more_vehicles_than_reference": 43,
       "fewer_vehicles_than_reference": 0,
       "mean_gap_percent": 24.749,
       "mean_runtime_seconds": 0.0
@@ -193,8 +201,8 @@
       "proven_optimal_scaled_model": 0,
       "with_reference": 56,
       "gap_comparable": 56,
-      "more_vehicles_than_reference": 0,
-      "fewer_vehicles_than_reference": 0,
+      "more_vehicles_than_reference": 2,
+      "fewer_vehicles_than_reference": 2,
       "mean_gap_percent": 0.0,
       "mean_runtime_seconds": 10.001
     },
@@ -206,8 +214,8 @@
       "proven_optimal_scaled_model": 14,
       "with_reference": 53,
       "gap_comparable": 53,
-      "more_vehicles_than_reference": 0,
-      "fewer_vehicles_than_reference": 0,
+      "more_vehicles_than_reference": 14,
+      "fewer_vehicles_than_reference": 1,
       "mean_gap_percent": 6.584,
       "mean_runtime_seconds": 7.818
     },
@@ -219,7 +227,7 @@
       "proven_optimal_scaled_model": 0,
       "with_reference": 53,
       "gap_comparable": 53,
-      "more_vehicles_than_reference": 0,
+      "more_vehicles_than_reference": 49,
       "fewer_vehicles_than_reference": 0,
       "mean_gap_percent": 24.93,
       "mean_runtime_seconds": 0.001
@@ -232,8 +240,8 @@
       "proven_optimal_scaled_model": 0,
       "with_reference": 53,
       "gap_comparable": 53,
-      "more_vehicles_than_reference": 0,
-      "fewer_vehicles_than_reference": 0,
+      "more_vehicles_than_reference": 3,
+      "fewer_vehicles_than_reference": 3,
       "mean_gap_percent": 0.394,
       "mean_runtime_seconds": 10.001
     },

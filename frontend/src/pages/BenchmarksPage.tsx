@@ -14,11 +14,15 @@ import { errorMessage, routingApi, type BenchmarksResponse } from '../services/a
 import {
   SUPPORTED_SCHEMA_VERSION,
   gapLabel,
+  hasComparableGap,
   parseBenchmarks,
+  percentLabel,
   ranksVehiclesFirst,
+  sizesLabel,
   sortRows,
   vehicleGapLabel,
   type BenchmarkRow,
+  type BenchmarkSummary,
   type BestKnownSource,
   type ParsedBenchmarks,
   type SortKey,
@@ -59,8 +63,9 @@ function GapTooltip({ active, payload }: { active?: boolean; payload?: { payload
 }
 
 function GapRuntimeChart({ rows }: { rows: BenchmarkRow[] }) {
-  const solvers = [...new Set(rows.map((r) => r.solver))].sort();
-  const plotted = rows.filter((r) => r.gap_percent !== null);
+  const plotted = rows.filter(hasComparableGap);
+  // From the plotted rows, so a solver with nothing comparable gets no empty legend entry.
+  const solvers = [...new Set(plotted.map((r) => r.solver))].sort();
   const otherFleet = rows.filter((r) => r.gap_comparable === false);
   const fleetNote =
     otherFleet.length === 0
@@ -110,6 +115,15 @@ function GapRuntimeChart({ rows }: { rows: BenchmarkRow[] }) {
   );
 }
 
+function SolverName({ solver }: { solver: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: solverColor(solver, 0) }} aria-hidden="true" />
+      {solver}
+    </span>
+  );
+}
+
 function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('instance');
   const [ascending, setAscending] = useState(true);
@@ -125,7 +139,7 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left tabular-nums">
+      <table data-testid="benchmark-results" className="w-full text-sm text-left tabular-nums">
         <caption className="sr-only">Benchmark results, one row per instance, size and solver</caption>
         <thead className="text-xs text-slate-400 border-b border-slate-800">
           <tr>
@@ -162,10 +176,7 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
               <td className="py-1.5 px-2 whitespace-nowrap text-slate-100">{r.instance}</td>
               <td className="py-1.5 px-2 text-right">{r.num_customers}</td>
               <td className="py-1.5 px-2 whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: solverColor(r.solver, 0) }} aria-hidden="true" />
-                  {r.solver}
-                </span>
+                <SolverName solver={r.solver} />
               </td>
               <td className={`py-1.5 px-2 whitespace-nowrap ${r.feasible ? 'text-emerald-400' : 'text-red-400'}`}>{fmtStatus(r.status)}</td>
               <td className="py-1.5 px-2 text-right">{r.vehicles_used}</td>
@@ -173,13 +184,12 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
                 {vehicleGapLabel(r)}
               </td>
               <td className="py-1.5 px-2 text-right whitespace-nowrap">{r.distance === null ? 'no solution' : r.distance.toFixed(2)}</td>
-              {r.gap_comparable === false ? (
-                <td className="py-1.5 px-2 text-right whitespace-nowrap text-slate-500" title={notComparableTitle(r)}>
-                  {gapLabel(r)}
-                </td>
-              ) : (
-                <td className="py-1.5 px-2 text-right">{gapLabel(r)}</td>
-              )}
+              <td
+                className={`py-1.5 px-2 text-right whitespace-nowrap ${r.gap_comparable === false ? 'text-slate-500' : ''}`}
+                title={r.gap_comparable === false ? notComparableTitle(r) : undefined}
+              >
+                {gapLabel(r)}
+              </td>
               <td className="py-1.5 px-2 text-right">{r.runtime_seconds.toFixed(2)}</td>
               <td className={`py-1.5 px-2 text-right whitespace-nowrap ${r.reference === null ? 'text-slate-500' : ''}`}>
                 {fmtReference(r)}
@@ -192,13 +202,12 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
   );
 }
 
-const sizesLabel = (sources: BestKnownSource[]) =>
-  [...new Set(sources.flatMap((s) => s.applies_to))].sort((a, b) => a - b).join('- and ');
+const sourceSizes = (sources: BestKnownSource[]) => sizesLabel(sources.flatMap((s) => s.applies_to));
 
 /** The plain-English note on how rows are compared, with the sizes each reference table covers. */
 function ComparisonNote({ sources }: { sources: BestKnownSource[] }) {
-  const vehiclesFirst = sizesLabel(sources.filter(ranksVehiclesFirst));
-  const distanceOnly = sizesLabel(sources.filter((s) => !ranksVehiclesFirst(s)));
+  const vehiclesFirst = sourceSizes(sources.filter(ranksVehiclesFirst));
+  const distanceOnly = sourceSizes(sources.filter((s) => !ranksVehiclesFirst(s)));
   // Without a vehicles-first reference every gap is a plain distance comparison: nothing to explain.
   if (!vehiclesFirst) return null;
   return (
@@ -211,6 +220,61 @@ function ComparisonNote({ sources }: { sources: BestKnownSource[] }) {
         {distanceOnly && ` The ${distanceOnly}-customer references rank on distance alone, so those gaps are always compared directly.`}
       </p>
     </Card>
+  );
+}
+
+const fmtMean = (s: BenchmarkSummary) => (s.mean_gap_percent === null ? 'none comparable' : percentLabel(s.mean_gap_percent));
+
+/** The script's averages, each shown with how many runs it covers. */
+function AveragesTable({ summary, sources }: { summary: BenchmarkSummary[]; sources: BestKnownSource[] }) {
+  const vehiclesFirst = sourceSizes(sources.filter(ranksVehiclesFirst));
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-slate-400 leading-relaxed">
+        Each average covers only the runs with a comparable distance gap (&quot;runs averaged&quot;); runs with no
+        feasible solution or no published best-known value are left out.
+        {vehiclesFirst &&
+          ` At ${vehiclesFirst} customers the comparable runs are the ones that matched the best-known truck count, usually the instances the solver handled well, so those averages are not the solver's performance over all its runs.`}
+        {' '}The truck columns count every feasible run with a best-known value.
+      </p>
+      {/* Focusable and named so a keyboard user can scroll it when it overflows on a phone. */}
+      <div
+        className="overflow-x-auto rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+        tabIndex={0}
+        role="region"
+        aria-label="Averages per solver table"
+      >
+        <table data-testid="benchmark-averages" className="w-full text-sm text-left tabular-nums">
+          <caption className="sr-only">Average distance gap per instance size and solver, with the runs each covers</caption>
+          <thead className="text-xs text-slate-400 border-b border-slate-800">
+            <tr>
+              <th scope="col" className="font-medium px-2 py-2">Customers</th>
+              <th scope="col" className="font-medium px-2 py-2">Solver</th>
+              <th scope="col" className="font-medium px-2 py-2 text-right whitespace-nowrap">Mean distance gap</th>
+              <th scope="col" className="font-medium px-2 py-2 text-right whitespace-nowrap">Runs averaged</th>
+              <th scope="col" className="font-medium px-2 py-2 text-right whitespace-nowrap">More trucks</th>
+              <th scope="col" className="font-medium px-2 py-2 text-right whitespace-nowrap">Fewer trucks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {summary.map((s) => (
+              <tr key={`${s.num_customers}-${s.solver}`} className="border-b border-slate-800/60 text-slate-300">
+                <td className="py-1.5 px-2">{s.num_customers}</td>
+                <td className="py-1.5 px-2 whitespace-nowrap">
+                  <SolverName solver={s.solver} />
+                </td>
+                <td className={`py-1.5 px-2 text-right whitespace-nowrap ${s.mean_gap_percent === null ? 'text-slate-500' : ''}`}>
+                  {fmtMean(s)}
+                </td>
+                <td className="py-1.5 px-2 text-right whitespace-nowrap">{`${s.gap_comparable} of ${s.runs}`}</td>
+                <td className="py-1.5 px-2 text-right">{s.more_vehicles_than_reference}</td>
+                <td className="py-1.5 px-2 text-right">{s.fewer_vehicles_than_reference}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -280,6 +344,10 @@ function Results({ data }: { data: ParsedBenchmarks }) {
   const sizes = useMemo(() => [...new Set(data.rows.map((r) => r.num_customers))].sort((a, b) => a - b), [data]);
   const [size, setSize] = useState<number | null>(null);
   const rows = useMemo(() => (size === null ? data.rows : data.rows.filter((r) => r.num_customers === size)), [data, size]);
+  const summary = useMemo(
+    () => (size === null ? data.summary : data.summary.filter((s) => s.num_customers === size)),
+    [data, size],
+  );
   return (
     <>
       <SizeFilter sizes={sizes} value={size} onChange={setSize} />
@@ -292,6 +360,11 @@ function Results({ data }: { data: ParsedBenchmarks }) {
         </p>
         <GapRuntimeChart rows={rows} />
       </Card>
+      {summary.length > 0 && (
+        <Card title="Averages per solver">
+          <AveragesTable summary={summary} sources={data.provenance.best_known_sources} />
+        </Card>
+      )}
       <Card title="Results">
         <p className="text-xs text-slate-400 leading-relaxed">
           Each gap is measured in its reference's own distance convention (listed under Provenance), so a solver's
@@ -321,7 +394,7 @@ export default function BenchmarksPage() {
   }, []);
 
   const parsed = useMemo(
-    () => (response?.available ? parseBenchmarks(response.results, response.provenance, response.schema_version) : null),
+    () => (response?.available ? parseBenchmarks(response.results, response.provenance, response.schema_version, response.summary) : null),
     [response],
   );
 
@@ -350,6 +423,11 @@ export default function BenchmarksPage() {
           {parsed.unreadable > 0 && (
             <ErrorBox title="Some rows could not be read">
               {`${parsed.unreadable} of ${parsed.unreadable + parsed.rows.length} rows in the artifact are missing required fields and are not shown.`}
+            </ErrorBox>
+          )}
+          {parsed.summary_unreadable > 0 && (
+            <ErrorBox title="Some averages could not be read">
+              {`${parsed.summary_unreadable} of ${parsed.summary_unreadable + parsed.summary.length} summary entries in the artifact are missing required fields and are not shown.`}
             </ErrorBox>
           )}
           {!parsed.schema_supported && (
