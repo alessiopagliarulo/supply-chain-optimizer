@@ -56,6 +56,15 @@ machine-readable, so the labels are the contract.
 stop generating that kind of idea. A *closed* issue is not the same thing as a declined
 one — closing can just mean "rebuild it".
 
+Two more labels are **warnings worn on top of** one of the four above, never a state of
+their own. Any decision the owner takes from the dashboard (approve, send back, decline)
+clears both.
+
+| Label     | Meaning                                                                                  |
+| --------- | ---------------------------------------------------------------------------------------- |
+| `stale`   | Approved, but code has landed since that may have overtaken it (opt-in Scout check).     |
+| `covered` | Existing work — a PR, a pushed branch, a recent merge, another idea — already seems to do this. See §8. |
+
 ---
 
 ## 3. Demo evidence — "prove the PR works"
@@ -190,6 +199,9 @@ the file did not exist.
     "offLimits": ["billing and payments", "anything touching production data"],
     "lenses": ["Cost and unit economics", "Silent failures"],
     "maxPerRun": 3
+  },
+  "inFlight": {
+    "lookbackDays": 14
   }
 }
 ```
@@ -205,6 +217,7 @@ the file did not exist.
 | `scout.offLimits`        | `[]`    | `claude-scout`     | Array of strings. The Scout proposes nothing in these areas, at all.                                    |
 | `scout.lenses`           | `[]`    | `claude-scout`     | Array of strings. Overrides the built-in rotating research angles; empty ⇒ 3 of 8 rotate per run.        |
 | `scout.maxPerRun`        | `3`     | `claude-scout`     | Hard cap on issues one Scout run may file, even when the shelf has more room.                           |
+| `inFlight.lookbackDays`  | `14`    | Scout, Redraft, Builder | How far back "recent" reaches: branches pushed, PRs merged and commits landed in this many days count as work in flight (1–90). See §8. |
 
 The Scout gate prints one line per run saying which of these it actually loaded, or why it
 fell back to defaults — check the run log there before assuming a setting was ignored.
@@ -215,7 +228,7 @@ They are different tools and both should exist:
 
 - **`docs/archive/loop-brief.md` is the long-form context**, read _in the repo_ by every agent
   (Scout, Builder, Auditor, Retro, Redraft) as part of doing its job. It has room for
-  nuance: what the product is, how the owner works, what evidence convinces him.
+  nuance: what the product is, how the owner works, what evidence convinces them.
 - **The `scout` block is the structured knob set**, injected _into the Scout's prompt_ by
   the gate step before the agent starts. It is short, machine-read, and editable from the
   dashboard on a phone.
@@ -239,3 +252,53 @@ feature: fix the brief in the same PR.
 | `metrics/loop-metrics.json`   | Daily snapshots behind the dashboard's Metrics page.               |
 | `.github/loop-config.json`    | Per-repo caps + autonomy switches (see above).                     |
 | `.mcp.json`                   | MCP servers available to this repo's agents (starts empty).        |
+| `scripts/loop-inflight.mjs`   | Gathers work in flight for the Scout, Redraft and Builder (§8).    |
+
+---
+
+## 8. Work in flight — so the loop never drafts what already exists
+
+**The one habit that makes this work: when you start working on this repo yourself — in
+Claude Code on your own machine, or anywhere else — push the branch right away. A draft
+pull request is best.** The loop only sees what is on GitHub. Work that lives only on your
+laptop is invisible to it, and it may propose or build the same thing in the meantime.
+
+**What the loop reads.** Before the Scout proposes, the Redraft agent rewrites, or the
+Builder builds, `scripts/loop-inflight.mjs` gathers, read-only:
+
+- every open pull request, drafts included, whoever opened it;
+- every branch pushed in the last `inFlight.lookbackDays` days (default 14) that has no
+  pull request yet, with the files it changes;
+- pull requests merged, and commits that landed on the default branch, in that window;
+- every idea already filed: open, approved, being redrafted, closed or declined.
+
+The agents are told never to propose, rewrite into, or build anything that list already
+covers.
+
+**What it marks.** A deterministic check backs that up. After the Scout files, after a
+redraft, and before the Builder picks, each idea is compared against that work:
+
+- work a person did that names the idea on purpose (`closes #12`, `refs #12`, a branch
+  called `…issue-12…`) covers it outright;
+- otherwise the dashboard's own duplicate detector (MiniLM embeddings, the same text
+  recipe and the same calibrated 0.828 threshold as the Ideas page — see the dashboard's
+  `docs/ml-dedup.md`) compares the idea with other ideas and with open and recent PRs.
+  Short texts (under 950 characters) are not scored, because the threshold means nothing
+  there; the agents' own reading covers them.
+
+A covered idea gets the `covered` label and a comment. **Comment contract:** its first line
+is exactly `<!-- loop:covered -->`, then a sentence, then one bullet per covering item in
+the form `- [what it is](https://github.com/<owner>/<repo>/…)`. The dashboard reads those
+links back and shows them on the idea's card. Agents that flag an idea by hand use the
+same shape.
+
+**What it never does.** It never closes, un-approves or re-labels anything else. The
+Builder skips `covered` ideas; the owner declines them in one tap, or clears the flag
+("Not covered — keep it", or just approving it) to have it built anyway. An idea whose
+flag was cleared is never flagged again automatically — the marker comment stays on the
+thread, and the check looks for it.
+
+**It cannot turn a run red.** Every call is guarded: a repo without the script gets a
+warning and a note in the prompt, a failed GitHub query leaves its section marked
+incomplete, and if the duplicate detector cannot install or download its model, only the
+direct-reference check runs.

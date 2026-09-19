@@ -307,3 +307,40 @@ jobs:
       - name: Type-check and build
         working-directory: frontend
         run: npm run build
+
+  # Every loop workflow reads .github/loop-config.json with `jq ... // default` and
+  # falls back to the default when jq fails. That fallback is right for a missing
+  # file, but it also swallows a MALFORMED one: a stray comma would silently turn the
+  # Scout's tailoring off and send every setting back to the template default, with
+  # every run still green. Fail here instead, where a human is looking.
+  loop-config:
+    name: Loop config is valid JSON
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate .github/loop-config.json
+        run: |
+          set -euo pipefail
+          CFG=.github/loop-config.json
+          if [ ! -f "$CFG" ]; then
+            echo "::error file=$CFG::$CFG is missing. Every loop workflow reads it; without it they all fall back to template defaults."
+            exit 1
+          fi
+          if ! jq empty "$CFG"; then
+            echo "::error file=$CFG::$CFG is not valid JSON. The loop workflows would silently ignore it and fall back to template defaults."
+            exit 1
+          fi
+          # Shape of the keys the workflows branch on. A wrong type is read as the
+          # default just as silently as a parse error is.
+          jq -e '
+            type == "object"
+            and (.autonomousBuildEnabled | . == null or type == "boolean")
+            and (.prCap | . == null or type == "number" or . == "unlimited")
+            and (.ideaQueueCap | . == null or type == "number" or . == "unlimited")
+            and (.scout | . == null or type == "object")
+          ' "$CFG" > /dev/null || {
+            echo "::error file=$CFG::$CFG parses, but a key has the wrong type: autonomousBuildEnabled must be true/false, prCap and ideaQueueCap a number or \"unlimited\", scout an object."
+            exit 1
+          }
+          echo "$CFG is valid. autonomousBuildEnabled=$(jq -r '.autonomousBuildEnabled // false' "$CFG")"
