@@ -9,6 +9,7 @@
         100
       ],
       "objective": "hierarchical: 1) minimize number of vehicles, 2) minimize total distance",
+      "ranks_vehicles_first": true,
       "distance_convention": "Euclidean distance and time in double precision; total distance rounded to two decimals",
       "notes": "r111 is quoted by SINTEF as 1096.73* (checker value 1096.72658305008); r205 and rc101 carry SINTEF's footnote that earlier values 994.42 / 1696.94 came from a rounding error."
     },
@@ -30,6 +31,7 @@
         50
       ],
       "objective": "minimize total distance (vehicle count is whatever the optimal routes use)",
+      "ranks_vehicles_first": false,
       "distance_convention": "exact-method convention: each arc's Euclidean distance (and travel time) truncated to one decimal. Checked here: CP-SAT with truncated one-decimal arithmetic reproduces the published optima (e.g. C101.25 = 191.3, R101.25 = 617.1, RC101.25 = 461.1)."
     }
   },

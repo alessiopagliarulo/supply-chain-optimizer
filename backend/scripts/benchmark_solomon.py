@@ -107,7 +107,8 @@ def compare_to_reference(vehicles_used: int, measured_distance: float, reference
     count the distance gap is not comparable and the vehicle gap is the
     comparison. Solomon's optima rank on distance alone, so theirs always is.
     """
-    comparable = reference["source"] == "solomon_optimal" or vehicles_used == reference["vehicles"]
+    ranks_vehicles_first = best_known_sources()["sources"][reference["source"]]["ranks_vehicles_first"]
+    comparable = not ranks_vehicles_first or vehicles_used == reference["vehicles"]
     return {
         # Gaps use the reported (rounded) distances so a reader can reproduce them from the file.
         "gap_percent": gap(measured_distance, reference["distance"]) if comparable else None,
@@ -187,7 +188,7 @@ def summarize(results: List[dict]) -> List[dict]:
                 continue
             gaps = [r["gap_percent"] for r in runs if r["gap_percent"] is not None]
             scored = [r for r in runs if r["gap_comparable"] is not None]
-            other_fleet = [r["vehicle_gap"] for r in scored if not r["gap_comparable"]]
+            fleet = [r["vehicle_gap"] for r in scored]
             rows.append(
                 {
                     "num_customers": size,
@@ -197,8 +198,8 @@ def summarize(results: List[dict]) -> List[dict]:
                     "proven_optimal_scaled_model": sum(r["proven_optimal_scaled_model"] for r in runs),
                     "with_reference": len(scored),
                     "gap_comparable": len(gaps),
-                    "more_vehicles_than_reference": sum(v > 0 for v in other_fleet),
-                    "fewer_vehicles_than_reference": sum(v < 0 for v in other_fleet),
+                    "more_vehicles_than_reference": sum(v > 0 for v in fleet),
+                    "fewer_vehicles_than_reference": sum(v < 0 for v in fleet),
                     "mean_gap_percent": round(sum(gaps) / len(gaps), 3) if gaps else None,
                     "mean_runtime_seconds": round(sum(r["runtime_seconds"] for r in runs) / len(runs), 3),
                 }
@@ -261,7 +262,10 @@ def provenance(
             "gap_comparable says whether it is, and when it is false gap_percent is null and vehicle_gap is the "
             "comparison. Solomon's 25/50 optima rank on distance alone, so their gaps are always comparable. "
             "gap_percent and gap_comparable are null when there is no feasible solution or no published reference. "
-            "summary.mean_gap_percent averages comparable gaps only."
+            "summary.mean_gap_percent averages comparable gaps only, over summary.gap_comparable of the runs: at 100 "
+            "customers those are only the runs that matched the best-known fleet size, so that mean is not the "
+            "solver's performance over all runs. more_vehicles_than_reference / fewer_vehicles_than_reference count "
+            "every run with a reference, at every size."
         ),
         "optimality_note": (
             "proven_optimal_scaled_model is CP-SAT's optimality proof on the integer model above, not on the "

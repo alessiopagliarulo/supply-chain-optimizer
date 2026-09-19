@@ -73,6 +73,10 @@ estimated; where no value is published the entry is `null`.
 | 100 | SINTEF TOP best known, https://www.sintef.no/projectweb/top/vrptw/100-customers/ | fewest vehicles, then distance | double precision, 2 decimals |
 | 25, 50 | Solomon's tables of proven optima (2005), `c1c2solu.htm`, `r1r2solu.htm`, `rc12solu.htm` on his site (archived copies linked in the JSON) | distance only | each arc truncated to 1 decimal |
 
+Each source also carries `ranks_vehicles_first` (`true` for SINTEF, `false`
+for Solomon), the flag the script and the page use to decide whether a distance
+gap is comparable.
+
 Solomon's tables list no optimum for R207/50, R208/50 and RC208/50; those
 cases have no gap. The one-decimal convention is checked by a test: solving
 C101, R101 and RC101 (25 customers) exactly with truncated arcs reproduces the
@@ -107,10 +111,18 @@ One row per solver per case:
 `provenance` records the command, git commit, platform, Python and OR-Tools
 versions, time limit, seed, data URL and sha256, a sha256 over the 168 input
 files, and the reference sources. `summary` aggregates per solver and size:
-`with_reference` rows with something to compare, `gap_comparable` of those with
+`with_reference` runs with something to compare, `gap_comparable` of those with
 a comparable distance gap, `more_vehicles_than_reference` /
-`fewer_vehicles_than_reference` for the rest, and `mean_gap_percent` over the
-comparable gaps only.
+`fewer_vehicles_than_reference` over every run with a reference (comparable or
+not, at every size), and `mean_gap_percent` over the comparable gaps only.
+
+**Read `mean_gap_percent` with its count.** It is computed over
+`gap_comparable` of `runs`. At 25/50 customers that is every feasible run with
+a published optimum. At 100 customers it is only the runs that matched the
+best-known fleet size, which tend to be the instances the solver handled well,
+so the mean is not the solver's performance over all 56 runs; it is `null`
+when no run matched (Clarke-Wright). The Benchmarks page shows each mean with
+its "N of M runs" count.
 
 The file is `schema_version` 3. Version 2 had no `gap_comparable` and reported a
 distance gap for every row, including 100-customer rows with more vehicles than
