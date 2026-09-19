@@ -2,14 +2,14 @@
  * Reading `docs/benchmark_results.json` (written by backend/scripts/benchmark_solomon.py,
  * served untouched by GET /routing/benchmarks).
  *
- * The shape read here is the script's `schema_version` 2 record, field for field. Nothing
+ * The shape read here is the script's `schema_version` 3 record, field for field. Nothing
  * here fills a gap: a row missing a required field is counted as unreadable and left out,
  * and a value the artifact leaves null (no solution, no published reference, no gap) stays
  * null and renders as such. Null is data, never an error.
  */
 
 /** The artifact schema this reader understands (`schema_version` in the file). */
-export const SUPPORTED_SCHEMA_VERSION = 2;
+export const SUPPORTED_SCHEMA_VERSION = 3;
 
 export interface BenchmarkReference {
   distance: number;
@@ -34,8 +34,19 @@ export interface BenchmarkRow {
   distance: number | null;
   /** Which distance field `gap_percent` was computed on; null without a reference. */
   gap_measured_on: string | null;
-  /** Null when there is no feasible solution or no published reference. */
+  /**
+   * Distance gap in the reference's convention. Null when there is no feasible solution, no
+   * published reference, or the gap is not comparable (see `gap_comparable`).
+   */
   gap_percent: number | null;
+  /**
+   * False when the reference ranks fewest vehicles first (SINTEF, 100 customers) and the solver
+   * used a different number of vehicles: its distance then says nothing about beating the
+   * reference, and `vehicle_gap` is the comparison. Null when there is nothing to compare.
+   */
+  gap_comparable: boolean | null;
+  /** Vehicles used minus the reference's vehicles; null when there is nothing to compare. */
+  vehicle_gap: number | null;
   runtime_seconds: number;
   /** Null when no reference value is published for this instance and size. */
   reference: BenchmarkReference | null;
@@ -60,6 +71,8 @@ export interface BestKnownSource {
   applies_to: number[];
   /** How that table measures distance, which is what each gap is compared in. */
   distance_convention: string | null;
+  /** How that table ranks solutions, e.g. "hierarchical: 1) minimize number of vehicles, ...". */
+  objective: string | null;
 }
 
 export interface ParsedBenchmarks {
@@ -114,6 +127,8 @@ function parseRow(raw: unknown): BenchmarkRow | null {
     distance: num(raw.distance),
     gap_measured_on: str(raw.gap_measured_on),
     gap_percent: num(raw.gap_percent),
+    gap_comparable: typeof raw.gap_comparable === 'boolean' ? raw.gap_comparable : null,
+    vehicle_gap: num(raw.vehicle_gap),
     runtime_seconds: runtime,
     reference,
   };
@@ -130,7 +145,7 @@ function parseProvenance(provenance: unknown): BenchmarkProvenance {
       const title = isObject(s) ? str(s.title) : null;
       if (!isObject(s) || title === null) return [];
       const sizes = Array.isArray(s.applies_to) ? s.applies_to.map(num).filter((n): n is number => n !== null) : [];
-      return [{ title, applies_to: sizes, distance_convention: str(s.distance_convention) }];
+      return [{ title, applies_to: sizes, distance_convention: str(s.distance_convention), objective: str(s.objective) }];
     }),
     time_limit_seconds: num(p.time_limit_seconds),
     generated_at: str(p.generated_at),
@@ -161,8 +176,37 @@ export function parseBenchmarks(results: unknown[], provenance: unknown, schemaV
 
 export type SortKey = keyof Pick<
   BenchmarkRow,
-  'instance' | 'num_customers' | 'solver' | 'vehicles_used' | 'distance' | 'gap_percent' | 'runtime_seconds' | 'status'
+  | 'instance'
+  | 'num_customers'
+  | 'solver'
+  | 'vehicles_used'
+  | 'vehicle_gap'
+  | 'distance'
+  | 'gap_percent'
+  | 'runtime_seconds'
+  | 'status'
 >;
+
+/**
+ * The gap cell: the distance gap when it is comparable, "not comparable" when the solver used a
+ * different number of vehicles than a vehicles-first reference, and a dash when there is nothing
+ * to compare. A distance gap from a different fleet size is never shown as a number.
+ */
+export function gapLabel(row: BenchmarkRow): string {
+  if (row.gap_comparable === false) return 'not comparable';
+  if (row.gap_percent === null) return '-';
+  return `${row.gap_percent >= 0 ? '+' : ''}${row.gap_percent.toFixed(2)}%`;
+}
+
+/** The vehicles-vs-reference cell: "same", "+4", "-1", or a dash when there is nothing to compare. */
+export function vehicleGapLabel(row: BenchmarkRow): string {
+  if (row.vehicle_gap === null) return '-';
+  if (row.vehicle_gap === 0) return 'same';
+  return `${row.vehicle_gap > 0 ? '+' : ''}${row.vehicle_gap}`;
+}
+
+/** True when a reference table ranks fewest vehicles first, as the SINTEF best known does. */
+export const ranksVehiclesFirst = (source: BestKnownSource) => source.objective?.startsWith('hierarchical') ?? false;
 
 /** Sorts a copy. Nulls always sort last, whichever the direction. */
 export function sortRows(rows: BenchmarkRow[], key: SortKey, ascending: boolean): BenchmarkRow[] {

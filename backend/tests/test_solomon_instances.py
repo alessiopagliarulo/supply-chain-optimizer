@@ -189,6 +189,7 @@ class TestBenchmarkRunner:
             assert r["instance"] == "C101" and r["num_customers"] == 25
             assert r["feasible"] is True
             assert r["reference"]["distance"] == 191.3
+            assert r["gap_comparable"] is True
             assert r["gap_percent"] >= 0.0
             assert r["runtime_seconds"] < 5
         cpsat = results[0]
@@ -197,6 +198,7 @@ class TestBenchmarkRunner:
         assert cpsat["gap_measured_on"] == "distance_one_decimal"
         # CP-SAT proves the real-distance optimum; measured with one-decimal arcs it is the published optimum.
         assert cpsat["distance_one_decimal"] == pytest.approx(191.3)
+        assert data["schema_version"] == 3
         assert data["summary"][0]["runs"] == 1
 
     def test_rejects_unknown_instance(self):
@@ -256,6 +258,13 @@ class TestCommittedArtifact:
             )
             assert r["gap_measured_on"] == expected_field, label
             if ref is None or not r["feasible"]:
+                assert r["gap_percent"] is None and r["gap_comparable"] is None, label
+                continue
+            assert r["vehicle_gap"] == r["vehicles_used"] - ref["vehicles"], label
+            # The SINTEF best known ranks vehicles first: its distance only measures a same-fleet solution.
+            comparable = ref["source"] == "solomon_optimal" or r["vehicle_gap"] == 0
+            assert r["gap_comparable"] is comparable, label
+            if not comparable:
                 assert r["gap_percent"] is None, label
                 continue
             measured = r[expected_field]
@@ -265,3 +274,60 @@ class TestCommittedArtifact:
             if ref["source"] == "solomon_optimal":
                 # Nothing feasible can beat a proven optimum under its own distance convention.
                 assert r["gap_percent"] >= 0.0, label
+
+    def test_no_comparable_gap_beats_the_best_known(self, data):
+        # A negative comparable gap would be a new best-known solution, not a benchmark row to publish
+        # quietly. Negative distance gaps only ever came from extra vehicles, which are no longer compared.
+        beating = [
+            (r["instance"], r["num_customers"], r["solver"], r["gap_percent"])
+            for r in data["results"]
+            if r["gap_percent"] is not None and r["gap_percent"] < 0
+        ]
+        assert beating == []
+
+    def test_summary_averages_comparable_gaps_only(self, data):
+        for s in data["summary"]:
+            runs = [
+                r for r in data["results"] if r["num_customers"] == s["num_customers"] and r["solver"] == s["solver"]
+            ]
+            gaps = [r["gap_percent"] for r in runs if r["gap_comparable"]]
+            assert s["gap_comparable"] == len(gaps)
+            assert s["with_reference"] == sum(r["gap_comparable"] is not None for r in runs)
+            assert s["more_vehicles_than_reference"] == sum(
+                r["gap_comparable"] is False and r["vehicle_gap"] > 0 for r in runs
+            )
+            assert s["mean_gap_percent"] == (pytest.approx(sum(gaps) / len(gaps), abs=1e-3) if gaps else None)
+
+
+class TestCompareToReference:
+    """The comparison follows the reference's own ranking: vehicles first, then distance (SINTEF)."""
+
+    # The committed OR-Tools row for RC202/100 before this rule: 7 vehicles, 1146.72, against SINTEF's
+    # 3 vehicles and 1365.65. Read as a distance gap it was -16.0%, apparently beating the best known.
+    RC202_ORTOOLS_VEHICLES = 7
+    RC202_ORTOOLS_DISTANCE = 1146.72
+
+    def test_rc202_with_extra_vehicles_is_not_a_distance_win(self):
+        ref = get_best_known("RC202", 100)
+        assert (ref["vehicles"], ref["distance"], ref["source"]) == (3, 1365.65, "sintef_best_known")
+        out = benchmark_solomon.compare_to_reference(self.RC202_ORTOOLS_VEHICLES, self.RC202_ORTOOLS_DISTANCE, ref)
+        assert out == {"gap_percent": None, "gap_comparable": False, "vehicle_gap": 4}
+
+    def test_same_vehicle_count_keeps_the_distance_gap(self):
+        ref = get_best_known("RC202", 100)
+        out = benchmark_solomon.compare_to_reference(3, 1400.0, ref)
+        assert out["gap_comparable"] is True and out["vehicle_gap"] == 0
+        assert out["gap_percent"] == pytest.approx(100 * (1400.0 - 1365.65) / 1365.65, abs=1e-3)
+
+    def test_fewer_vehicles_than_sintef_is_not_compared_on_distance(self):
+        ref = get_best_known("RC202", 100)
+        out = benchmark_solomon.compare_to_reference(2, 1500.0, ref)
+        assert out == {"gap_percent": None, "gap_comparable": False, "vehicle_gap": -1}
+
+    def test_solomon_optima_compare_on_distance_whatever_the_vehicles(self):
+        # Solomon's 25/50 optima minimise distance only, so a different fleet size is still comparable.
+        ref = get_best_known("C101", 25)
+        assert ref["source"] == "solomon_optimal"
+        out = benchmark_solomon.compare_to_reference(ref["vehicles"] + 1, 260.3, ref)
+        assert out["gap_comparable"] is True and out["vehicle_gap"] == 1
+        assert out["gap_percent"] == pytest.approx(100 * (260.3 - 191.3) / 191.3, abs=1e-3)

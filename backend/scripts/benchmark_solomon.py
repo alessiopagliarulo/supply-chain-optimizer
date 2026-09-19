@@ -34,9 +34,14 @@ model (distance x100 rounded, travel time x100 rounded up). That model is
 stricter than either reference convention, so a proven solution can still show
 a positive gap: it is optimal for the scaled model, not for the reference's.
 
-The solvers minimise distance only, so on 100 customers a solution may use
-more vehicles than the hierarchical best known and still be shorter; the
-negative gap is then real and ``vehicle_gap`` shows the extra vehicles.
+COMPARABILITY follows the reference's own ranking. The SINTEF best known is
+hierarchical - fewest vehicles first, then distance - so a solution with a
+different vehicle count is ranked on vehicles, not distance: using more trucks
+can shorten the total distance without beating anything. On 100 customers the
+distance gap is therefore comparable only when ``vehicles_used`` equals the
+reference's vehicles; otherwise ``gap_comparable`` is false, ``gap_percent`` is
+null and ``vehicle_gap`` is the comparison. Solomon's 25/50 optima minimise
+distance only, so every feasible 25/50 gap is comparable.
 """
 
 from __future__ import annotations
@@ -94,6 +99,23 @@ def gap(value: float, reference: float) -> float:
     return round(100.0 * (value - reference) / reference, 3)
 
 
+def compare_to_reference(vehicles_used: int, measured_distance: float, reference: dict) -> dict:
+    """The row's comparison to its reference, under that reference's own ranking.
+
+    The SINTEF best known ranks vehicles first, then distance, so its distance is
+    only a yardstick for a solution with the same vehicle count; with any other
+    count the distance gap is not comparable and the vehicle gap is the
+    comparison. Solomon's optima rank on distance alone, so theirs always is.
+    """
+    comparable = reference["source"] == "solomon_optimal" or vehicles_used == reference["vehicles"]
+    return {
+        # Gaps use the reported (rounded) distances so a reader can reproduce them from the file.
+        "gap_percent": gap(measured_distance, reference["distance"]) if comparable else None,
+        "gap_comparable": comparable,
+        "vehicle_gap": vehicles_used - reference["vehicles"],
+    }
+
+
 def run_case(args: tuple) -> List[dict]:
     """All solvers on one (instance, size). Top-level so a process pool can run it."""
     name, size, solvers, time_limit, seed = args
@@ -126,6 +148,7 @@ def run_case(args: tuple) -> List[dict]:
             "distance_one_decimal": round(distance_1dp, 1) if distance_1dp is not None else None,
             "gap_measured_on": None,
             "gap_percent": None,
+            "gap_comparable": None,
             "vehicle_gap": None,
             "runtime_seconds": round(runtime, 3),
             "reference": reference,
@@ -137,12 +160,15 @@ def run_case(args: tuple) -> List[dict]:
                 "distance_one_decimal" if reference["source"] == "solomon_optimal" else "distance"
             )
         if reference is not None and report.feasible and has_routes:
-            # Gaps use the reported (rounded) distances so a reader can reproduce them from the file.
-            record["gap_percent"] = gap(record[record["gap_measured_on"]], reference["distance"])
-            record["vehicle_gap"] = solution.vehicles_used - reference["vehicles"]
+            record.update(compare_to_reference(solution.vehicles_used, record[record["gap_measured_on"]], reference))
         records.append(record)
         shown = f"{record['distance']:9.2f}" if distance is not None else "        -"
-        shown_gap = f"{record['gap_percent']:+7.2f}%" if record["gap_percent"] is not None else "       -"
+        if record["gap_percent"] is not None:
+            shown_gap = f"{record['gap_percent']:+7.2f}%"
+        elif record["gap_comparable"] is False:
+            shown_gap = f"{record['vehicle_gap']:+4d} veh"
+        else:
+            shown_gap = "       -"
         print(
             f"{name:>6}/{size:<3} {solver:<13} {solution.status:<11} veh {solution.vehicles_used:>2} "
             f"dist {shown} gap {shown_gap} {runtime:6.2f}s",
@@ -152,7 +178,7 @@ def run_case(args: tuple) -> List[dict]:
 
 
 def summarize(results: List[dict]) -> List[dict]:
-    """Per solver and size: how many feasible, mean gap where a reference exists, mean runtime."""
+    """Per solver and size: how many feasible, mean comparable gap, mean runtime."""
     rows = []
     for size in sorted({r["num_customers"] for r in results}):
         for solver in SOLVERS:
@@ -160,6 +186,8 @@ def summarize(results: List[dict]) -> List[dict]:
             if not runs:
                 continue
             gaps = [r["gap_percent"] for r in runs if r["gap_percent"] is not None]
+            scored = [r for r in runs if r["gap_comparable"] is not None]
+            other_fleet = [r["vehicle_gap"] for r in scored if not r["gap_comparable"]]
             rows.append(
                 {
                     "num_customers": size,
@@ -167,7 +195,10 @@ def summarize(results: List[dict]) -> List[dict]:
                     "runs": len(runs),
                     "feasible": sum(r["feasible"] for r in runs),
                     "proven_optimal_scaled_model": sum(r["proven_optimal_scaled_model"] for r in runs),
-                    "with_reference": len(gaps),
+                    "with_reference": len(scored),
+                    "gap_comparable": len(gaps),
+                    "more_vehicles_than_reference": sum(v > 0 for v in other_fleet),
+                    "fewer_vehicles_than_reference": sum(v < 0 for v in other_fleet),
                     "mean_gap_percent": round(sum(gaps) / len(gaps), 3) if gaps else None,
                     "mean_runtime_seconds": round(sum(r["runtime_seconds"] for r in runs) / len(runs), 3),
                 }
@@ -225,8 +256,12 @@ def provenance(
         "gap_note": (
             "100 customers: gap_percent = (distance - reference) / reference vs the SINTEF best known. "
             "25/50 customers: gap_percent = (distance_one_decimal - reference) / reference vs Solomon's proven optima. "
-            "gap_measured_on names the field compared. null when there is no feasible solution or no "
-            "published reference."
+            "gap_measured_on names the field compared. The SINTEF best known ranks fewest vehicles first, then "
+            "distance, so a 100-customer gap is only comparable when vehicles_used equals the reference's vehicles: "
+            "gap_comparable says whether it is, and when it is false gap_percent is null and vehicle_gap is the "
+            "comparison. Solomon's 25/50 optima rank on distance alone, so their gaps are always comparable. "
+            "gap_percent and gap_comparable are null when there is no feasible solution or no published reference. "
+            "summary.mean_gap_percent averages comparable gaps only."
         ),
         "optimality_note": (
             "proven_optimal_scaled_model is CP-SAT's optimality proof on the integer model above, not on the "
@@ -302,7 +337,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     results: List[dict] = [r for records in per_case for r in records]
 
     payload: Dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "provenance": provenance(cases, solvers, args.time_limit, args.seed, args.jobs, argv),
         "summary": summarize(results),
         "results": results,

@@ -92,14 +92,30 @@ One row per solver per case:
 - `gap_measured_on` - which distance the gap compares, in the reference's
   convention: `distance` for 100 customers (SINTEF), `distance_one_decimal` for
   25/50 (Solomon). `null` when there is no reference;
+- `gap_comparable` - whether the distance gap means anything under the
+  reference's own ranking (see "Vehicles first, then distance" below): always
+  `true` for 25/50 customers, and for 100 customers `true` only when
+  `vehicles_used` equals the reference's vehicles. `null` when the solution is
+  not feasible or there is no reference;
 - `gap_percent` - vs the reference, on `gap_measured_on`. `null` when the
-  solution is not feasible or there is no reference;
-- `vehicle_gap` - vehicles used minus the reference's vehicles;
+  solution is not feasible, there is no reference, or `gap_comparable` is
+  `false`;
+- `vehicle_gap` - vehicles used minus the reference's vehicles (the comparison
+  that counts when `gap_comparable` is `false`);
 - `runtime_seconds` - wall time of the solver call, model building included.
 
 `provenance` records the command, git commit, platform, Python and OR-Tools
 versions, time limit, seed, data URL and sha256, a sha256 over the 168 input
-files, and the reference sources. `summary` aggregates per solver and size.
+files, and the reference sources. `summary` aggregates per solver and size:
+`with_reference` rows with something to compare, `gap_comparable` of those with
+a comparable distance gap, `more_vehicles_than_reference` /
+`fewer_vehicles_than_reference` for the rest, and `mean_gap_percent` over the
+comparable gaps only.
+
+The file is `schema_version` 3. Version 2 had no `gap_comparable` and reported a
+distance gap for every row, including 100-customer rows with more vehicles than
+the reference, where it read as a spurious negative gap (down to -16% on
+RC202).
 
 ## Reading the numbers
 
@@ -108,10 +124,16 @@ files, and the reference sources. `summary` aggregates per solver and size.
   and service times exact. Rounding travel time up means every schedule the
   validator accepts is also feasible in real arithmetic, so "feasible" holds
   under the published double-precision rules.
-- **Negative gaps on 100 customers are real.** The solvers minimise distance
-  only; the SINTEF references minimise vehicles first. A solution with more
-  vehicles can be shorter than the best known; `vehicle_gap` shows the extra
-  vehicles.
+- **Vehicles first, then distance.** The SINTEF best known solutions for 100
+  customers are ranked hierarchically: fewest vehicles first, then shortest
+  distance. The solvers minimise distance only, so they often use more
+  vehicles than the best known and, with more trucks, drive a shorter total
+  distance. That is not a win under the reference's ranking, so the distance
+  gap is only compared at the same vehicle count; otherwise `gap_comparable`
+  is `false`, `gap_percent` is `null`, and `vehicle_gap` is the comparison.
+  Every negative distance gap in the version-2 artifact came from such a row;
+  a test asserts no comparable gap is below zero, since that would be a new
+  best known and needs checking, not publishing.
 - **25/50-customer gaps are never negative.** A feasible solution cannot beat
   a proven optimum under the optimum's own convention; the artifact test
   asserts this.
