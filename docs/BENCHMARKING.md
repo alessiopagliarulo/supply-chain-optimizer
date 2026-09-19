@@ -32,8 +32,10 @@ how much search fits in the time limit, so a re-solve re-rolls them):
 python scripts/benchmark_solomon.py --rescore ../docs/benchmark_results.json
 ```
 
-That rewrites every comparison field and the summary, keeps every route,
-distance and runtime, and records the rescore under `provenance.rescored`.
+That rewrites every comparison field (including `gap_measured_on`) and the
+summary, keeps every route, distance and runtime, and records the rescore under
+`provenance.rescored`. It writes back to the file it read unless `--output` is
+given, and refuses the solve-only flags (`--instances`, `--time-limit`, ...).
 
 The full run is a generator, not a test. The test suite
 (`backend/tests/test_solomon_instances.py`) runs the script end-to-end on one

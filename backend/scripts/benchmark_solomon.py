@@ -82,6 +82,7 @@ from app.vrp.solomon import (  # noqa: E402
 )
 
 DEFAULT_OUTPUT = BACKEND.parent / "docs" / "benchmark_results.json"
+SCHEMA_VERSION = 3
 SOLVERS = ("cpsat", "clarke_wright", "ortools")
 DATA_URL = "https://www.sintef.no/globalassets/project/top/vrptw/solomon/solomon-100.zip"
 DATA_SHA256 = "8a0a72cbe6b7f8f9988ace4ebde0378ec34943acaaac47f2c408915e41887747"
@@ -99,6 +100,17 @@ def run_solver(solver: str, instance, time_limit: float, seed: int) -> VrpSoluti
 
 def gap(value: float, reference: float) -> float:
     return round(100.0 * (value - reference) / reference, 3)
+
+
+def gap_field(reference: Optional[dict]) -> Optional[str]:
+    """The distance field a gap to ``reference`` is measured on, in that reference's convention.
+
+    Solomon's optima truncate each arc to one decimal; the SINTEF best known is double precision.
+    None when there is no reference.
+    """
+    if reference is None:
+        return None
+    return "distance_one_decimal" if reference["source"] == "solomon_optimal" else "distance"
 
 
 def compare_to_reference(vehicles_used: int, measured_distance: float, reference: dict) -> dict:
@@ -161,10 +173,7 @@ def run_case(args: tuple) -> List[dict]:
             "violations": report.violations[:3],
             "routes": solution.routes,
         }
-        if reference is not None:
-            record["gap_measured_on"] = (
-                "distance_one_decimal" if reference["source"] == "solomon_optimal" else "distance"
-            )
+        record["gap_measured_on"] = gap_field(reference)
         if reference is not None and report.feasible and has_routes:
             record.update(compare_to_reference(solution.vehicles_used, record[record["gap_measured_on"]], reference))
         records.append(record)
@@ -318,6 +327,7 @@ def rescore(payload: dict, argv: List[str]) -> dict:
     for r in results:
         reference = get_best_known(r["instance"], r["num_customers"])
         r["reference"] = reference
+        r["gap_measured_on"] = gap_field(reference)
         r.update({"gap_percent": None, "gap_comparable": None, "vehicle_gap": None})
         if reference is not None and r["feasible"] and r["routes"]:
             r.update(compare_to_reference(r["vehicles_used"], r[r["gap_measured_on"]], reference))
@@ -331,11 +341,14 @@ def rescore(payload: dict, argv: List[str]) -> dict:
         "note": "comparison fields and summary recomputed from the recorded solutions; nothing was re-solved. "
         "command, generated_at and git_commit above describe the solve.",
     }
-    return {"schema_version": 3, "provenance": prov, "summary": summarize(results), "results": results}
+    return {"schema_version": SCHEMA_VERSION, "provenance": prov, "summary": summarize(results), "results": results}
 
 
 def parse_list(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
+
+
+SOLVE_FLAGS = ("--instances", "--sizes", "--solvers", "--time-limit", "--seed", "--jobs")
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -346,22 +359,32 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--time-limit", type=float, default=10.0, help="per-solve time limit in seconds")
     parser.add_argument("--seed", type=int, default=42, help="CP-SAT random seed")
     parser.add_argument("--jobs", type=int, default=1, help="cases solved in parallel (1 = most faithful runtimes)")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="where to write the JSON artifact")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="where to write the JSON artifact (default docs/benchmark_results.json; "
+        "with --rescore, the rescored file itself)",
+    )
     parser.add_argument(
         "--rescore",
         type=Path,
         metavar="ARTIFACT",
         help="recompute the comparison fields and summary of ARTIFACT from its recorded solutions, "
-        "without re-solving, and write the result to --output",
+        "without re-solving, and write the result back to ARTIFACT (or to --output)",
     )
     args = parser.parse_args(argv)
     argv = list(sys.argv[1:] if argv is None else argv)
 
     if args.rescore is not None:
+        solve_flags = [a.split("=")[0] for a in argv if a.split("=")[0] in SOLVE_FLAGS]
+        if solve_flags:
+            parser.error(f"--rescore does not solve anything, so it takes no {', '.join(solve_flags)}")
+        output = args.output or args.rescore
         payload = rescore(json.loads(args.rescore.read_text()), argv)
-        write_json(args.output, payload)
-        print(f"rescored {len(payload['results'])} results from {args.rescore} into {args.output}")
+        write_json(output, payload)
+        print(f"rescored {len(payload['results'])} results from {args.rescore} into {output}")
         return 0
+    output = args.output or DEFAULT_OUTPUT
 
     names = INSTANCE_NAMES if args.instances == "all" else [n.upper() for n in parse_list(args.instances)]
     sizes = [int(s) for s in parse_list(args.sizes)]
@@ -391,13 +414,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     results: List[dict] = [r for records in per_case for r in records]
 
     payload: Dict[str, object] = {
-        "schema_version": 3,
+        "schema_version": SCHEMA_VERSION,
         "provenance": provenance(cases, solvers, args.time_limit, args.seed, args.jobs, argv),
         "summary": summarize(results),
         "results": results,
     }
-    write_json(args.output, payload)
-    print(f"wrote {len(results)} results to {args.output}")
+    write_json(output, payload)
+    print(f"wrote {len(results)} results to {output}")
     return 0
 
 

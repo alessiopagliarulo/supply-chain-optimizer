@@ -242,7 +242,7 @@ class TestBenchmarkRunner:
         stale = json.loads(solved.read_text())
         stale["summary"] = []
         for r in stale["results"]:
-            r.update({"gap_percent": -99.0, "gap_comparable": None, "vehicle_gap": None})
+            r.update({"gap_measured_on": None, "gap_percent": -99.0, "gap_comparable": None, "vehicle_gap": None})
         stale_path = tmp_path / "stale.json"
         stale_path.write_text(json.dumps(stale))
         out = tmp_path / "rescored.json"
@@ -255,6 +255,82 @@ class TestBenchmarkRunner:
         assert prov["generated_at"] == original["provenance"]["generated_at"]
         assert prov["rescored"]["command"].endswith(f"--rescore {stale_path} --output {out}")
         assert prov["best_known"] == best_known_sources()
+
+    @staticmethod
+    def _solve(tmp_path, instance, size):
+        path = tmp_path / f"{instance}_{size}.json"
+        argv = ["--instances", instance, "--sizes", str(size), "--solvers", "clarke_wright", "--output", str(path)]
+        assert benchmark_solomon.main(argv) == 0
+        return path
+
+    @staticmethod
+    def _publish(monkeypatch, name, size, reference):
+        real = benchmark_solomon.get_best_known
+        monkeypatch.setattr(
+            benchmark_solomon,
+            "get_best_known",
+            lambda n, s: dict(reference) if (n, s) == (name, size) else real(n, s),
+        )
+
+    def test_rescore_measures_a_newly_published_reference(self, tmp_path, monkeypatch):
+        # R207/50 has no published optimum, so its row carries gap_measured_on = null. If one is
+        # published later, the rescore must derive the field rather than read the stale null.
+        solved = self._solve(tmp_path, "R207", 50)
+        (row,) = json.loads(solved.read_text())["results"]
+        assert row["reference"] is None and row["gap_measured_on"] is None
+        # A test-only reference (not a published value): same vehicle count, round distance.
+        reference = {
+            "vehicles": row["vehicles_used"],
+            "distance": 800.0,
+            "reference": "TEST",
+            "source": "solomon_optimal",
+        }
+        self._publish(monkeypatch, "R207", 50, reference)
+        assert benchmark_solomon.main(["--rescore", str(solved)]) == 0
+        (rescored,) = json.loads(solved.read_text())["results"]
+        assert rescored["gap_measured_on"] == "distance_one_decimal"
+        assert rescored["gap_comparable"] is True
+        assert rescored["gap_percent"] == benchmark_solomon.gap(rescored["distance_one_decimal"], 800.0)
+
+    def test_rescore_switches_convention_when_the_reference_source_changes(self, tmp_path, monkeypatch):
+        # C101/50 is measured on one-decimal arcs against Solomon's optimum. Re-sourced to a
+        # double-precision reference, the gap must be measured on the double-precision distance.
+        solved = self._solve(tmp_path, "C101", 50)
+        (row,) = json.loads(solved.read_text())["results"]
+        assert row["gap_measured_on"] == "distance_one_decimal"
+        assert row["distance"] != row["distance_one_decimal"]
+        reference = {
+            "vehicles": row["vehicles_used"],
+            "distance": 362.4,
+            "reference": "TEST",
+            "source": "sintef_best_known",
+        }
+        self._publish(monkeypatch, "C101", 50, reference)
+        assert benchmark_solomon.main(["--rescore", str(solved)]) == 0
+        (rescored,) = json.loads(solved.read_text())["results"]
+        assert rescored["gap_measured_on"] == "distance"
+        assert rescored["gap_percent"] == benchmark_solomon.gap(rescored["distance"], 362.4)
+
+    def test_rescore_writes_back_to_its_input_by_default(self, tmp_path, monkeypatch):
+        default = tmp_path / "default_output.json"
+        monkeypatch.setattr(benchmark_solomon, "DEFAULT_OUTPUT", default)
+        solved = self._solve(tmp_path, "C101", 25)
+        before = json.loads(solved.read_text())
+        assert benchmark_solomon.main(["--rescore", str(solved)]) == 0
+        assert not default.exists()
+        after = json.loads(solved.read_text())
+        assert after["results"] == before["results"]
+        assert "rescored" in after["provenance"]
+
+    @pytest.mark.parametrize("flag", ["--instances=C101", "--time-limit", "--seed", "--jobs", "--sizes", "--solvers"])
+    def test_rescore_rejects_solve_flags(self, flag, tmp_path):
+        solved = self._solve(tmp_path, "C101", 25)
+        before = solved.read_text()
+        argv = ["--rescore", str(solved), *([flag] if "=" in flag else [flag, "1"])]
+        with pytest.raises(SystemExit) as exc:
+            benchmark_solomon.main(argv)
+        assert exc.value.code == 2
+        assert solved.read_text() == before
 
     def test_rejects_unknown_instance(self):
         with pytest.raises(SystemExit):
@@ -308,9 +384,7 @@ class TestCommittedArtifact:
             one_dp = round(route_distance(raw.coords, r["routes"], truncate_one_decimal=True), 1)
             assert r["distance_one_decimal"] == one_dp, label
             ref = r["reference"]
-            expected_field = (
-                None if ref is None else ("distance_one_decimal" if ref["source"] == "solomon_optimal" else "distance")
-            )
+            expected_field = benchmark_solomon.gap_field(ref)
             assert r["gap_measured_on"] == expected_field, label
             if ref is None or not r["feasible"]:
                 assert r["gap_percent"] is None and r["gap_comparable"] is None, label
@@ -340,6 +414,11 @@ class TestCommittedArtifact:
             if r["gap_percent"] is not None and r["gap_percent"] < 0
         ]
         assert beating == []
+
+    def test_summary_covers_every_size_and_solver(self, data):
+        cells = [(s["num_customers"], s["solver"]) for s in data["summary"]]
+        assert cells == [(size, solver) for size in SIZES for solver in benchmark_solomon.SOLVERS]
+        assert all(s["runs"] == len(INSTANCE_NAMES) for s in data["summary"])
 
     def test_summary_averages_comparable_gaps_only(self, data):
         for s in data["summary"]:
