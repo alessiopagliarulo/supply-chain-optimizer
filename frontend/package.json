@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "ui-gate": "node scripts/ui-gate.cjs",
+    "ui-gate:ci": "node scripts/ui-gate-ci.cjs",
     "screenshots": "node scripts/screenshots.cjs",
     "test": "vitest run"
   },
