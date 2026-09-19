@@ -71,8 +71,25 @@ export interface BestKnownSource {
   applies_to: number[];
   /** How that table measures distance, which is what each gap is compared in. */
   distance_convention: string | null;
-  /** How that table ranks solutions, e.g. "hierarchical: 1) minimize number of vehicles, ...". */
-  objective: string | null;
+  /** True when the table ranks fewest vehicles first (SINTEF), false for distance only; null if unrecorded. */
+  ranks_vehicles_first: boolean | null;
+}
+
+/** One `summary` entry: per instance size and solver, the averages the script computed. */
+export interface BenchmarkSummary {
+  num_customers: number;
+  solver: string;
+  runs: number;
+  feasible: number;
+  /** Runs with a reference to compare against. */
+  with_reference: number;
+  /** Of those, runs whose distance gap is comparable: the runs `mean_gap_percent` averages. */
+  gap_comparable: number;
+  more_vehicles_than_reference: number;
+  fewer_vehicles_than_reference: number;
+  /** Mean of the comparable gaps; null when no run was comparable. */
+  mean_gap_percent: number | null;
+  mean_runtime_seconds: number;
 }
 
 export interface ParsedBenchmarks {
@@ -82,6 +99,8 @@ export interface ParsedBenchmarks {
   schema_supported: boolean;
   rows: BenchmarkRow[];
   unreadable: number;
+  /** The script's per-size, per-solver averages; entries missing a required field are left out. */
+  summary: BenchmarkSummary[];
   provenance: BenchmarkProvenance;
 }
 
@@ -145,7 +164,8 @@ function parseProvenance(provenance: unknown): BenchmarkProvenance {
       const title = isObject(s) ? str(s.title) : null;
       if (!isObject(s) || title === null) return [];
       const sizes = Array.isArray(s.applies_to) ? s.applies_to.map(num).filter((n): n is number => n !== null) : [];
-      return [{ title, applies_to: sizes, distance_convention: str(s.distance_convention), objective: str(s.objective) }];
+      const ranks = typeof s.ranks_vehicles_first === 'boolean' ? s.ranks_vehicles_first : null;
+      return [{ title, applies_to: sizes, distance_convention: str(s.distance_convention), ranks_vehicles_first: ranks }];
     }),
     time_limit_seconds: num(p.time_limit_seconds),
     generated_at: str(p.generated_at),
@@ -156,7 +176,36 @@ function parseProvenance(provenance: unknown): BenchmarkProvenance {
   };
 }
 
-export function parseBenchmarks(results: unknown[], provenance: unknown, schemaVersion: unknown): ParsedBenchmarks {
+function parseSummary(raw: unknown): BenchmarkSummary | null {
+  if (!isObject(raw)) return null;
+  const solver = str(raw.solver);
+  const fields = [
+    'num_customers', 'runs', 'feasible', 'with_reference', 'gap_comparable', 'more_vehicles_than_reference',
+    'fewer_vehicles_than_reference', 'mean_runtime_seconds',
+  ] as const;
+  const values = fields.map((f) => num(raw[f]));
+  if (solver === null || values.some((v) => v === null)) return null;
+  const [numCustomers, runs, feasible, withReference, comparable, more, fewer, runtime] = values as number[];
+  return {
+    num_customers: numCustomers,
+    solver,
+    runs,
+    feasible,
+    with_reference: withReference,
+    gap_comparable: comparable,
+    more_vehicles_than_reference: more,
+    fewer_vehicles_than_reference: fewer,
+    mean_gap_percent: num(raw.mean_gap_percent),
+    mean_runtime_seconds: runtime,
+  };
+}
+
+export function parseBenchmarks(
+  results: unknown[],
+  provenance: unknown,
+  schemaVersion: unknown,
+  summary: unknown = [],
+): ParsedBenchmarks {
   const version = num(schemaVersion);
   const rows: BenchmarkRow[] = [];
   let unreadable = 0;
@@ -170,6 +219,7 @@ export function parseBenchmarks(results: unknown[], provenance: unknown, schemaV
     schema_supported: version === SUPPORTED_SCHEMA_VERSION,
     rows,
     unreadable,
+    summary: (Array.isArray(summary) ? summary : []).map(parseSummary).filter((s): s is BenchmarkSummary => s !== null),
     provenance: parseProvenance(provenance),
   };
 }
@@ -194,6 +244,9 @@ export type SortKey = keyof Pick<
  */
 export function gapLabel(row: BenchmarkRow): string {
   if (row.gap_comparable === false) return 'not comparable';
+  // A row that compares vehicles but does not say whether its distance gap is comparable (an older
+  // artifact) could be a different-fleet gap: never show it as a number.
+  if (row.gap_comparable === null && row.vehicle_gap !== null) return '-';
   if (row.gap_percent === null) return '-';
   return `${row.gap_percent >= 0 ? '+' : ''}${row.gap_percent.toFixed(2)}%`;
 }
@@ -206,7 +259,14 @@ export function vehicleGapLabel(row: BenchmarkRow): string {
 }
 
 /** True when a reference table ranks fewest vehicles first, as the SINTEF best known does. */
-export const ranksVehiclesFirst = (source: BestKnownSource) => source.objective?.startsWith('hierarchical') ?? false;
+export const ranksVehiclesFirst = (source: BestKnownSource) => source.ranks_vehicles_first === true;
+
+/** Sizes as a suspended-hyphen list for "<list>-customer": "100", "25- and 50", "25-, 50- and 100". */
+export function sizesLabel(sizes: number[]): string {
+  const sorted = [...new Set(sizes)].sort((a, b) => a - b).map(String);
+  if (sorted.length <= 1) return sorted.join('');
+  return `${sorted.slice(0, -1).join('-, ')}- and ${sorted[sorted.length - 1]}`;
+}
 
 /** Sorts a copy. Nulls always sort last, whichever the direction. */
 export function sortRows(rows: BenchmarkRow[], key: SortKey, ascending: boolean): BenchmarkRow[] {

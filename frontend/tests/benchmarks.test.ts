@@ -9,15 +9,23 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { SUPPORTED_SCHEMA_VERSION, gapLabel, parseBenchmarks, ranksVehiclesFirst, vehicleGapLabel } from '../src/lib/benchmarks';
+import {
+  SUPPORTED_SCHEMA_VERSION,
+  gapLabel,
+  parseBenchmarks,
+  ranksVehiclesFirst,
+  sizesLabel,
+  vehicleGapLabel,
+} from '../src/lib/benchmarks';
 
 const ARTIFACT = fileURLToPath(new URL('../../docs/benchmark_results.json', import.meta.url));
 const artifact = JSON.parse(readFileSync(ARTIFACT, 'utf8')) as {
   schema_version: unknown;
   provenance: Record<string, unknown>;
+  summary: Record<string, unknown>[];
   results: Record<string, unknown>[];
 };
-const parsed = parseBenchmarks(artifact.results, artifact.provenance, artifact.schema_version);
+const parsed = parseBenchmarks(artifact.results, artifact.provenance, artifact.schema_version, artifact.summary);
 
 describe('parseBenchmarks on docs/benchmark_results.json', () => {
   it('reads the schema version the artifact declares', () => {
@@ -90,7 +98,8 @@ describe('vehicles first, then distance', () => {
   const rc202 = parsed.rows.filter((r) => r.instance === 'RC202' && r.num_customers === 100);
 
   it('shows RC202/100 runs with extra vehicles as not comparable, with the vehicle gap', () => {
-    expect(rc202.map((r) => r.reference?.vehicles)).toEqual([3, 3, 3]);
+    expect(rc202.length).toBeGreaterThan(0);
+    for (const r of rc202) expect(r.reference?.vehicles).toBe(3);
     const extra = rc202.filter((r) => r.feasible && r.vehicles_used > 3);
     expect(extra.length).toBeGreaterThan(0);
     for (const r of extra) {
@@ -128,7 +137,54 @@ describe('vehicles first, then distance', () => {
   });
 });
 
+describe('the per-solver averages', () => {
+  it('reads every summary entry, carrying the counts each mean covers', () => {
+    expect(parsed.summary).toHaveLength(artifact.summary.length);
+    parsed.summary.forEach((s, i) => {
+      const raw = artifact.summary[i];
+      expect(s.num_customers).toBe(raw.num_customers);
+      expect(s.solver).toBe(raw.solver);
+      expect(s.runs).toBe(raw.runs);
+      expect(s.gap_comparable).toBe(raw.gap_comparable);
+      expect(s.mean_gap_percent).toBe(raw.mean_gap_percent);
+      expect(s.more_vehicles_than_reference).toBe(raw.more_vehicles_than_reference);
+      expect(s.fewer_vehicles_than_reference).toBe(raw.fewer_vehicles_than_reference);
+    });
+  });
+
+  it('counts fleet differences at every size, not only where the gap is not comparable', () => {
+    for (const s of parsed.summary) {
+      const runs = parsed.rows.filter((r) => r.num_customers === s.num_customers && r.solver === s.solver);
+      const scored = runs.filter((r) => r.vehicle_gap !== null);
+      expect(s.more_vehicles_than_reference).toBe(scored.filter((r) => r.vehicle_gap! > 0).length);
+      expect(s.fewer_vehicles_than_reference).toBe(scored.filter((r) => r.vehicle_gap! < 0).length);
+      expect(s.gap_comparable).toBe(runs.filter((r) => r.gap_percent !== null).length);
+    }
+    // Clarke-Wright at 25 customers uses more vehicles than the optimum on some runs, all comparable.
+    const cw25 = parsed.summary.find((s) => s.num_customers === 25 && s.solver === 'clarke_wright')!;
+    expect(cw25.more_vehicles_than_reference).toBeGreaterThan(0);
+  });
+});
+
+describe('sizesLabel', () => {
+  it('writes a suspended-hyphen list for one, two or three sizes', () => {
+    expect(sizesLabel([100])).toBe('100');
+    expect(sizesLabel([50, 25])).toBe('25- and 50');
+    expect(sizesLabel([25, 50, 100])).toBe('25-, 50- and 100');
+    expect(sizesLabel([])).toBe('');
+  });
+});
+
 describe('parseBenchmarks on malformed input', () => {
+  it('never shows a number for a gap an older artifact does not mark comparable', () => {
+    const rc202 = artifact.results.find((r) => r.instance === 'RC202' && r.num_customers === 100 && r.gap_comparable === false)!;
+    const v2 = { ...rc202, gap_percent: -16.031 };
+    delete (v2 as Record<string, unknown>).gap_comparable;
+    const [row] = parseBenchmarks([v2], {}, 2).rows;
+    expect(row.gap_comparable).toBeNull();
+    expect(gapLabel(row)).toBe('-');
+  });
+
   it('counts a row missing a required field as unreadable', () => {
     const [good] = artifact.results;
     const bad = { ...good };
