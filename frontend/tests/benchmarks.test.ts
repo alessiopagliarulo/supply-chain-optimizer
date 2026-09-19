@@ -12,7 +12,9 @@ import { describe, expect, it } from 'vitest';
 import {
   SUPPORTED_SCHEMA_VERSION,
   gapLabel,
+  hasComparableGap,
   parseBenchmarks,
+  percentLabel,
   ranksVehiclesFirst,
   sizesLabel,
   vehicleGapLabel,
@@ -152,17 +154,25 @@ describe('the per-solver averages', () => {
     });
   });
 
-  it('counts fleet differences at every size, not only where the gap is not comparable', () => {
+  it('counts fleet differences over every feasible run with a reference, at every size', () => {
     for (const s of parsed.summary) {
       const runs = parsed.rows.filter((r) => r.num_customers === s.num_customers && r.solver === s.solver);
-      const scored = runs.filter((r) => r.vehicle_gap !== null);
-      expect(s.more_vehicles_than_reference).toBe(scored.filter((r) => r.vehicle_gap! > 0).length);
-      expect(s.fewer_vehicles_than_reference).toBe(scored.filter((r) => r.vehicle_gap! < 0).length);
-      expect(s.gap_comparable).toBe(runs.filter((r) => r.gap_percent !== null).length);
+      const counted = runs.filter((r) => r.feasible && r.reference?.vehicles != null);
+      expect(s.more_vehicles_than_reference).toBe(counted.filter((r) => r.vehicles_used > r.reference!.vehicles!).length);
+      expect(s.fewer_vehicles_than_reference).toBe(counted.filter((r) => r.vehicles_used < r.reference!.vehicles!).length);
+      expect(s.gap_comparable).toBe(runs.filter(hasComparableGap).length);
     }
     // Clarke-Wright at 25 customers uses more vehicles than the optimum on some runs, all comparable.
     const cw25 = parsed.summary.find((s) => s.num_customers === 25 && s.solver === 'clarke_wright')!;
     expect(cw25.more_vehicles_than_reference).toBeGreaterThan(0);
+  });
+});
+
+describe('percentLabel', () => {
+  it('signs and rounds a percentage', () => {
+    expect(percentLabel(1.234)).toBe('+1.23%');
+    expect(percentLabel(0)).toBe('+0.00%');
+    expect(percentLabel(-0.5)).toBe('-0.50%');
   });
 });
 
@@ -182,7 +192,26 @@ describe('parseBenchmarks on malformed input', () => {
     delete (v2 as Record<string, unknown>).gap_comparable;
     const [row] = parseBenchmarks([v2], {}, 2).rows;
     expect(row.gap_comparable).toBeNull();
+    expect(row.gap_percent).toBe(-16.031);
     expect(gapLabel(row)).toBe('-');
+    // The chart plots exactly the rows that pass hasComparableGap, so this row is not plotted.
+    expect([row].filter(hasComparableGap)).toEqual([]);
+  });
+
+  it('falls back to the objective when a source does not record ranks_vehicles_first', () => {
+    const provenance = structuredClone(artifact.provenance) as { best_known: { sources: Record<string, Record<string, unknown>> } };
+    for (const source of Object.values(provenance.best_known.sources)) delete source.ranks_vehicles_first;
+    const sources = parseBenchmarks([], provenance, SUPPORTED_SCHEMA_VERSION).provenance.best_known_sources;
+    expect(sources.filter(ranksVehiclesFirst).map((s) => s.applies_to)).toEqual([[100]]);
+  });
+
+  it('counts a malformed summary entry instead of dropping it silently', () => {
+    const [good] = artifact.summary;
+    const bad = { ...good };
+    delete bad.runs;
+    const out = parseBenchmarks([], {}, SUPPORTED_SCHEMA_VERSION, [good, bad]);
+    expect(out.summary).toHaveLength(1);
+    expect(out.summary_unreadable).toBe(1);
   });
 
   it('counts a row missing a required field as unreadable', () => {

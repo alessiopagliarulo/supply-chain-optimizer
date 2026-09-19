@@ -14,7 +14,9 @@ import { errorMessage, routingApi, type BenchmarksResponse } from '../services/a
 import {
   SUPPORTED_SCHEMA_VERSION,
   gapLabel,
+  hasComparableGap,
   parseBenchmarks,
+  percentLabel,
   ranksVehiclesFirst,
   sizesLabel,
   sortRows,
@@ -61,10 +63,11 @@ function GapTooltip({ active, payload }: { active?: boolean; payload?: { payload
 }
 
 function GapRuntimeChart({ rows }: { rows: BenchmarkRow[] }) {
-  const plotted = rows.filter((r) => r.gap_percent !== null);
+  const plotted = rows.filter(hasComparableGap);
   // From the plotted rows, so a solver with nothing comparable gets no empty legend entry.
   const solvers = [...new Set(plotted.map((r) => r.solver))].sort();
-  const otherFleet = rows.filter((r) => r.gap_comparable === false);
+  // Every row with a vehicle comparison whose distance gap is not plotted as comparable.
+  const otherFleet = rows.filter((r) => r.vehicle_gap !== null && !hasComparableGap(r));
   const fleetNote =
     otherFleet.length === 0
       ? null
@@ -215,8 +218,7 @@ function ComparisonNote({ sources }: { sources: BestKnownSource[] }) {
   );
 }
 
-const fmtMean = (s: BenchmarkSummary) =>
-  s.mean_gap_percent === null ? 'none comparable' : `${s.mean_gap_percent >= 0 ? '+' : ''}${s.mean_gap_percent.toFixed(2)}%`;
+const fmtMean = (s: BenchmarkSummary) => (s.mean_gap_percent === null ? 'none comparable' : percentLabel(s.mean_gap_percent));
 
 /** The script's averages, each shown with how many runs it covers. */
 function AveragesTable({ summary, sources }: { summary: BenchmarkSummary[]; sources: BestKnownSource[] }) {
@@ -224,10 +226,11 @@ function AveragesTable({ summary, sources }: { summary: BenchmarkSummary[]; sour
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-slate-400 leading-relaxed">
-        Each average covers only the runs with a comparable distance gap, counted as &quot;runs averaged&quot;; runs
-        with no feasible solution or no published best-known value are left out.
+        Each average covers only the runs with a comparable distance gap (&quot;runs averaged&quot;); runs with no
+        feasible solution or no published best-known value are left out.
         {vehiclesFirst &&
-          ` At ${vehiclesFirst} customers those are only the runs that used the same number of trucks as the best-known solution. They tend to be the instances the solver handled well, so a ${vehiclesFirst}-customer average is not the solver's performance over all its runs; the truck columns count every run with a best-known value.`}
+          ` At ${vehiclesFirst} customers the comparable runs are the ones that matched the best-known truck count, usually the instances the solver handled well, so those averages are not the solver's performance over all its runs.`}
+        {' '}The truck columns count every feasible run with a best-known value.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left tabular-nums">
@@ -412,6 +415,11 @@ export default function BenchmarksPage() {
           {parsed.unreadable > 0 && (
             <ErrorBox title="Some rows could not be read">
               {`${parsed.unreadable} of ${parsed.unreadable + parsed.rows.length} rows in the artifact are missing required fields and are not shown.`}
+            </ErrorBox>
+          )}
+          {parsed.summary_unreadable > 0 && (
+            <ErrorBox title="Some averages could not be read">
+              {`${parsed.summary_unreadable} of ${parsed.summary_unreadable + parsed.summary.length} summary entries in the artifact are missing required fields and are not shown.`}
             </ErrorBox>
           )}
           {!parsed.schema_supported && (
