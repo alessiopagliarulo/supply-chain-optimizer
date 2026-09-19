@@ -551,13 +551,40 @@ const AUDIT=()=>{
     ok('/simulation: states the replication cap from the API', simText.includes(`Up to ${limits.max_replications}.`),
        `max_replications=${limits.max_replications}`);
     await visit('/route-plan','/route-plan (limits)');
+    // The dropdown remembers the method of the last plan, so pick Auto before reading its hint.
+    await p.locator('#method').selectOption('auto').catch(()=>{});
     const planText=await p.evaluate(()=>document.body.innerText);
     ok('/route-plan: states the time-limit cap from the API', planText.includes(`Up to ${limits.max_time_limit_seconds} seconds.`),
        `max_time_limit_seconds=${limits.max_time_limit_seconds}`);
+    ok('/route-plan: the Auto hint states the size Auto sends to CP-SAT, from the API',
+       planText.includes(`The exact CP-SAT model up to ${limits.auto_exact_max_customers} customers`),
+       `auto_exact_max_customers=${limits.auto_exact_max_customers}`);
     await p.getByRole('radio',{name:'Upload CSV'}).click().catch(()=>{});
     const csvText=await p.evaluate(()=>document.body.innerText);
     ok('/route-plan: states the customer cap from the API', csvText.includes(`At most ${limits.max_customers} customers.`),
        `max_customers=${limits.max_customers}`);
+  }
+
+  // ── the Benchmarks page reads every row of the committed artifact ─────────
+  // The page once rejected all 504 rows ("Some rows could not be read") because its
+  // reader expected a row shape the benchmark script never wrote. Every check above
+  // passed on that page. Count the table rows against the artifact the API serves.
+  let bench=null;
+  try{ bench=await (await ctx.request.fetch(API+'/api/v1/routing/benchmarks',{timeout:60000})).json(); }
+  catch(e){ ok('GET /routing/benchmarks answers', false, String(e).split('\n')[0]); }
+  if(bench && bench.available){
+    await visit('/benchmarks','/benchmarks (rows)');
+    const shown=await p.evaluate(()=>({
+      alerts:[...document.querySelectorAll('[role=alert]')].map(e=>e.innerText.replace(/\s+/g,' ').slice(0,160)),
+      rows:document.querySelectorAll('tbody tr').length,
+      points:document.querySelectorAll('.recharts-scatter-symbol').length,
+    }));
+    const withGap=bench.results.filter(r=>typeof r.gap_percent==='number').length;
+    ok('/benchmarks: no error banner', shown.alerts.length===0, JSON.stringify(shown.alerts));
+    ok('/benchmarks: one table row per artifact row', shown.rows===bench.results.length,
+       `rows=${shown.rows} artifact=${bench.results.length}`);
+    ok('/benchmarks: one chart point per row with a gap', shown.points===withGap,
+       `points=${shown.points} with gap=${withGap}`);
   }
 
   // ── a customer CSV in the documented format solves ────────────────────────

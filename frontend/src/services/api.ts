@@ -49,6 +49,8 @@ export interface InstanceDetail extends InstanceSummary {
 export interface RoutingLimits {
   max_customers: number;
   max_exact_customers: number;
+  /** Auto uses the exact CP-SAT model up to this many customers, OR-Tools routing above. */
+  auto_exact_max_customers: number;
   max_tuning_customers: number;
   max_time_limit_seconds: number;
   max_replications: number;
@@ -166,7 +168,7 @@ export interface TuneBuffersResponse {
  */
 export type BenchmarksResponse =
   | { available: false; artifact: string }
-  | { available: true; artifact: string; provenance?: unknown; results: unknown[] };
+  | { available: true; artifact: string; schema_version?: unknown; provenance?: unknown; results: unknown[] };
 
 // ── Calls ────────────────────────────────────────────────────────────────────
 

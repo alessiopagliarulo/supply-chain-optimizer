@@ -36,7 +36,7 @@ from typing import Annotated, List, Literal, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from app.vrp import Node, VrpInstance, build_solution, simulate, solve, tune_buffers
+from app.vrp import EXACT_MAX_CUSTOMERS, Node, VrpInstance, build_solution, simulate, solve, tune_buffers
 from app.vrp.instances import list_instances, load_instance
 
 router = APIRouter(prefix="/routing", tags=["routing"])
@@ -260,6 +260,9 @@ class RoutingLimits(BaseModel):
 
     max_customers: int
     max_exact_customers: int
+    # method="auto" sends an instance to CP-SAT only up to this size, OR-Tools above it.
+    # Smaller than max_exact_customers, which caps an explicit method="cpsat" request.
+    auto_exact_max_customers: int
     max_tuning_customers: int
     max_time_limit_seconds: float
     max_replications: int
@@ -292,6 +295,7 @@ def get_instances() -> InstanceListResponse:
         limits=RoutingLimits(
             max_customers=MAX_CUSTOMERS,
             max_exact_customers=MAX_EXACT_CUSTOMERS,
+            auto_exact_max_customers=EXACT_MAX_CUSTOMERS,
             max_tuning_customers=MAX_EXACT_CUSTOMERS,
             max_time_limit_seconds=MAX_TIME_LIMIT_SECONDS,
             max_replications=MAX_REPLICATIONS,

@@ -298,6 +298,12 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # The Benchmarks page reader against the committed artifact. Here, not only in
+      # repo-tests, because a deploy waits on this workflow.
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
+
       - name: Type-check and build
         working-directory: frontend
         run: npm run build

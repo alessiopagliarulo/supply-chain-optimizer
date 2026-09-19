@@ -10,6 +10,7 @@ import json
 import pytest
 
 from app.api import routing as routing_api
+from app.vrp import EXACT_MAX_CUSTOMERS
 from app.vrp import instances as instances_mod
 from app.vrp.instances import load_instance, parse_solomon_text
 
@@ -43,6 +44,7 @@ def test_the_built_in_samples_are_listed_with_the_request_caps(client):
     assert body["limits"] == {
         "max_customers": routing_api.MAX_CUSTOMERS,
         "max_exact_customers": routing_api.MAX_EXACT_CUSTOMERS,
+        "auto_exact_max_customers": EXACT_MAX_CUSTOMERS,
         "max_tuning_customers": routing_api.MAX_EXACT_CUSTOMERS,
         "max_time_limit_seconds": routing_api.MAX_TIME_LIMIT_SECONDS,
         "max_replications": routing_api.MAX_REPLICATIONS,

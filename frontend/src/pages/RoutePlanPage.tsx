@@ -24,8 +24,8 @@ import {
   secondaryButtonClass,
 } from '../components/ui';
 
-const METHODS: { value: SolverMethod; label: string; help: string }[] = [
-  { value: 'auto', label: 'Auto', help: 'The exact CP-SAT model on small instances, OR-Tools routing above that.' },
+const METHODS: { value: SolverMethod; label: string; help?: string }[] = [
+  { value: 'auto', label: 'Auto' },
   { value: 'cpsat', label: 'CP-SAT (exact)', help: 'Proves optimality when it finishes inside the time limit.' },
   { value: 'ortools', label: 'OR-Tools routing', help: 'Guided local search; uses the whole time limit.' },
   { value: 'clarke_wright', label: 'Clarke-Wright savings', help: 'One fast greedy pass; ignores the time limit.' },
@@ -179,7 +179,16 @@ export default function RoutePlanPage() {
     }
   };
 
-  const methodHelp = METHODS.find((m) => m.value === method)?.help;
+  // Auto's choice depends on the instance size, so its hint states the backend's own
+  // threshold and, once an instance is loaded, which solver this instance will get.
+  const autoHelp = limits
+    ? `The exact CP-SAT model up to ${limits.auto_exact_max_customers} customers, OR-Tools routing above that.${
+        loaded
+          ? ` This instance has ${customers}, so it gets ${customers <= limits.auto_exact_max_customers ? 'CP-SAT' : 'OR-Tools routing'}.`
+          : ''
+      }`
+    : undefined;
+  const methodHelp = method === 'auto' ? autoHelp : METHODS.find((m) => m.value === method)?.help;
 
   return (
     <Page
