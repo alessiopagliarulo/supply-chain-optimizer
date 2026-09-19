@@ -1,65 +1,82 @@
-# Electronics Supply Chain Optimizer
+# Supply Chain Optimizer - vehicle routing engine
 
 [![CI](https://github.com/alessiopagliarulo/supply-chain-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/alessiopagliarulo/supply-chain-optimizer/actions/workflows/ci.yml)
 
-A full-stack supply chain intelligence platform for electronic component procurement. Built on real market data: **791 components, 92 distributors, 8,176 price offers** — a static 2024 snapshot originally collected via the Nexar API (which aggregates Octopart), redistributed on HuggingFace under CC-BY-4.0. It is real, but it is a **frozen snapshot, not a live feed** ([docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)).
+A capacitated vehicle routing engine with time windows (CVRPTW), with a web app on top.
+One data model, three solver paths and one shared validator live in
+[`backend/app/vrp/`](backend/app/vrp/__init__.py):
 
-> **Sourcing work archived.** This repo is being rebuilt as a vehicle-routing / logistics
-> engine. The sourcing optimizer — the CP-SAT sourcing MILP, the two-stage stochastic
-> program with its CVaR efficient frontier, the MILP-vs-greedy benchmark and its pages —
-> was removed and is preserved at git tag
-> [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1)
-> (`git checkout archive/sourcing-v1`). The pickup-TSP (`optimization/routing.py`) and
-> cross-dock (`optimization/cross_dock.py`) modules are kept for the rebuild.
-> The new routing engine lives in [`backend/app/vrp/`](backend/app/vrp/__init__.py): one
-> CVRPTW data model, three solver paths (CP-SAT exact, Clarke-Wright savings, OR-Tools
-> routing) and one shared solution validator.
+- **CP-SAT** (exact) - an OR-Tools CP-SAT model that can prove optimality on small instances;
+- **OR-Tools routing** - guided local search, the general-purpose path;
+- **Clarke-Wright savings** - one fast greedy pass, the baseline.
 
-## Headline results
+Every plan, whichever solver produced it, is re-checked by the same validator (capacity,
+time windows, fleet size) before it is shown. `method="auto"` uses CP-SAT up to
+`EXACT_MAX_CUSTOMERS` customers and OR-Tools routing above that.
 
-Two results, each produced by a command in this repo and written down in a committed JSON
-artifact you can open. **What is gated and what is not, precisely:**
-`tests/test_docs_match_artifacts.py` regenerates each linked document's `<!-- GENERATED: -->`
-regions from its artifact and fails on any difference, so the figures *in those documents* cannot
-drift. The restatements *on this page* are hand-written and are not diffed figure-by-figure —
-they were checked against the artifacts on 2026-09-07 and the link beside each one is where the
-gated version lives.
+On top of the solvers:
 
-- **Intermittent-demand benchmark — 2,646 real spare-parts series**, where `zero` (forecast
-  nothing) ranks **1st of 6 by MASE** and 4th–5th of 6 under proper scoring rules; Kendall's
-  τ between the MASE and pinball orderings is **−0.20**, i.e. mildly *anti*-correlated.
-  → [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md)
-- **Macro supply-stress regime model — 219 walk-forward folds** (2008–2026), Brier
-  **0.393** against persistence 0.539 and climatology 0.673, calibration slope 0.629.
-  **It ties persistence on accuracy — 0.7306 vs 0.7306, a dead heat** — and ships anyway,
-  because accuracy is not the gate: the model's consumer prices a probability, and persistence
-  can only ever emit 0 or 1. Its own ship-gate record says both halves; so does this line.
-  An earlier version lost on the proper score too, and was refused rather than shipped.
-  → [docs/MODEL_CI.md](docs/MODEL_CI.md)
+- **Simulation** - a SimPy discrete-event simulation stresses a plan with random travel
+  and service times, and a buffer tuner searches schedule and capacity buffers.
+- **Solomon benchmark** - all 56 Solomon instances at 25, 50 and 100 customers, each solver
+  scored against the published best-known values (Solomon's proven optima for 25/50,
+  SINTEF's best known for 100), written to the committed
+  [`docs/benchmark_results.json`](docs/benchmark_results.json) by
+  `backend/scripts/benchmark_solomon.py`.
+
+> **Sourcing work archived.** This repo began as an electronics-component sourcing
+> platform. That optimizer (the sourcing MILP, the stochastic program with its CVaR
+> frontier, and their pages) was removed and is preserved at git tag
+> [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1).
+> Some sourcing-era backend analytics (demand-method benchmark, macro regime model,
+> network resilience, live risk feeds) still ship API endpoints with no page; the
+> sections further down that describe them are about that backend code, not the web app.
 
 ---
 
-> ### ▶ Live demo — [supply-chain-ui-bhwz.onrender.com](https://supply-chain-ui-bhwz.onrender.com)
+> ### ▶ Live demo - [supply-chain-ui-bhwz.onrender.com](https://supply-chain-ui-bhwz.onrender.com)
 >
 > API reference (Swagger): **[supply-chain-api-qy8x.onrender.com/docs](https://supply-chain-api-qy8x.onrender.com/docs)**
 >
 > No signup and no login - the landing page links straight to the three pages.
-> **The page loads instantly. The first *data* request may take 50–120 s.** Two different services sit behind those two links, and only one of them sleeps. The UI is a Render **static site** — it never spins down, and every route answers in well under a second (measured: 0.04–0.50 s, SPA rewrites included). The API is a Render **free-tier web service**, which spins down when idle, so the first call after a quiet spell waits for it to wake. Each page says so itself: an amber *"Free-tier backend is waking up"* banner appears after 3 seconds and stays until the response lands. Once awake, the API answers in well under a second too.
+> **The page loads instantly. The first *data* request may take 50-120 s.** The UI is a
+> Render static site and never spins down; the API is a Render free-tier web service that
+> sleeps when idle, so the first call after a quiet spell waits for it to wake. Each page
+> shows an amber *"Free-tier backend is waking up"* banner after 3 seconds until the
+> response lands.
 
-**Live demo flow:** Route Plan (solve a Solomon sample) → Simulation (stress the plan, tune buffers) → Benchmarks.
+**Live demo flow:** Route Plan (solve a Solomon sample) -> Simulation (stress the plan, tune buffers) -> Benchmarks (every solver on every Solomon instance).
 
 ---
 
-## What it does
+## Sourcing-era backend analytics (no page)
 
-**For a BOM of electronic components across 92 real distributors:**
+Two results from the sourcing era, each produced by a command in this repo and written down
+in a committed JSON artifact. `tests/test_docs_match_artifacts.py` regenerates each linked
+document's `<!-- GENERATED: -->` regions from its artifact and fails on any difference; the
+restatements here are hand-written and were checked against the artifacts on 2026-09-07.
+
+- **Intermittent-demand benchmark - 2,646 real spare-parts series**, where `zero` (forecast
+  nothing) ranks **1st of 6 by MASE** and 4th-5th of 6 under proper scoring rules; Kendall's
+  τ between the MASE and pinball orderings is **−0.20**, i.e. mildly *anti*-correlated.
+  → [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md)
+- **Macro supply-stress regime model - 219 walk-forward folds** (2008-2026), Brier
+  **0.393** against persistence 0.539 and climatology 0.673, calibration slope 0.629.
+  **It ties persistence on accuracy - 0.7306 vs 0.7306** - and ships anyway, because
+  accuracy is not the gate: the model's consumer prices a probability, and persistence can
+  only ever emit 0 or 1. → [docs/MODEL_CI.md](docs/MODEL_CI.md)
+
+The component data behind the sourcing work is a frozen 2024 snapshot (791 components,
+92 distributors, 8,176 price offers, originally collected via the Nexar API and
+redistributed on HuggingFace under CC-BY-4.0), not a live feed
+([docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)).
 
 | Feature | Technical approach |
 |---------|-------------------|
 | Network fragility | Graph ML: Fiedler algebraic connectivity, betweenness centrality, HHI, k-core decomposition |
 | Resilience scenarios | Distributor failure cascade, geopolitical risk overlay, delivery target optimization |
-| Demand-method benchmark | Croston/SBA/TSB scored on CRPS + scaled pinball loss, not just MASE, across 2,646 Monash car-parts series — MASE and proper scoring pick different winners |
-| Live risk feeds | IMF PortWatch port congestion and FRED freight indices (live, actively published); GPR index (downloaded live on a 15-min tick, but the published archive's newest observation is **September 2021** — `/feeds/status` now reads the observation date, not just the download time, and reports it `stale` with the date rather than `live`); ACLED conflict data (needs a key, labelled `inactive` without one) |
+| Demand-method benchmark | Croston/SBA/TSB scored on CRPS + scaled pinball loss, not just MASE, across 2,646 Monash car-parts series - MASE and proper scoring pick different winners |
+| Live risk feeds | IMF PortWatch port congestion and FRED freight indices (live, actively published); GPR index (downloaded live on a 15-min tick, but the published archive's newest observation is **September 2021** - `/feeds/status` now reads the observation date, not just the download time, and reports it `stale` with the date rather than `live`); ACLED conflict data (needs a key, labelled `inactive` without one) |
 
 ---
 
@@ -320,8 +337,9 @@ Three pages plus a landing page, no login:
   depot close, utilization), then tune schedule and capacity buffers and see the
   evaluated frontier.
 - **Benchmarks** (`/benchmarks`) - the committed `docs/benchmark_results.json`, as a
-  sortable table and a gap-vs-runtime chart per solver, with its provenance. Until the
-  benchmark script's results are committed, the page says they are not generated yet.
+  sortable table and a gap-vs-runtime chart per solver, filterable by instance size, with
+  its provenance. Sizes with no published reference show "not published", never a number.
+  The page's reader is tested against the real artifact (`npm test` in `frontend/`).
 
 The lead-time model and resilience code stay in the backend and keep their API
 endpoints; they no longer have pages.
@@ -394,8 +412,10 @@ and their published-artifact pins, resilience API, auth guards, feed integration
 
 ### Frontend
 
-The frontend **does** have an automated test suite. It is a browser gate, not a unit-test
-runner, and it runs against the **live deployment** or a local build:
+The frontend has two automated suites. `npm test` (Vitest) checks the Benchmarks page's
+reader against the real committed `docs/benchmark_results.json`, so a row shape the page
+cannot read fails there. The main one is a browser gate that runs against the **live
+deployment** or a local build:
 
 ```bash
 cd frontend
