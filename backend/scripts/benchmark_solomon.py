@@ -187,6 +187,7 @@ def summarize(results: List[dict]) -> List[dict]:
                 continue
             gaps = [r["gap_percent"] for r in runs if r["gap_percent"] is not None]
             scored = [r for r in runs if r["gap_comparable"] is not None]
+            other_fleet = [r["vehicle_gap"] for r in scored if not r["gap_comparable"]]
             rows.append(
                 {
                     "num_customers": size,
@@ -196,8 +197,8 @@ def summarize(results: List[dict]) -> List[dict]:
                     "proven_optimal_scaled_model": sum(r["proven_optimal_scaled_model"] for r in runs),
                     "with_reference": len(scored),
                     "gap_comparable": len(gaps),
-                    "more_vehicles_than_reference": sum(r["vehicle_gap"] > 0 for r in scored if not r["gap_comparable"]),
-                    "fewer_vehicles_than_reference": sum(r["vehicle_gap"] < 0 for r in scored if not r["gap_comparable"]),
+                    "more_vehicles_than_reference": sum(v > 0 for v in other_fleet),
+                    "fewer_vehicles_than_reference": sum(v < 0 for v in other_fleet),
                     "mean_gap_percent": round(sum(gaps) / len(gaps), 3) if gaps else None,
                     "mean_runtime_seconds": round(sum(r["runtime_seconds"] for r in runs) / len(runs), 3),
                 }
