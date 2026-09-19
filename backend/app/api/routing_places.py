@@ -3,6 +3,9 @@ Route planning between real distributor locations.
 
   GET  /routing/places/model   The distance model (road factor and why), the road regions,
                                the example scenario's defaults and the request caps.
+  POST /routing/places/candidates  A depot and the example scenario in: every distributor a
+                               truck can reach by road from it, nearest first, with its road
+                               distance and whether its round trip fits, plus a suggested set.
   POST /routing/places/solve   A depot and destinations (distributor ids) plus the example
                                scenario in, a validated route plan in km and hours out.
 
@@ -12,29 +15,46 @@ Distances are great-circle distance times ``app.vrp.geo.ROAD_FACTOR``
 (docs/REAL_PLACE_ROUTING.md). Loads, trucks, speed and hours are an EXAMPLE
 scenario: the catalogue has no orders or fleet.
 
-Same DoS posture as ``app/api/routing.py``: capped stop count and time limit, a
-plain ``def`` handler so the CPU-bound solve runs in the thread pool.
+Same DoS posture as ``app/api/routing.py``: capped ids, stop count and time limit, a
+plain ``def`` handler so the CPU-bound solve runs in the thread pool, and the database
+session released before the solve starts, so a burst of solves cannot hold every pooled
+connection and starve the catalogue reads.
 """
 
 from __future__ import annotations
 
-from typing import Dict, List, Literal, Optional, cast
+from typing import Annotated, Dict, List, Literal, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
-from app.api.routing import MAX_EXACT_CUSTOMERS, MAX_TIME_LIMIT_SECONDS
+from app.api.routing import MAX_EXACT_CUSTOMERS, MAX_TIME_LIMIT_SECONDS, MAX_VALUE
 from app.core.database import get_db
 from app.models.distributor import Distributor
 from app.vrp import EXACT_MAX_CUSTOMERS, solve
 from app.vrp.geo import EARTH_RADIUS_KM, ROAD_FACTOR, ROAD_FACTOR_RATIONALE
-from app.vrp.places import DEFAULT_SCENARIO, EXAMPLE_DEPOT_NAME, ROAD_REGIONS, Place, PlacesError, Scenario, plan_routes
+from app.vrp.places import (
+    DEFAULT_SCENARIO,
+    EXAMPLE_DEPOT_NAME,
+    ROAD_REGIONS,
+    Place,
+    PlacesError,
+    Scenario,
+    candidates,
+    plan_routes,
+    road_region,
+    suggest_stops,
+)
 
 router = APIRouter(prefix="/routing/places", tags=["routing"])
 
+#: Bounded like every integer in app/api/routing.py, so an absurd id is a 422, not an
+#: OverflowError inside SQLite.
+DistributorId = Annotated[int, Field(ge=1, le=MAX_VALUE)]
+
 #: Destinations per plan. The catalogue's largest road region (North America) has
-#: 45 located distributors, so every one of them fits.
+#: 36 located distributors (35 USA + 1 Canada), so every one of them fits.
 MAX_PLACE_STOPS = 60
 MAX_VEHICLES = 30
 MAX_CAPACITY = 1000
@@ -59,8 +79,10 @@ class ScenarioIn(BaseModel):
 
 
 class PlacesSolveRequest(BaseModel):
-    depot_id: int = Field(..., description="Distributor id of the depot.")
-    stop_ids: List[int] = Field(..., min_length=1, max_length=MAX_PLACE_STOPS, description="Distributor ids to visit.")
+    depot_id: DistributorId = Field(..., description="Distributor id of the depot.")
+    stop_ids: List[DistributorId] = Field(
+        ..., min_length=1, max_length=MAX_PLACE_STOPS, description="Distributor ids to visit."
+    )
     scenario: ScenarioIn = Field(default_factory=lambda: ScenarioIn.model_validate({}))
     method: Literal["auto", "cpsat", "clarke_wright", "ortools"] = "auto"
     time_limit_seconds: float = Field(2.0, gt=0, le=MAX_TIME_LIMIT_SECONDS)
@@ -199,6 +221,58 @@ def _out(p: Place) -> PlaceOut:
     )
 
 
+class CandidatesRequest(BaseModel):
+    depot_id: DistributorId
+    scenario: ScenarioIn = Field(default_factory=lambda: ScenarioIn.model_validate({}))
+
+
+class CandidateOut(BaseModel):
+    place: PlaceOut
+    road_km: float = Field(..., description="Great-circle distance from the depot times the road factor.")
+    round_trip_hours: float = Field(..., description="Depot -> this stop -> depot alone, with the stop's service time.")
+    fits_route_limit: bool
+
+
+class CandidatesResponse(BaseModel):
+    depot: PlaceOut
+    region: Optional[str]
+    candidates: List[CandidateOut]
+    #: Nearest first, one per location first, only stops that fit, capped by the fleet.
+    suggested: List[int]
+
+
+def _located_depot(db: Session, depot_id: int) -> Distributor:
+    d = db.query(Distributor).filter(Distributor.id == depot_id).first()
+    if d is None:
+        raise HTTPException(status_code=404, detail=f"no distributor with id {depot_id}")
+    if d.latitude is None or d.longitude is None:
+        raise HTTPException(status_code=422, detail=f"{d.name} has no known location and cannot be a depot")
+    return d
+
+
+@router.post("/candidates", response_model=CandidatesResponse)
+def place_candidates(req: CandidatesRequest, db: Session = Depends(get_db)) -> CandidatesResponse:
+    """Where a truck from this depot can go, measured the same way a plan measures it."""
+    depot = _place(_located_depot(db, req.depot_id))
+    located = db.query(Distributor).filter(Distributor.latitude.isnot(None), Distributor.longitude.isnot(None)).all()
+    scenario = Scenario(**req.scenario.model_dump())
+    cands = candidates(depot, [_place(d) for d in located], scenario)
+    return CandidatesResponse(
+        depot=_out(depot),
+        region=road_region(depot.country),
+        candidates=[
+            CandidateOut(
+                place=_out(c.place),
+                road_km=c.road_km,
+                round_trip_hours=c.round_trip_hours,
+                fits_route_limit=c.fits_route_limit,
+            )
+            for c in cands
+        ],
+        suggested=suggest_stops(cands, scenario, MAX_PLACE_STOPS),
+    )
+
+
 @router.post("/solve", response_model=PlacesSolveResponse)
 def solve_places(req: PlacesSolveRequest, db: Session = Depends(get_db)) -> PlacesSolveResponse:
     """Plan truck routes from a real depot to real destinations under the example scenario."""
@@ -221,6 +295,9 @@ def solve_places(req: PlacesSolveRequest, db: Session = Depends(get_db)) -> Plac
 
     depot = _place(rows[req.depot_id])
     stops = [_place(rows[i]) for i in req.stop_ids]
+    # Everything the solve needs is now plain data. Give the connection back to the pool
+    # before the CPU-bound solve, which can run for the whole time limit.
+    db.close()
     scenario = Scenario(**req.scenario.model_dump())
     try:
         plan = plan_routes(

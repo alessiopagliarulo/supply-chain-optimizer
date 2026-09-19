@@ -308,9 +308,11 @@ const AUDIT=()=>{
   };
 
   // How long a route may take to finish loading before "still loading" is a
-  // FAILURE. Every page's first request is a cheap GET; solving, simulating and
-  // tuning only happen on a click, so no route has a reason to be slow on mount.
-  const SETTLE_CAP={};
+  // FAILURE. Every page's first request is a cheap GET, except /route-plan, whose
+  // Real places tab solves its example plan on open (a solve is capped at 10 s, but on
+  // a cold free-tier API it queues behind the wake-up), so it gets the same 90 s its
+  // own "Truck 1" wait below allows, plus headroom for the catalogue reads before it.
+  const SETTLE_CAP={'/route-plan':120000};
   const capFor=r=>SETTLE_CAP[r]||60000;
 
   // Readiness = no request in flight AND no spinner still turning, held for

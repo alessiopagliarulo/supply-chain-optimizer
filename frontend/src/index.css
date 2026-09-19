@@ -47,7 +47,8 @@ body {
 
 /* ── Leaflet maps (components/map) ─────────────────────────────────────────── */
 
-.leaflet-container {
+/* Doubled class: leaflet.css (0,1,0) loads after this file, in the map chunk. */
+.leaflet-container.leaflet-container {
   background: #aad3df; /* OpenStreetMap's water colour, shown before tiles load */
   font: inherit;
 }

@@ -20,13 +20,15 @@ import {
   errorMessage,
   placesApi,
   type LocatedDistributor,
+  type Place,
+  type PlacesCandidates,
   type PlacesModel,
   type PlacesScenario,
   type PlacesSolveResponse,
   type SolverMethod,
 } from '../services/api';
 import { groupSites, placeLabel, regionOf, siteKey, type Site } from '../lib/sites';
-import { reachable, suggestStops } from '../lib/geo';
+import { createLatestRunner } from '../lib/latestRun';
 import { mapRouteColor } from '../lib/colors';
 
 const METHODS: { value: SolverMethod; label: string }[] = [
@@ -202,18 +204,21 @@ export default function RealPlacePlanner() {
   const [modelError, setModelError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
 
-  const [depotId, setDepotId] = useState<number | null>(null);
-  const [stopIds, setStopIds] = useState<number[]>([]);
-  const [form, setForm] = useState<ScenarioForm | null>(null);
+  const [depotState, setDepotId] = useState<number | null>(null);
+  const [stopsState, setStopIds] = useState<number[] | null>(null);
+  const [formState, setForm] = useState<ScenarioForm | null>(null);
+  // Until the reader edits it, the form shows the server's example defaults.
+  const form = formState ?? (model ? toForm(model.default_scenario) : null);
   const [method, setMethod] = useState<SolverMethod>('auto');
   const [timeLimit, setTimeLimit] = useState('2');
 
+  const [cands, setCands] = useState<PlacesCandidates | null>(null);
+  const [candsError, setCandsError] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlacesSolveResponse | null>(null);
   const [solving, setSolving] = useState(false);
   const [solveError, setSolveError] = useState<string | null>(null);
   const [focus, setFocus] = useState<number | null>(null);
   const [flyTarget, setFlyTarget] = useState<{ latitude: number; longitude: number; key: string } | null>(null);
-  const latestSolve = useRef(0);
 
   useEffect(() => {
     let live = true;
@@ -227,82 +232,121 @@ export default function RealPlacePlanner() {
   }, []);
 
   const byId = useMemo(() => new Map((catalogue?.distributors ?? []).map((d) => [d.id, d])), [catalogue]);
+
+  // What the page opens on, until the reader picks something: the depot from ?depot=
+  // (the Map page's "Plan routes from this distributor"), whose destinations the server
+  // then suggests, else the backend's example plan.
+  const initial = useMemo(() => {
+    if (!model || !catalogue) return null;
+    const asked = Number(params.get('depot'));
+    if (Number.isInteger(asked) && byId.has(asked)) return { depot: asked, stops: [] as number[], suggest: true };
+    if (model.example && byId.has(model.example.depot_id)) {
+      return { depot: model.example.depot_id, stops: model.example.stop_ids.filter((id) => byId.has(id)), suggest: false };
+    }
+    const first = catalogue.distributors[0];
+    return first ? { depot: first.id, stops: [] as number[], suggest: true } : null;
+  }, [model, catalogue, byId, params]);
+  const depotId = depotState ?? initial?.depot ?? null;
+  const stopIds = useMemo(() => stopsState ?? initial?.stops ?? [], [stopsState, initial]);
   const depot = depotId !== null ? byId.get(depotId) ?? null : null;
   const scenario = form ? parseScenario(form) : null;
 
+  // Only the newest solve may draw, and "Planning routes..." always ends: see lib/latestRun.ts.
+  const runner = useMemo(
+    () =>
+      createLatestRunner<PlacesSolveResponse>({
+        onBusy: (busy) => {
+          setSolving(busy);
+          if (busy) setSolveError(null); // a new attempt replaces the last error
+        },
+        onResult: setPlan,
+        onError: (err) => setSolveError(errorMessage(err)),
+      }),
+    [],
+  );
+
   const invalidate = () => {
-    latestSolve.current += 1;
+    runner.invalidate();
     setPlan(null);
     setSolveError(null);
     setFocus(null);
   };
 
   const solve = useCallback(
-    async (depot: number, stops: number[], sc: PlacesScenario, m: SolverMethod, limit: number) => {
-      const run = ++latestSolve.current;
-      setSolving(true);
-      setSolveError(null);
-      try {
-        const result = await placesApi.solve({ depot_id: depot, stop_ids: stops, scenario: sc, method: m, time_limit_seconds: limit });
-        if (run === latestSolve.current) setPlan(result);
-      } catch (err) {
-        if (run === latestSolve.current) setSolveError(errorMessage(err));
-      } finally {
-        if (run === latestSolve.current) setSolving(false);
-      }
-    },
-    [],
+    (depot: number, stops: number[], sc: PlacesScenario, m: SolverMethod, limit: number) =>
+      runner.run(() =>
+        placesApi.solve({ depot_id: depot, stop_ids: stops, scenario: sc, method: m, time_limit_seconds: limit }),
+      ),
+    [runner],
   );
 
-  // First load: the depot from ?depot= (the Map page's "Plan routes from this
-  // distributor") with the nearest destinations that fit, else the backend's example.
-  // Either way the plan is solved straight away so the page opens on drawn routes.
+  // Where the depot's trucks can go, measured by the server exactly as a plan measures
+  // it. `suggest` replaces the destinations with the server's suggestion; `thenSolve`
+  // plans it straight away. Only the answer for the newest request is applied.
+  const latestCands = useRef(0);
+  const loadCandidates = useCallback(
+    (depot: number, sc: PlacesScenario, opts: { suggest: boolean; thenSolve: boolean }) => {
+      const mine = ++latestCands.current;
+      placesApi
+        .candidates(depot, sc)
+        .then((c) => {
+          if (mine !== latestCands.current) return;
+          setCandsError(null);
+          setCands(c);
+          if (!opts.suggest) return;
+          setStopIds(c.suggested);
+          runner.invalidate();
+          setPlan(null);
+          setSolveError(null);
+          if (opts.thenSolve && c.suggested.length) void solve(depot, c.suggested, sc, 'auto', 2);
+        })
+        .catch((err: unknown) => mine === latestCands.current && setCandsError(errorMessage(err)));
+    },
+    [runner, solve],
+  );
+
+  // First load: solve straight away so the page opens on drawn routes. For a depot from
+  // the URL the server's suggestion is solved once it arrives; if nothing fits, the
+  // destinations panel says why.
   const initialised = useRef(false);
   useEffect(() => {
-    if (initialised.current || !model || !catalogue) return;
+    if (initialised.current || !initial || !model) return;
     initialised.current = true;
     const sc = model.default_scenario;
-    setForm(toForm(sc));
-    const asked = Number(params.get('depot'));
-    const fromUrl = Number.isInteger(asked) ? byId.get(asked) : undefined;
-    let d: number | null = null;
-    let s: number[] = [];
-    if (fromUrl) {
-      d = fromUrl.id;
-      s = suggestStops(fromUrl, catalogue.distributors, model.road_regions, sc, model.road_factor, model.limits.max_stops);
-    } else if (model.example && byId.has(model.example.depot_id)) {
-      d = model.example.depot_id;
-      s = model.example.stop_ids.filter((id) => byId.has(id));
-    } else if (catalogue.distributors.length) {
-      d = catalogue.distributors[0].id;
-      s = suggestStops(catalogue.distributors[0], catalogue.distributors, model.road_regions, sc, model.road_factor, model.limits.max_stops);
-    }
-    setDepotId(d);
-    setStopIds(s);
-    if (d !== null && s.length) void solve(d, s, sc, 'auto', 2);
-  }, [model, catalogue, byId, params, solve]);
+    loadCandidates(initial.depot, sc, { suggest: initial.suggest, thenSolve: initial.suggest });
+    if (!initial.suggest && initial.stops.length) void solve(initial.depot, initial.stops, sc, 'auto', 2);
+  }, [initial, model, solve, loadCandidates]);
 
   const candidates = useMemo(
-    () => (depot && model && catalogue ? reachable(depot, catalogue.distributors, model.road_regions) : []),
-    [depot, model, catalogue],
+    () => (cands && depotId === cands.depot.id ? cands.candidates : []),
+    [cands, depotId],
   );
   const candidateSites = useMemo(() => {
-    const out: { key: string; label: string; km: number; members: LocatedDistributor[] }[] = [];
+    const out: { key: string; label: string; km: number; members: Place[] }[] = [];
     const idx = new Map<string, number>();
-    for (const { d, km: dist } of candidates) {
-      const key = siteKey(d);
+    for (const { place, road_km } of candidates) {
+      const key = siteKey(place);
       if (!idx.has(key)) {
         idx.set(key, out.length);
-        out.push({ key, label: placeLabel(d), km: dist, members: [] });
+        out.push({ key, label: placeLabel(place), km: road_km, members: [] });
       }
-      out[idx.get(key)!].members.push(d);
+      out[idx.get(key)!].members.push(place);
     }
     return out;
   }, [candidates]);
+  // Nothing chosen because nothing fits: say so instead of an unexplained empty list.
+  const nearest = candidates[0];
+  const noneFit =
+    stopIds.length === 0 && !!cands && candidates.length > 0 && !candidates.some((c) => c.fits_route_limit);
 
   const sites = useMemo(() => (catalogue ? groupSites(catalogue.distributors) : []), [catalogue]);
   const selected = useMemo(() => new Set(stopIds), [stopIds]);
   const region = depot && model ? regionOf(model.road_regions, depot.country) : null;
+  // Other distributors at the depot's own point (29 share Shenzhen's): valid destinations.
+  const depotSiteOthers = useMemo(
+    () => (depot ? sites.find((x) => x.key === siteKey(depot))?.distributors.filter((d) => d.id !== depot.id) ?? [] : []),
+    [depot, sites],
+  );
   const inRegion = useCallback(
     (s: Site) => !!model && regionOf(model.road_regions, s.country) === region,
     [model, region],
@@ -318,11 +362,15 @@ export default function RealPlacePlanner() {
   );
   const hintOf = useCallback(
     (s: Site) => {
-      if (depot && s.key === siteKey(depot)) return `Depot: ${depot.name}`;
+      if (depot && s.key === siteKey(depot)) {
+        if (!depotSiteOthers.length) return `Depot: ${depot.name}`;
+        const all = depotSiteOthers.every((d) => selected.has(d.id));
+        return `Depot: ${depot.name}. Click to ${all ? 'remove' : 'add'} the other ${depotSiteOthers.length} here as destinations`;
+      }
       if (!inRegion(s)) return `Not reachable by road from the depot (${region ?? 'no region'})`;
       return s.distributors.every((d) => selected.has(d.id)) ? 'Click to remove as destinations' : 'Click to add as destinations';
     },
-    [depot, inRegion, region, selected],
+    [depot, depotSiteOthers, inRegion, region, selected],
   );
 
   const setStops = (next: number[]) => {
@@ -334,15 +382,16 @@ export default function RealPlacePlanner() {
     setStops(all ? stopIds.filter((id) => !ids.includes(id)) : [...stopIds, ...ids.filter((id) => !selected.has(id))]);
   };
   const onMapSite = (s: Site) => {
-    if (!depot || s.key === siteKey(depot) || !inRegion(s)) return;
-    toggleMany(s.distributors.filter((d) => d.id !== depot.id).map((d) => d.id));
+    if (!depot || !inRegion(s)) return;
+    const ids = s.distributors.filter((d) => d.id !== depot.id).map((d) => d.id);
+    if (ids.length) toggleMany(ids);
   };
   const chooseDepot = (id: number) => {
-    const d = byId.get(id);
-    if (!d || !model || !catalogue) return;
+    if (!byId.has(id) || !model) return;
     setDepotId(id);
-    const sc = scenario ?? model.default_scenario;
-    setStops(suggestStops(d, catalogue.distributors, model.road_regions, sc, model.road_factor, model.limits.max_stops));
+    setCands(null);
+    setStops([]);
+    loadCandidates(id, scenario ?? model.default_scenario, { suggest: true, thenSolve: false });
     const next = new URLSearchParams(params);
     next.set('depot', String(id));
     setParams(next, { replace: true });
@@ -365,10 +414,12 @@ export default function RealPlacePlanner() {
       const d = byId.get(id);
       if (d) pts.push([d.latitude, d.longitude]);
     }
+    // Nothing chosen yet: show where the depot's trucks could go instead of the depot alone.
+    if (pts.length === 1) for (const c of candidates) pts.push([c.place.latitude, c.place.longitude]);
     return pts;
-  }, [depot, stopIds, byId, sites]);
-  // Refit when the depot changes or a plan lands, not on every checkbox.
-  const fitKey = `${depotId}:${plan ? plan.stops.map((s) => s.id).join(',') : 'none'}`;
+  }, [depot, stopIds, byId, sites, candidates]);
+  // Refit when the depot, its candidates or the plan change, not on every checkbox.
+  const fitKey = `${depotId}:${cands?.depot.id ?? '-'}:${plan ? plan.stops.map((s) => s.id).join(',') : 'none'}`;
 
   if (catalogueError || modelError) {
     return (
@@ -390,7 +441,7 @@ export default function RealPlacePlanner() {
   const exactTooBig = method === 'cpsat' && stopIds.length > limits.max_exact_customers;
   const tooMany = stopIds.length > limits.max_stops;
   const canSolve = !!depot && stopIds.length > 0 && !!scenario && timeLimitOk && !exactTooBig && !tooMany && !solving;
-  const countryIds = depot ? candidates.filter(({ d }) => d.country === depot.country).map(({ d }) => d.id) : [];
+  const countryIds = depot ? candidates.filter(({ place }) => place.country === depot.country).map(({ place }) => place.id) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -424,9 +475,7 @@ export default function RealPlacePlanner() {
               <button
                 type="button"
                 className={`${secondaryButtonClass} px-2`}
-                onClick={() =>
-                  depot && setStops(suggestStops(depot, catalogue.distributors, model.road_regions, scenario ?? model.default_scenario, model.road_factor, limits.max_stops))
-                }
+                onClick={() => depot && loadCandidates(depot.id, scenario ?? model.default_scenario, { suggest: true, thenSolve: false })}
               >
                 Nearest
               </button>
@@ -443,8 +492,15 @@ export default function RealPlacePlanner() {
                 Clear
               </button>
             </div>
+            {candsError && <ErrorBox title="Could not load the reachable destinations">{candsError}</ErrorBox>}
+            {noneFit && nearest && scenario && (
+              <p role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 leading-relaxed">
+                {`Nothing was pre-selected: no destination's round trip from ${depot?.name ?? 'the depot'} fits the ${scenario.max_route_hours} h longest route in the example scenario. The nearest, ${nearest.place.name} in ${nearest.place.city ?? 'an unknown city'}, takes ${nearest.round_trip_hours.toFixed(1)} h there and back. Raise the longest route below and press Nearest, or tick destinations yourself.`}
+              </p>
+            )}
             <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 divide-y divide-slate-800">
-              {candidateSites.length === 0 && (
+              {!cands && !candsError && <p className="px-3 py-3 text-sm text-slate-400">Finding reachable distributors…</p>}
+              {cands && candidateSites.length === 0 && (
                 <p className="px-3 py-3 text-sm text-slate-400">No other distributor is reachable by road from this depot.</p>
               )}
               {candidateSites.map((cs) => {
@@ -465,7 +521,7 @@ export default function RealPlacePlanner() {
                       />
                       <span className="flex-1 min-w-0 text-sm font-medium text-slate-100 truncate">{cs.label}</span>
                       <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
-                        {`≈ ${km(cs.km * model.road_factor)}`}
+                        {`≈ ${km(cs.km)}`}
                       </span>
                     </label>
                     {cs.members.length > 1 &&

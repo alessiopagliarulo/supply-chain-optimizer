@@ -330,8 +330,28 @@ export interface PlacesSolveRequest {
   time_limit_seconds: number;
 }
 
+/** POST /routing/places/candidates: where a truck from one depot can go. */
+export interface PlaceCandidate {
+  place: Place;
+  /** Great-circle distance from the depot times the road factor, computed by the server. */
+  road_km: number;
+  round_trip_hours: number;
+  fits_route_limit: boolean;
+}
+
+export interface PlacesCandidates {
+  depot: Place;
+  region: string | null;
+  /** Nearest first. */
+  candidates: PlaceCandidate[];
+  /** A starting set the example fleet can serve; empty when nothing fits the route limit. */
+  suggested: number[];
+}
+
 export const placesApi = {
   model: () => api.get<PlacesModel>('/routing/places/model').then((r) => r.data),
+  candidates: (depot_id: number, scenario: PlacesScenario) =>
+    api.post<PlacesCandidates>('/routing/places/candidates', { depot_id, scenario }).then((r) => r.data),
   solve: (req: PlacesSolveRequest) =>
     api.post<PlacesSolveResponse>('/routing/places/solve', req).then((r) => r.data),
 };

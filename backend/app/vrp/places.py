@@ -31,7 +31,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence
 
-from app.vrp.geo import ROAD_FACTOR, great_circle_km, road_distance_matrix_m, travel_time_matrix_min
+from app.vrp.geo import ROAD_FACTOR, great_circle_km, road_distance_matrix_m, road_km, travel_time_matrix_min
 from app.vrp.model import Node, VrpInstance, VrpSolution
 
 #: Country (as the catalogue spells it) -> the road-connected region it belongs to.
@@ -146,13 +146,66 @@ def check_plannable(depot: Place, stops: Sequence[Place], scenario: Scenario) ->
         raise PlacesError(
             f"each stop's load ({scenario.stop_load}) is more than one truck holds ({scenario.vehicle_capacity})"
         )
-    total = scenario.stop_load * len(stops)
-    fleet = scenario.vehicle_capacity * scenario.num_vehicles
-    if total > fleet:
+    # A stop's load cannot be split between trucks, so what bounds the plan is whole
+    # stops per truck, not total pallets: 3 trucks of 12 pallets carry only 3 stops of 7.
+    per_truck = stops_per_truck(scenario)
+    room = per_truck * scenario.num_vehicles
+    if len(stops) > room:
         raise PlacesError(
-            f"{len(stops)} stops x {scenario.stop_load} = {total} pallets, but {scenario.num_vehicles} trucks "
-            f"x {scenario.vehicle_capacity} hold only {fleet}; add trucks or capacity"
+            f"{len(stops)} stops need more trucks: a truck of {scenario.vehicle_capacity} pallets takes "
+            f"{per_truck} stop{'s' if per_truck != 1 else ''} of {scenario.stop_load}, so "
+            f"{scenario.num_vehicles} trucks serve at most {room}; add trucks or capacity"
         )
+
+
+def stops_per_truck(scenario: Scenario) -> int:
+    """Whole stops one truck can serve: loads are never split between trucks."""
+    return scenario.vehicle_capacity // scenario.stop_load
+
+
+def round_trip_minutes(depot: Place, stop: Place, scenario: Scenario) -> int:
+    """Depot -> stop -> depot alone, in the solver's own whole minutes."""
+    one_way = travel_time_matrix_min(road_distance_matrix_m([depot.point, stop.point]), scenario.speed_kmh)[0][1]
+    return 2 * one_way + scenario.service_minutes
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """A place a truck from the depot can reach by road, and whether it fits the route limit."""
+
+    place: Place
+    road_km: float
+    round_trip_hours: float
+    fits_route_limit: bool
+
+
+def candidates(depot: Place, places: Sequence[Place], scenario: Scenario) -> List[Candidate]:
+    """Every other place in the depot's road region, nearest first."""
+    region = road_region(depot.country)
+    horizon = int(round(scenario.max_route_hours * 60))
+    out = []
+    for p in places:
+        if p.id == depot.id or road_region(p.country) != region:
+            continue
+        minutes = round_trip_minutes(depot, p, scenario)
+        out.append(Candidate(p, road_km(depot.point, p.point), minutes / 60, minutes <= horizon))
+    return sorted(out, key=lambda c: (c.road_km, c.place.name))
+
+
+def suggest_stops(cands: Sequence[Candidate], scenario: Scenario, max_stops: int) -> List[int]:
+    """A starting set the example fleet can serve: nearest first, one per location
+    before a second at the same point, only stops whose round trip fits the limit,
+    stopping when the fleet is full."""
+    room = min(max_stops, stops_per_truck(scenario) * scenario.num_vehicles)
+    firsts: List[int] = []
+    rest: List[int] = []
+    seen: set[tuple[float, float]] = set()
+    for c in cands:
+        if not c.fits_route_limit:
+            continue
+        (rest if c.place.point in seen else firsts).append(c.place.id)
+        seen.add(c.place.point)
+    return (firsts + rest)[:room]
 
 
 def build_instance(depot: Place, stops: Sequence[Place], scenario: Scenario) -> VrpInstance:
@@ -172,7 +225,7 @@ def build_instance(depot: Place, stops: Sequence[Place], scenario: Scenario) -> 
         vehicle_capacity=scenario.vehicle_capacity,
         name=f"{depot.name} + {len(stops)} stops",
     )
-    too_far = [(s, travel[0][i + 1] + scenario.service_minutes + travel[i + 1][0]) for i, s in enumerate(stops)]
+    too_far = [(s, round_trip_minutes(depot, s, scenario)) for s in stops]
     too_far = [(s, m) for s, m in too_far if m > horizon]
     if too_far:
         names = ", ".join(f"{s.name} ({s.city}, {m / 60:.1f} h)" for s, m in too_far[:5])

@@ -238,9 +238,10 @@ Open http://localhost:5173 and pick a page. There is no login.
 ```
 frontend/src/
   pages/          Landing, Map, RoutePlan (RealPlacePlanner + SolomonPlanner tabs), DigitalTwin, Benchmarks, NotFound
-  components/     NavBar, RoutePlot (x/y route plot + legend), map/ (Leaflet + OpenStreetMap: BaseMap,
+  components/     NavBar, RoutePlot (x/y route plot + legend), map/ (plain Leaflet + OpenStreetMap: BaseMap,
                   SiteLayer clusters, RouteLayer, DistributorSearchBar), SnapshotNotice, ui, ErrorBoundary, WakeNotice
-  lib/            customerCsv (upload format), benchmarks (artifact reader), sites + geo (map helpers), colors
+  lib/            customerCsv (upload format), benchmarks (artifact reader), sites (map grouping),
+                  latestRun (newest-request-wins solve bookkeeping), colors
   store/          Zustand: planStore (the solved plan Route Plan hands to Digital Twin)
   services/       api.ts (Axios client: /routing, /routing/places, /distributors, /catalogue), catalogue.ts
 frontend/scripts/
@@ -438,8 +439,9 @@ BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
 # or: npm run build && npx vite preview --port 4173 &  API=http://localhost:8000 npm run ui-gate
 ```
 
-The last full run (2026-09-19, local build against a local API, with the Map page and
-real-place routing) was 159 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
+It runs on every pull request in `.github/workflows/ui-gate.yml` (the API from the same
+commit on the committed database, a production build pointed at it). The last local run
+(2026-09-19, with the Map page and real-place routing) was 159 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
 **every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
 checks that every removed sourcing-era path renders the 404 page, and asserts what a human
 would otherwise have to notice:

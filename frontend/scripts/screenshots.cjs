@@ -237,6 +237,19 @@ function note(msg) { console.log(msg); }
   const shots = Object.assign({}, prior.shots && !Array.isArray(prior.shots) ? prior.shots : {});
   for (const name of taken) shots[name] = { captured_at_utc: now, commit, base_url: BASE };
 
+  // A FULL run owns the folder: a PNG no shot in SHOTS produces any more (a renamed or
+  // removed page) is deleted, so two vintages of the app cannot sit side by side under
+  // a README line calling them current. Partial runs leave other files alone.
+  if (!ONLY.length) {
+    const wanted = new Set(SHOTS.map(s => `${s.name}.png`));
+    for (const f of fs.readdirSync(OUT)) {
+      if (f.endsWith('.png') && !wanted.has(f)) {
+        fs.unlinkSync(path.join(OUT, f));
+        console.log(`removed stale ${f}`);
+      }
+    }
+  }
+
   // Drop entries for images that are no longer on disk, so the manifest cannot
   // outlive the files it describes.
   for (const name of Object.keys(shots)) {

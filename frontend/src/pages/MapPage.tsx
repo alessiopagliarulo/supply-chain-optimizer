@@ -115,7 +115,9 @@ function DistributorDetail({ distributor, year }: { distributor: LocatedDistribu
               </table>
             </div>
             <p className="text-xs text-slate-400">
-              {`${fmt(components.length)} parts in total. Prices and stock are ${year} observations, not current quotes.`}
+              {components.length < distributor.total_offers
+                ? `Categories and stock lines above cover the first ${fmt(components.length)} of its ${fmt(distributor.total_offers)} priced parts. Prices and stock are ${year} observations, not current quotes.`
+                : `${fmt(distributor.total_offers)} priced parts in total. Prices and stock are ${year} observations, not current quotes.`}
             </p>
           </>
         )}

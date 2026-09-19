@@ -39,7 +39,16 @@ change every one of them.
 The page opens on an example plan: Farnell's location (Leeds) as the depot and every
 other located UK distributor as a destination (`EXAMPLE_DEPOT_NAME` in `places.py`).
 "Plan routes from this distributor" on the Map page opens the planner on that depot
-instead, with the nearest destinations the example fleet can serve.
+instead, with the server's suggested destinations (`suggest_stops`): nearest first, one
+per location before a second at the same point, only stops whose round trip alone fits
+the route limit, and no more than the fleet can carry. Some depots have nothing within
+the default 14 h round trip (Arrow in Colorado, Maritex in Oslo, TME in Warsaw, among
+others); the page then says so and names the nearest destination's round trip instead of
+opening on an empty plan.
+
+A stop's load is never split between trucks, so the fleet bound is whole stops per truck
+(`vehicle_capacity // stop_load`) times the number of trucks, not total pallets: three
+12-pallet trucks carry 36 pallets but only three 7-pallet stops.
 
 There are no time windows on the stops: the catalogue has no opening hours, so every
 stop is open for the whole route limit and only the route length is constrained.
@@ -82,17 +91,25 @@ in one road-connected region (`ROAD_REGIONS` in `places.py`):
 | Japan | Japan |
 
 A destination outside the depot's region, a stop whose round trip alone exceeds the route
-limit, or a fleet too small for the total load is refused with a message naming the
+limit, or a fleet that cannot carry every stop is refused with a message naming the
 problem, before the solver runs.
 
 ## API
 
 - `GET /api/v1/routing/places/model` - road factor and its rationale, road regions,
   example-scenario defaults, request caps, and the example plan.
+- `POST /api/v1/routing/places/candidates` - `{depot_id, scenario}` in; every distributor
+  reachable by road from the depot, nearest first, with its road distance, its
+  single-stop round trip and whether that fits, plus the suggested set. The page's
+  destination list and its distances come from here, so the browser never re-implements
+  the distance model.
 - `POST /api/v1/routing/places/solve` - `{depot_id, stop_ids, scenario, method,
-  time_limit_seconds}` in; routes in km and hours, validated, out.
+  time_limit_seconds}` in; routes in km and hours, validated, out. The database session
+  is released before the solve, so a burst of solves cannot hold every pooled connection.
 
 Tests: `backend/tests/test_real_place_routing.py` checks the distance function on known
 city pairs (London-Paris, New York-Los Angeles, Sydney-Melbourne) and solves the example
-plan end to end on the committed catalogue database, recomputing every route's length
-from the catalogue's own coordinates.
+plan end to end on the committed catalogue database. It recomputes every route's length
+from the catalogue's own coordinates and replays every truck's timeline in its reported
+visiting order, so a reversed order, a duration in the wrong unit or arrival times in
+minutes instead of hours all fail.
