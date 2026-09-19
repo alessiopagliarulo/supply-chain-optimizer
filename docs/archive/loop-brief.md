@@ -100,6 +100,8 @@ restoring the component and distributor data from `archive/sourcing-v1`.
 - **A blanket revert of the strip-down.** Restore archived pieces one at a time, each with tests.
 - **Loop machinery:** `claude-*.yml`, `loop-metrics.*`, `loop-config.json`, this file's path (the
   Scout and Builder gates read it). Managed from the Loop Dashboard template.
+- **Workflow files:** the loop cannot change `.github/workflows/` (GitHub refuses the App). A proposal
+  that needs a workflow change says so and is left for the owner's crew, not built by the loop.
 - **Hosting, money, secrets:** no hosting or plan change, AWS move, key rotation, force-push, or
   secrets in issues (public repo). Leave `CLAUDE.md`, `LEARNINGS.md`, `.claude/`, `LICENSE`, CC-BY credit alone.
 

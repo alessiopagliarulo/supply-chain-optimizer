@@ -20,6 +20,7 @@
       "Claims on the do-not-claim lists, or any percentage without its baseline",
       "A blanket revert of the strip-down; restore archived pieces one at a time, each with tests",
       "Loop machinery: claude-*.yml, loop-metrics, .github/loop-config.json, the docs/archive/loop-brief.md path",
+      "Files under .github/workflows/: the loop cannot change them (GitHub refuses the App), so a proposal that needs a workflow change says so and is left for the owner's crew rather than built by the loop",
       "Hosting or plan changes, an AWS move, spending money, credentials, key rotation, git history rewrites; never put a secret or key prefix in an issue",
       "CLAUDE.md, LEARNINGS.md, .claude/, docs/handoffs/; LICENSE text and the CC-BY-4.0 attribution"
     ],
