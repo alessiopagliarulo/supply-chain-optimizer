@@ -42,10 +42,13 @@ setting: when you spot one, propose the fix to this file in your next PR. Full d
 
 ## What this product is
 
-A vehicle-routing / logistics engine for the capacitated VRP with time windows (CVRPTW), rebuilt
-from a sourcing optimizer (its MILP, stochastic CVaR program, old benchmark and pages are archived at
-tag `archive/sourcing-v1`). Every headline number comes from a repo command and a committed artifact.
+A logistics engine for electronics components: real component and distributor data, real distributor
+locations on a real map, forecasting that generates the orders being routed, a routing engine for the
+capacitated VRP with time windows (CVRPTW), and a digital twin. It was stripped to routing-only, then the
+owner changed direction: the sourcing-era pieces at tag `archive/sourcing-v1` are being brought back
+and combined with the routing engine. Every headline number comes from a repo command and a committed artifact.
 
+**Already exists:**
 - **Routing engine** (`backend/app/vrp/`): one data model (`model.py`), three solver paths - CP-SAT
   exact (`cpsat.py`), Clarke-Wright savings (`savings.py`), OR-Tools routing (`ortools_routing.py`) -
   and one shared validator (`validate.py`) every solution passes through. Solomon instances and two
@@ -54,28 +57,35 @@ tag `archive/sourcing-v1`). Every headline number comes from a repo command and 
   service times; **buffer tuning** (`buffer_tuning.py`): grid search over schedule/capacity buffers.
 - **Benchmark**: `backend/scripts/benchmark_solomon.py` writes `docs/benchmark_results.json` (168
   cases x 3 solvers, gaps vs best-known); `docs/BENCHMARKING.md` explains it and a test re-validates it.
-- **Web app** (`frontend/`): Landing plus three pages, Route Plan, Simulation, Benchmarks, no login,
-  all backed by `backend/app/api/routing.py` (`/routing/solve`, `/simulate`, `/tune-buffers`, ...).
-- **Leftovers**: sourcing-era routers (auth, cart, graph, feeds, ml, demand, newsvendor, resilience,
-  fiedler `benchmark`) are still mounted in `backend/app/api/__init__.py` but no page uses them; the
-  forecasting docs/artifacts and the frozen 2024 market snapshot (`docs/DATA_PROVENANCE.md`) remain.
-- **Deploy**: Render (`render.yaml`, `deploy-render.yml` deploys the CI-gated SHA). The repo holds
-  no AWS deploy config; any AWS path lives outside this repo and is not verified here.
+- **Web app** (`frontend/`) today: Landing plus Route Plan, Simulation, Benchmarks, no login, backed by
+  `backend/app/api/routing.py`. Sourcing-era routers are still mounted in `backend/app/api/__init__.py`.
+- **Deploy**: Render (`render.yaml`, `deploy-render.yml` deploys the CI-gated SHA). No AWS config here.
+
+**Target (combined product):** five pages, still no login - Landing, **Map** (real distributor
+locations on OpenStreetMap tiles, no paid map provider), **Route Plan**, **Digital Twin** (a normal day
+and a disrupted day side by side, built on the simulation and the archived resilience/disruption work)
+and **Benchmarks**. Routing runs on straight-line (great-circle) distances times a documented road
+factor. Forecasting (lead-time and demand) quietly generates the orders being routed, and shows one
+forecast-vs-actual chart.
+
+**In flight right now (firstmate's crew - do not propose these):** the Benchmarks page fix, and
+restoring the component and distributor data from `archive/sourcing-v1`.
 
 ## Current goals
 
-1. **The front door describes the product that exists.** README still opens as "Electronics Supply
-   Chain Optimizer" with forecasting headlines and a BOM feature table; the routing engine and its
-   benchmark are not among its headline results.
-2. **Publish the Solomon benchmark honestly**, always against its baseline (best-known solutions), from
-   `docs/benchmark_results.json`; explain its weak spots rather than hide them (e.g. OR-Tools is
-   feasible on only 49 of 56 100-customer cases; CP-SAT's mean gap grows with size).
-3. **Guards must run where they gate:** `ci.yml:163` still passes `-m "not slow"`, so the gate the
+1. **Restore and combine, one piece at a time with tests:** component data, distributor locations
+   with real coordinates, map components, resilience/disruption work, lead-time and demand
+   forecasting - each from `archive/sourcing-v1`, each wired into the routing flow. Skip the pieces
+   listed as in flight above.
+2. **The front door describes the combined product**, with the routing benchmark among its headline
+   results; do not describe pages that are not live yet as if they were.
+3. **Publish the Solomon benchmark honestly**, always against its baseline (best-known solutions), from
+   `docs/benchmark_results.json`; explain its weak spots (e.g. OR-Tools is feasible on only 49 of 56
+   100-customer cases; CP-SAT's mean gap grows with size).
+4. **Guards must run where they gate:** `ci.yml:163` still passes `-m "not slow"`, so the gate the
    deploy waits on never runs the `slow` pins; `repo-tests.yml` runs them (PR 20) but does not gate deploy.
-4. **Decide the sourcing leftovers:** propose archiving or keeping each still-mounted unused router,
-   with evidence; the owner decides.
-5. **Fix anything broken on the live flow** (Route Plan -> Simulation -> Benchmarks) first; then
-   **new ideas** that let an OR, logistics or supply-chain recruiter try the strongest true result.
+5. **Fix anything broken on the live flow** first; then **new ideas** that let an OR, logistics or
+   supply-chain recruiter try the strongest true result on real data.
 6. **Resume figures** still published (Brier 0.393, rank 1.66): a proposal that moves one is allowed,
    but its title starts with `[resume-figure]` and its body has a before/after table.
 
@@ -85,9 +95,9 @@ tag `archive/sourcing-v1`). Every headline number comes from a repo command and 
   `metrics.joblib`, provenance stamps. Fix the generator and rerun it from a clean tree.
 - **Synthetic, fabricated or live data** replacing the frozen 2024 snapshot, drift in
   `backend/seeds/data/`, or benchmark results not written by the script. If data is missing, say so.
-- **Loosening a gate to go green** (skip, deselect, `slow` mark, wider tolerance). Fix the cause.
+- **Loosening a gate to go green** (skip, deselect, xfail, `slow` mark, wider tolerance). Fix the cause.
 - **Do-not-claim lists** (`PROJECT_OVERVIEW.md` "What NOT to claim"); no bare percentages.
-- **Restoring archived sourcing code** from `archive/sourcing-v1` without the owner asking.
+- **A blanket revert of the strip-down.** Restore archived pieces one at a time, each with tests.
 - **Loop machinery:** `claude-*.yml`, `loop-metrics.*`, `loop-config.json`, this file's path (the
   Scout and Builder gates read it). Managed from the Loop Dashboard template.
 - **Hosting, money, secrets:** no hosting or plan change, AWS move, key rotation, force-push, or
