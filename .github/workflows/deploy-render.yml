@@ -106,13 +106,88 @@ jobs:
             sleep 20
           done
 
+      # DEPLOY THE COMMIT WE GATED - NOT WHATEVER IS NEWEST ON main.
+      #
+      # These two steps used to POST `-d '{}'`. Render's create-deploy API
+      # documents `commitId` as "the SHA of a specific Git commit to deploy…
+      # Defaults to the latest commit on the service's connected branch", so an
+      # empty body is a request for the BRANCH TIP. Everything above - resolving
+      # the SHA, polling Model CI for that exact SHA, refusing on an absent or
+      # unfinished verdict - was therefore thrown away two steps later: the poll
+      # can wait up to 15 minutes, and the tip can move inside that window. The
+      # workflow could verify commit A and ship commit B, whose gates never ran.
+      # That is the same "no result is not a good result" bug class this file's
+      # own header is about, reintroduced below the defence it describes.
+      #
+      # `$SHA` is bound to `steps.commit.outputs.sha` - the SAME output the Model
+      # CI gate polled on, not `github.sha` recomputed independently, which would
+      # quietly reopen the hole. `test_deploy_pins_the_gated_commit.py` asserts
+      # that binding rather than trusting this comment.
+      #
+      # The response is no longer discarded either. `curl -sf` failed the step on
+      # an HTTP error but swallowed Render's explanation along with the deploy id,
+      # so the log could not say WHICH build it started. Now the body is captured:
+      # the deploy id is printed, Render's own error text survives a failure, and
+      # if Render reports building a commit other than the gated one, the step
+      # goes red instead of leaving a green tick over an unverified release.
       - name: Trigger backend deploy (supply-chain-api)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          SERVICE_ID: srv-d98ru31o3t8c73ed9dig
         run: |
-          curl -sf -X POST "https://api.render.com/v1/services/srv-d98ru31o3t8c73ed9dig/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" -d '{}'
+          set -euo pipefail
+          response="$(mktemp)"
+          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg sha "$SHA" '{commitId: $sha}')")"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Render refused the $SERVICE_ID deploy (HTTP $code): $(cat "$response")"
+            exit 1
+          fi
+          if [ "$code" = "202" ]; then
+            # Render answers 202 with an empty body when it queues the deploy
+            # behind one already in progress. The commitId above still pins it;
+            # there is just no deploy id or commit to report back yet.
+            echo "Render queued a deploy of $SHA for $SERVICE_ID (HTTP 202, no deploy id returned while queued)"
+            exit 0
+          fi
+          built="$(jq -r '.commit.id // empty' "$response")"
+          echo "Render deploy $(jq -r '.id // "<no id in response>"' "$response") for $SERVICE_ID, building commit ${built:-<unreported>} (gated: $SHA)"
+          if [ -n "$built" ] && [ "$built" != "$SHA" ]; then
+            echo "::error::Render queued commit $built for $SERVICE_ID, but the commit this run gated is $SHA. An unverified commit is being deployed."
+            exit 1
+          fi
+
       - name: Trigger frontend deploy (supply-chain-ui)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          SERVICE_ID: srv-d98ru9ss728c73c85bqg
         run: |
-          curl -sf -X POST "https://api.render.com/v1/services/srv-d98ru9ss728c73c85bqg/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" -d '{}'
+          set -euo pipefail
+          response="$(mktemp)"
+          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg sha "$SHA" '{commitId: $sha}')")"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Render refused the $SERVICE_ID deploy (HTTP $code): $(cat "$response")"
+            exit 1
+          fi
+          if [ "$code" = "202" ]; then
+            # Render answers 202 with an empty body when it queues the deploy
+            # behind one already in progress. The commitId above still pins it;
+            # there is just no deploy id or commit to report back yet.
+            echo "Render queued a deploy of $SHA for $SERVICE_ID (HTTP 202, no deploy id returned while queued)"
+            exit 0
+          fi
+          built="$(jq -r '.commit.id // empty' "$response")"
+          echo "Render deploy $(jq -r '.id // "<no id in response>"' "$response") for $SERVICE_ID, building commit ${built:-<unreported>} (gated: $SHA)"
+          if [ -n "$built" ] && [ "$built" != "$SHA" ]; then
+            echo "::error::Render queued commit $built for $SERVICE_ID, but the commit this run gated is $SHA. An unverified commit is being deployed."
+            exit 1
+          fi
