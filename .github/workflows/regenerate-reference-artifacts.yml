@@ -1,0 +1,71 @@
+name: Regenerate reference artifacts (macOS runner)
+
+# The committed docs/leakage_progression.json and docs/chronos_benchmark.json are
+# REFERENCE results produced on GitHub's macOS/arm64 runner, the same image the
+# `python` job of repo-tests.yml runs the strict artifact pins on. Their MLP arm
+# (sklearn/BLAS) and Chronos forecasts (torch CPU kernels) are chip-dependent in the
+# 4th decimal, so they must be generated where they are checked, not on a laptop.
+#
+# Run it by hand (Actions -> this workflow -> Run workflow), download the
+# `reference-artifacts` bundle, and commit the files it contains unchanged. Each
+# generator runs from a clean checkout, so its provenance records `dirty: false` and
+# the commit it was generated from.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit or branch to generate from (default: the selected branch)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    # Keep in step with the `python` job in repo-tests.yml: same runner image and Python.
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: backend
+    env:
+      # config.py validates these at import; nothing here serves traffic.
+      SECRET_KEY: ci-test-secret-key-32chars-padding
+      DATABASE_URL: sqlite:///./supply_chain.db
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          for f in requirements*.txt; do
+            python -m pip install -r "$f"
+          done
+
+      - name: Regenerate docs/chronos_benchmark.json
+        run: |
+          python -m seeds.run_chronos_benchmark --offline
+          mkdir -p "$RUNNER_TEMP/out/docs"
+          cp ../docs/chronos_benchmark.json ../docs/CHRONOS_BENCHMARK.md "$RUNNER_TEMP/out/docs/"
+          git checkout -- ../docs
+
+      - name: Regenerate docs/leakage_progression.json
+        run: |
+          python -m seeds.run_leakage_progression
+          cp ../docs/leakage_progression.json ../docs/LEAKAGE_PROGRESSION.md "$RUNNER_TEMP/out/docs/"
+          git checkout -- ../docs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reference-artifacts
+          path: ${{ runner.temp }}/out
+          retention-days: 7

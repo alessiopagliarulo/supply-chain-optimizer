@@ -15,18 +15,18 @@
     "horizon": 12,
     "n_windows": 3,
     "chronos_model_requested": "amazon/chronos-bolt-tiny",
-    "run_at": "2026-09-05T19:38:55+00:00",
+    "run_at": "2026-09-18T15:47:41+00:00",
     "provenance": {
-      "generated_at_utc": "2026-09-05T19:38:55Z",
+      "generated_at_utc": "2026-09-18T15:47:41Z",
       "generator": "seeds.run_chronos_benchmark",
       "git": {
-        "commit": "5c462d4b8e553f69d5eada90834e3d7ce474dc69",
-        "commit_short": "5c462d4b8e",
-        "branch": "main",
+        "commit": "a2db4223b0b60bf34f7e87f145303cd568feca68",
+        "commit_short": "a2db4223b0",
+        "branch": "HEAD",
         "dirty": false
       },
-      "python": "3.13.5",
-      "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
+      "python": "3.13.15",
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
       "inputs": {
         "demand_series": {
           "path": "backend/seeds/data/a34sno_vintages/a34sno_20260816.csv",
@@ -43,32 +43,32 @@
   "hardware": {
     "machine": "arm64",
     "processor": "arm",
-    "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
-    "python": "3.13.5",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15",
     "device": "cpu",
     "torch_version": "2.12.1",
-    "torch_threads": 4,
+    "torch_threads": 3,
     "cuda_available": false
   },
   "timing": {
     "chronos": {
       "n_calls": 3,
-      "median_ms": 2.18,
-      "mean_ms": 2.3,
-      "min_ms": 2.18,
-      "max_ms": 2.53,
-      "total_seconds": 0.007,
+      "median_ms": 5.77,
+      "mean_ms": 6.3,
+      "min_ms": 5.31,
+      "max_ms": 7.82,
+      "total_seconds": 0.019,
       "context_min": 162,
       "context_max": 186,
       "prediction_length": 12
     },
     "prophet": {
       "n_calls": 3,
-      "median_ms": 22.38,
-      "mean_ms": 30.5,
-      "min_ms": 22.37,
-      "max_ms": 46.76,
-      "total_seconds": 0.092,
+      "median_ms": 36.03,
+      "mean_ms": 58.49,
+      "min_ms": 34.7,
+      "max_ms": 104.74,
+      "total_seconds": 0.175,
       "context_min": 162,
       "context_max": 186,
       "prediction_length": 12
@@ -86,11 +86,11 @@
     },
     "prophet_trend_only": {
       "n_calls": 3,
-      "median_ms": 22.43,
-      "mean_ms": 24.03,
-      "min_ms": 20.94,
-      "max_ms": 28.7,
-      "total_seconds": 0.072,
+      "median_ms": 37.38,
+      "mean_ms": 36.75,
+      "min_ms": 31.44,
+      "max_ms": 41.42,
+      "total_seconds": 0.11,
       "context_min": 6,
       "context_max": 6,
       "prediction_length": 12
@@ -444,7 +444,7 @@
       "n": 36,
       "wape": 0.0293,
       "mape": 0.0275,
-      "rmse": 1279.9116,
+      "rmse": 1279.9115,
       "bias": -766.2253,
       "tracking_signal": -35.5082
     },
@@ -535,8 +535,8 @@
         "n": 3,
         "wape": 0.0436,
         "mape": 0.0404,
-        "rmse": 1729.9743,
-        "bias": -1175.3216,
+        "rmse": 1729.9732,
+        "bias": -1175.321,
         "tracking_signal": -3.0
       },
       {
@@ -588,8 +588,8 @@
         "n": 12,
         "wape": 0.0552,
         "mape": 0.0527,
-        "rmse": 2117.7893,
-        "bias": -1531.0418,
+        "rmse": 2117.7891,
+        "bias": -1531.0417,
         "tracking_signal": -11.7555,
         "label": "cut=186",
         "n_train": 186,
@@ -598,21 +598,21 @@
     ],
     "model": "amazon/chronos-bolt-tiny",
     "n_parameters": 8652672,
-    "import_seconds": 2.68,
-    "weights_cached": true,
-    "load_seconds": 0.4,
+    "import_seconds": 5.19,
+    "weights_cached": false,
+    "load_seconds": 2.74,
     "torch_version": "2.12.1",
-    "warmup_seconds": 0.0732,
-    "walk_forward_wall_seconds": 0.007,
+    "warmup_seconds": 0.0676,
+    "walk_forward_wall_seconds": 0.02,
     "steady_state": {
       "n_repeats": 20,
       "context_len": 198,
       "prediction_length": 12,
-      "median_ms": 2.24,
-      "mean_ms": 2.24,
-      "min_ms": 2.07,
-      "max_ms": 2.43,
-      "p95_ms": 2.43
+      "median_ms": 5.4,
+      "mean_ms": 5.57,
+      "min_ms": 5.11,
+      "max_ms": 6.88,
+      "p95_ms": 6.88
     }
   },
   "cold_start": {
@@ -1053,8 +1053,8 @@
           "n": 36,
           "wape": 0.0364,
           "mape": 0.0347,
-          "rmse": 1395.8234,
-          "bias": -962.3472,
+          "rmse": 1395.8235,
+          "bias": -962.3474,
           "tracking_signal": -35.9508
         },
         "by_horizon": [
@@ -1072,8 +1072,8 @@
             "n": 3,
             "wape": 0.0105,
             "mape": 0.0107,
-            "rmse": 325.5473,
-            "bias": -253.6862,
+            "rmse": 325.5482,
+            "bias": -253.6868,
             "tracking_signal": -2.8241
           },
           {
@@ -1099,8 +1099,8 @@
             "n": 3,
             "wape": 0.0193,
             "mape": 0.0194,
-            "rmse": 571.0893,
-            "bias": -500.9329,
+            "rmse": 571.0898,
+            "bias": -500.9336,
             "tracking_signal": -3.0
           },
           {
@@ -1117,8 +1117,8 @@
             "n": 3,
             "wape": 0.0409,
             "mape": 0.0405,
-            "rmse": 1135.1149,
-            "bias": -1087.3555,
+            "rmse": 1135.1157,
+            "bias": -1087.3561,
             "tracking_signal": -3.0
           },
           {
@@ -1126,8 +1126,8 @@
             "n": 3,
             "wape": 0.0426,
             "mape": 0.0416,
-            "rmse": 1268.4148,
-            "bias": -1134.9889,
+            "rmse": 1268.4152,
+            "bias": -1134.9896,
             "tracking_signal": -3.0
           },
           {
@@ -1135,8 +1135,8 @@
             "n": 3,
             "wape": 0.0506,
             "mape": 0.0472,
-            "rmse": 1922.5695,
-            "bias": -1362.6758,
+            "rmse": 1922.5696,
+            "bias": -1362.6764,
             "tracking_signal": -3.0
           },
           {
@@ -1173,8 +1173,8 @@
             "n": 12,
             "wape": 0.0245,
             "mape": 0.0245,
-            "rmse": 642.0466,
-            "bias": -618.2749,
+            "rmse": 642.0469,
+            "bias": -618.2752,
             "tracking_signal": -12.0,
             "label": "origin_vintage=2023-08-01",
             "n_train": 162,
@@ -1185,8 +1185,8 @@
             "n": 12,
             "wape": 0.022,
             "mape": 0.0218,
-            "rmse": 639.7552,
-            "bias": -569.7843,
+            "rmse": 639.7553,
+            "bias": -569.7845,
             "tracking_signal": -12.0,
             "label": "origin_vintage=2024-08-01",
             "n_train": 174,
@@ -1197,8 +1197,8 @@
             "n": 12,
             "wape": 0.0602,
             "mape": 0.0576,
-            "rmse": 2241.3072,
-            "bias": -1698.9823,
+            "rmse": 2241.3074,
+            "bias": -1698.9826,
             "tracking_signal": -11.9722,
             "label": "origin_vintage=2025-08-01",
             "n_train": 186,

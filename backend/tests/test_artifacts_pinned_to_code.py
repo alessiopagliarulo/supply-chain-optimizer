@@ -36,14 +36,16 @@ cross-references below stay valid.
      * the seasonal-naive arm of each is deterministic — it copies observations
        out of a SHA-256-pinned series and does no arithmetic of its own — so it
        is UNMARKED and runs in CI's default suite.
-     * the Prophet arms and the Chronos arm stay ``@pytest.mark.slow``, i.e.
-       local-only. Prophet fits via Stan (L-BFGS) and is NOT bit-reproducible
-       across platform / interpreter / BLAS; promoting it into CI on 2026-08-30
-       turned CI red with 160 differing values against artifacts that were
-       entirely current. Both halves keep the SAME strict tolerance — widening it
-       until a non-deterministic fit passed would be a check that cannot fail.
-     * ``leakage_progression.json`` stays ``slow`` for the older reason: it needs
-       machine-local state CI does not have.
+     * the Prophet arms and the Chronos arm stay ``@pytest.mark.slow``: they
+       run only on the artifacts' own platform, macOS/arm64 (locally, and in
+       the ``python`` job of ``.github/workflows/repo-tests.yml``). Prophet fits
+       via Stan (L-BFGS) and is NOT bit-reproducible across platform /
+       interpreter / BLAS; promoting it into the Linux CI on 2026-08-30 turned
+       it red with 160 differing values against artifacts that were entirely
+       current. Both halves keep the SAME strict tolerance — widening it until a
+       non-deterministic fit passed would be a check that cannot fail.
+     * ``leakage_progression.json`` is ``slow`` too; it re-solves on the exact
+       panel bytes the artifact was built from.
 
 Deliberately NOT pinned:
   * ``intermittent_demand.json`` (~22 s) — already cross-pinned by
@@ -54,6 +56,7 @@ Deliberately NOT pinned:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -210,23 +213,27 @@ def test_newsvendor_primary_reproduces_from_the_live_evaluation():
 #
 # WHAT `slow` MEANS IN THIS BLOCK, AND WHAT IT DOES NOT
 # ------------------------------------------------------
-# CI runs `-m "not slow"`, so `slow` here means LOCAL-ONLY. It does NOT mean
-# expensive — sections 7 and 8 below are sub-second and are still marked. There
-# are exactly two reasons a pin in this block is confined to the local machine,
-# and both are properties of the environment, never a way to dodge a red test:
+# `slow` here means MACOS/ARM64-ONLY, not expensive — sections 7 and 8 below are
+# sub-second and are still marked. `ci.yml` (Linux) runs `-m "not slow"`; the
+# `python` job of `repo-tests.yml` runs the WHOLE suite with no `-m` filter on a
+# macOS/arm64 runner, and so does the local standing gate (`pytest tests/ -q`).
+# The reasons a pin needs that platform or that setup are properties of the
+# environment, never a way to dodge a red test:
 #
-#   1. MACHINE-LOCAL STATE CI DOES NOT HAVE — a seeded SQLite file
-#      (`leakage_progression`), or torch + a Hugging Face weight
-#      cache from `requirements-ml.txt`, which the CI workflow never installs
-#      (the Chronos arm).
-#   2. THE COMPUTATION IS NOT REPRODUCIBLE ACROSS PLATFORMS — the Prophet arms of
+#   1. THE COMPUTATION IS NOT REPRODUCIBLE ACROSS PLATFORMS — the Prophet arms of
 #      sections 7 and 8. Stan's L-BFGS gives platform-dependent results, so a pin
-#      that demands exactness can only be honest on the machine that WROTE the
+#      that demands exactness can only be honest on the platform that WROTE the
 #      artifact. See the block above section 7 for the measurement.
+#   2. SETUP THE LINUX CI DOES NOT DO — the Chronos arm reads a Hugging Face
+#      weight cache offline; `repo-tests.yml` downloads it before the suite.
 #
-# In both cases the LOCAL standing gate (`pytest tests/ -q`) has no `-m` filter,
-# so these DO run on the machine where artifacts are generated — which is the
-# only machine where an artifact can go stale.
+# REFERENCE PLATFORM. `leakage_progression.json` and `chronos_benchmark.json` are
+# generated on GitHub's macOS/arm64 runner (the regenerate-reference-artifacts
+# workflow), and the `python` job of `repo-tests.yml` is AUTHORITATIVE for them.
+# Their MLP arm and Chronos forecasts use chip-dependent kernels, so on another
+# Mac (for example an M5) the leakage-progression and Chronos zero-shot pins can
+# differ in the last decimals: a local failure of exactly those two pins is
+# expected and is not a reason to regenerate locally or loosen the tolerance.
 #
 # What is NOT confined here: the deterministic seasonal-naive arm of each demand
 # artifact. Those are unmarked and are CI's only artifact-vs-code coverage.
@@ -261,14 +268,15 @@ def _resolve_repo_python_path() -> None:
 LEAKAGE_JSON = DOCS / "leakage_progression.json"
 
 LEAKAGE_REGENERATE = (
-    "Re-run `cd backend && ./venv/bin/python -m seeds.run_leakage_progression` "
-    "(~215 s) and commit docs/leakage_progression.json + docs/LEAKAGE_PROGRESSION.md "
-    "(README.md and RESEARCH_TECHNIQUES.md quote this artifact)."
+    "Re-run `seeds.run_leakage_progression` through the regenerate-reference-artifacts "
+    "workflow (GitHub macOS runner, the reference platform; a local run on another chip "
+    "differs in the MLP arm) and commit docs/leakage_progression.json + "
+    "docs/LEAKAGE_PROGRESSION.md (README.md and RESEARCH_TECHNIQUES.md quote this artifact)."
 )
 
 
 @pytest.mark.slow
-def test_leakage_progression_reproduces_from_the_live_lead_time_model():
+def test_leakage_progression_reproduces_from_the_live_lead_time_model(tmp_path):
     """
     ``docs/leakage_progression.json`` publishes the headline every reviewer looks
     at first — R2 +0.825 random -> +0.073 by family -> -0.697 by manufacturer —
@@ -313,7 +321,36 @@ def test_leakage_progression_reproduces_from_the_live_lead_time_model():
         f"lead_time_model is now at v{gen.FEATURE_SCHEMA_VERSION}. {LEAKAGE_REGENERATE}"
     )
 
-    panel = gen.load_observed_panel()
+    # THE PANEL THE ARTIFACT WAS BUILT FROM, NOT THE LIVE FILE. The weekly
+    # `collect-lead-times` workflow APPENDS a snapshot to the panel CSV every
+    # Monday, while this artifact (and `metrics.joblib`, which
+    # `test_the_leakage_artifact_describes_the_served_model_dataset` holds it to)
+    # describe the panel the served model was trained on. Comparing against the
+    # whole live file therefore went red every week on data growth alone, not on
+    # code drift. So the input guard is exact instead: the artifact records the
+    # byte length and sha256 of the panel it read, and those bytes must be,
+    # byte for byte, the head of today's file. An append passes; any rewrite of
+    # an existing row fails here, before anything is computed from it.
+    # Anti-vacuity, same shape as the DB row-count guard: assert the INPUT before
+    # trusting anything computed from it.
+    from app.ml.lead_time_collector import PANEL_PATH
+    built_from = artifact["provenance"]["inputs"]["lead_time_panel"]
+    assert built_from["sha256"] == meta["panel_sha256"], (
+        "the artifact's provenance and meta disagree about which panel it read. "
+        f"{LEAKAGE_REGENERATE}")
+    live_bytes = PANEL_PATH.read_bytes()
+    panel_bytes = live_bytes[: built_from["bytes"]]
+    panel_sha = hashlib.sha256(panel_bytes).hexdigest()
+    assert len(panel_bytes) == built_from["bytes"] and panel_sha == meta["panel_sha256"], (
+        f"the first {built_from['bytes']} bytes of {PANEL_PATH.relative_to(REPO_ROOT)} "
+        f"hash to {panel_sha}, but the artifact was built from {meta['panel_sha256']}. "
+        "Rows the artifact was measured on were REWRITTEN, not appended to, so a "
+        f"mismatch below would not mean the code moved. {LEAKAGE_REGENERATE}"
+    )
+    panel_file = tmp_path / PANEL_PATH.name
+    panel_file.write_bytes(panel_bytes)
+
+    panel = gen.load_observed_panel(panel_file)
     assert panel is not None, (
         "no observed lead-time panel — this test would have checked nothing. Expected "
         f"at {meta['panel_path']}."
@@ -322,16 +359,6 @@ def test_leakage_progression_reproduces_from_the_live_lead_time_model():
     X, feature_cols = gen.build_design_matrix(design.records, schema=design.schema)
     y = design.y
 
-    # Anti-vacuity, same shape as the DB row-count guard: assert the INPUT before
-    # trusting anything computed from it. An empty or truncated panel would
-    # otherwise produce a small, silently meaningless set of folds.
-    from app.ml.lead_time_collector import PANEL_PATH
-    panel_sha = _sha256_of(PANEL_PATH)
-    assert panel_sha == meta["panel_sha256"], (
-        f"{PANEL_PATH.relative_to(REPO_ROOT)} hashes to {panel_sha}, but the artifact "
-        f"was built from {meta['panel_sha256']}. The INPUT DATA changed, so a mismatch "
-        f"below would not mean the code moved. {LEAKAGE_REGENERATE}"
-    )
     assert len(y) == artifact["counts"]["n_rows"] >= 1000, (
         f"the design matrix has {len(y)} rows against the artifact's "
         f"{artifact['counts']['n_rows']} — the panel this test read is not the panel "
@@ -457,8 +484,8 @@ def _sha256_of(path: Path) -> str:
 #     pin on either DEMAND-SERIES artifact: both were behind `slow` entirely.
 #     That is the gap, and it is the one this closes.
 #   * the Prophet arms — NOT reproducible off the generating machine. `slow`,
-#     i.e. local-only, which is where the artifact is written and therefore the
-#     only place it can go stale.
+#     i.e. macOS/arm64-only: locally, where the artifact is written, and in the
+#     `python` job of `repo-tests.yml`, which runs on a macOS/arm64 runner.
 #
 # EVIDENCE FOR THE CLASSIFICATION (2026-08-30 — measured, not assumed)
 # --------------------------------------------------------------------
@@ -480,8 +507,9 @@ def _sha256_of(path: Path) -> str:
 # NOT CLASSIFIED, AND THEREFORE TREATED AS NON-DETERMINISTIC
 # ----------------------------------------------------------
 # The Chronos arm. It is behind `slow` for an independent reason (torch +
-# chronos-forecasting come from `requirements-ml.txt`, which CI never installs),
-# so its reproducibility has never been exercised on a second platform. An arm
+# chronos-forecasting + a Hugging Face weight cache, which only `repo-tests.yml`'s
+# macOS/arm64 job sets up), so its reproducibility has never been exercised on a
+# second platform. An arm
 # whose determinism cannot be shown is left in `slow` — the safe side.
 
 FORECAST_JSON = DOCS / "forecast_backtest.json"
@@ -692,11 +720,11 @@ def test_forecast_backtest_prophet_arms_reproduce_from_the_live_harness():
     anywhere — and (b) produces a check that cannot reliably fail, which this
     repo forbids outright. So the tolerance here is the SAME strict
     ``STAT_ABS_TOL`` / ``STAT_REL_TOL`` the deterministic pin uses, and the test
-    is confined to the generating machine, where it is exact and meaningful.
+    is confined to the generating platform, where it is exact and meaningful.
 
-    ``slow`` therefore means LOCAL-ONLY here, not EXPENSIVE. The local standing
-    gate (`pytest tests/ -q`) has no `-m` filter, so this does run before every
-    push, on the only machine where this artifact can actually go stale.
+    ``slow`` therefore means MACOS/ARM64-ONLY here, not EXPENSIVE. It runs in the
+    local standing gate (`pytest tests/ -q`, no `-m` filter) and in the ``python``
+    job of ``repo-tests.yml``, which runs the whole suite on a macOS/arm64 runner.
     """
     pytest.importorskip("prophet")
     if not FORECAST_JSON.is_file():
@@ -743,18 +771,19 @@ def test_forecast_backtest_prophet_arms_reproduce_from_the_live_harness():
 #
 #   * seasonal_naive — deterministic, unmarked, runs in CI. First pin on this
 #                      artifact; not CI's first in this file — see section 7.
-#   * prophet        — Stan/L-BFGS, `slow`, local-only. It failed CI with 61
+#   * prophet        — Stan/L-BFGS, `slow`, macOS/arm64-only. It failed Linux CI with 61
 #                      differing values on 2026-08-30 against a current artifact.
-#   * chronos        — `slow` for an independent reason (torch +
-#                      chronos-forecasting are in `requirements-ml.txt`, which CI
-#                      does not install), so its determinism is unproven and it
-#                      is treated as non-deterministic. See the test below it.
+#   * chronos        — `slow` for an independent reason (it reads a Hugging Face
+#                      weight cache that only `repo-tests.yml`'s macOS/arm64 job
+#                      downloads), so its determinism across platforms is
+#                      unproven and it is treated as non-deterministic. See the test below it.
 
 CHRONOS_JSON = DOCS / "chronos_benchmark.json"
 
 CHRONOS_REGENERATE = (
-    "Re-run `cd backend && ./venv/bin/python -m seeds.run_chronos_benchmark --offline` "
-    "(needs requirements-ml.txt: torch + chronos-forecasting) and commit "
+    "Re-run `seeds.run_chronos_benchmark --offline` through the "
+    "regenerate-reference-artifacts workflow (GitHub macOS runner, the reference "
+    "platform; Chronos forecasts differ by chip) and commit "
     "docs/chronos_benchmark.json + docs/CHRONOS_BENCHMARK.md."
 )
 
@@ -836,8 +865,8 @@ def test_chronos_benchmark_prophet_arm_reproduces_from_the_live_harness():
     reproduce bit-for-bit off the machine that wrote the artifact. Promoted into
     CI on 2026-08-30, it failed there with 61 differing values — every one a
     ~0.2-0.3% relative wobble — against an artifact that was entirely current.
-    The tolerance is therefore left strict and the test left local-only, rather
-    than loosened into a check that could not fail.
+    The tolerance is therefore left strict and the test confined to macOS/arm64
+    (locally and in ``repo-tests.yml``), rather than loosened into a check that could not fail.
     """
     pytest.importorskip("prophet")
     if not CHRONOS_JSON.is_file():
@@ -881,9 +910,9 @@ def test_chronos_zero_shot_forecasts_reproduce_from_the_cached_weights():
     it reproduces the committed artifact to the last decimal.
 
     HONEST LIMITS, stated because they are the reason this stays behind `slow`:
-      * `torch` + `chronos-forecasting` come from `requirements-ml.txt`, which CI
-        does not install. This test SKIPS there. It runs on the machine where the
-        artifact is generated, which is the only machine where it can go stale.
+      * `torch` + `chronos-forecasting` come from `requirements-ml.txt`. The
+        ``python`` job of ``repo-tests.yml`` installs them and downloads the
+        weights before the suite, so this runs there as well as locally.
       * It skips rather than fails when the weight cache is cold, because
         downloading 8.65 M parameters mid-test would make the suite depend on
         Hugging Face being up. A skip is honest; a network fetch would not be.

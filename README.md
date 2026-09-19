@@ -370,14 +370,16 @@ cd backend
 **Measured 2026-09-08 on the committed database with `-n auto --dist loadfile`:
 `1 failed, 1335 passed, 4 skipped` in 496 s.** The parallel flags change the selection not
 at all (verified node id by node id on 2026-09-05), so the serial command above reports the
-same outcomes and takes about three times as long. What CI runs is `-m "not slow"`, which is
-`1331 passed, 3 skipped, 0 failed` in 527 s — note that this selection is **green**, because
-the one failing test below is marked `slow` and so neither CI workflow can see it.
-The one red is named here rather than buried:
+same outcomes and takes about three times as long. `ci.yml` runs `-m "not slow"`, which was
+`1331 passed, 3 skipped, 0 failed` in 527 s. The `Repo — Tests` workflow
+(`.github/workflows/repo-tests.yml`) runs the whole suite with no `-m` filter on a macOS/arm64
+runner, the artifacts' own platform, so the `slow` pins run in CI there too (why they need that
+platform: the block comment above section 6 of `backend/tests/test_artifacts_pinned_to_code.py`).
+The one red in the 2026-09-08 measurement is named here rather than buried:
 
 | Failing test | Why, and what it means |
 | --- | --- |
-| `test_artifacts_pinned_to_code.py::test_leakage_progression_reproduces_from_the_live_lead_time_model` | **The drift tripwire doing its job.** The weekly collector committed the 2026-09-07 snapshot, which moved the panel from 2,664 rows / 5 snapshots to 3,406 / 6. The served artifact was fitted on the earlier cut, so the published leakage figures no longer reproduce from the live model — a retrain (`python -m seeds.train_ml_models`, then `python -m seeds.run_leakage_progression`) is owed and has not been done. It is marked `slow`, so CI deselects it and a fresh collector commit cannot turn the badge red on its own; that is deliberate, and the gap is published on `GET /api/v1/ml/model-info` as `training_data_staleness: stale: true` rather than hidden. It is cleared by retraining, **never** by editing an artifact. |
+| `test_artifacts_pinned_to_code.py::test_leakage_progression_reproduces_from_the_live_lead_time_model` | **Went red on data growth, not code drift.** The weekly collector appends a snapshot to the panel every Monday, and the pin compared against the whole live file. It now re-solves on the exact panel bytes the artifact records it was built from, which must be the byte-for-byte head of today's file: an append passes, a rewrite of an already-measured row fails. That the served model has not been retrained on the grown panel is published on `GET /api/v1/ml/model-info` as `training_data_staleness: stale: true` rather than hidden; it is cleared by retraining, **never** by editing an artifact. |
 
 A suite that reported "all passed" while a published figure had stopped reproducing would
 be worse than this.

@@ -521,7 +521,10 @@ non-deterministic fit passes anywhere — and (b) is a check that cannot reliabl
 the loop's learnings log (2026-08-28) forbids. **(a) was taken: both halves keep the same strict
 `STAT_ABS_TOL`/`STAT_REL_TOL` of 1e-9.** The local standing gate (`pytest tests/ -q`, no `-m`
 filter) still runs the Prophet pins on every push, on the only machine where those artifacts can
-actually go stale. `slow` in this block means LOCAL-ONLY, not expensive.
+actually go stale. `slow` in this block means LOCAL-ONLY, not expensive. *(Superseded: the
+`python` job of `.github/workflows/repo-tests.yml` now runs the whole suite, `slow` included, on
+a macOS/arm64 runner, so `slow` means macOS/arm64-only; the owner is the block comment above
+section 6 of `backend/tests/test_artifacts_pinned_to_code.py`.)*
 
 **Evidence the classification is measured, not assumed.** Both artifacts' arms were re-scored
 inside a `linux/amd64` container on CI's exact stack (Python 3.11.16, numpy 2.4.4, pandas 2.3.3,
