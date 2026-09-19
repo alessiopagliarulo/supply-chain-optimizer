@@ -4,21 +4,21 @@
   "prCap": 3,
   "ideaQueueCap": 6,
   "scout": {
-    "productSummary": "A vehicle-routing / logistics engine for the capacitated VRP with time windows (CVRPTW), rebuilt from a sourcing optimizer that is archived at git tag archive/sourcing-v1. backend/app/vrp/ holds one data model, three solver paths (CP-SAT exact, Clarke-Wright savings, OR-Tools routing) and one shared validator every solution passes through; a SimPy discrete-event simulation stresses a route plan with random travel and service times, and a buffer-tuning loop searches schedule/capacity buffers against it. backend/scripts/benchmark_solomon.py writes the committed docs/benchmark_results.json (168 Solomon cases x 3 solvers, gaps vs best-known). The web app has three pages - Route Plan, Simulation, Benchmarks - with no login, served by backend/app/api/routing.py. Every headline figure is produced by a command in the repo and written to a committed JSON artifact.",
+    "productSummary": "A logistics engine for electronics components, being rebuilt by combining the routing engine with the sourcing-era pieces archived at git tag archive/sourcing-v1, which the owner now wants back. ALREADY EXISTS: backend/app/vrp/ holds one CVRPTW data model, three solver paths (CP-SAT exact, Clarke-Wright savings, OR-Tools routing) and one shared validator every solution passes through; a SimPy simulation with buffer tuning; backend/scripts/benchmark_solomon.py writes the committed docs/benchmark_results.json (168 Solomon cases x 3 solvers, gaps vs best-known); a web app with Landing, Route Plan, Simulation and Benchmarks pages and no login. TARGET: real component and distributor data with real coordinates; five pages, still no login - Landing, Map (real distributor locations on OpenStreetMap tiles, no paid map provider), Route Plan, Digital Twin (a normal day and a disrupted day side by side) and Benchmarks; routing on straight-line distances times a documented road factor; forecasting quietly generating the orders being routed, plus one forecast-vs-actual chart. IN FLIGHT NOW (firstmate's crew, do not propose): the Benchmarks page fix and restoring the component and distributor data. Every headline figure is produced by a command in the repo and written to a committed JSON artifact.",
     "currentGoals": [
-      "The front door describes the product that exists: README still opens as 'Electronics Supply Chain Optimizer' with forecasting headlines and a BOM feature table, and does not headline the routing engine or its benchmark",
+      "Restore and combine archived pieces from archive/sourcing-v1 one at a time, each with tests and wired into the routing flow: component data, distributor locations with real coordinates, map components, resilience/disruption work (for the Digital Twin), lead-time and demand forecasting - skipping the pieces already in flight (Benchmarks page fix, component and distributor data)",
+      "The front door describes the combined product with the routing benchmark among its headline results, and does not present pages that are not live yet as if they were",
       "Publish the Solomon benchmark from docs/benchmark_results.json, always against its best-known baseline, and name its weak spots (OR-Tools feasible on only 49 of 56 100-customer cases; CP-SAT's mean gap grows with instance size)",
       "Make the guards run where they gate: ci.yml still passes -m \"not slow\", so the CI run the deploy waits on never runs the slow artifact pins; repo-tests.yml runs them (PR 20) but does not gate deploy",
-      "Decide the sourcing leftovers: the auth, cart, graph, feeds, ml, demand, newsvendor, resilience and fiedler benchmark routers are still mounted but no page uses them - propose archive or keep with evidence, the owner decides",
-      "Fix anything broken on the live Route Plan -> Simulation -> Benchmarks flow first, then new ideas that let an OR/logistics/supply-chain recruiter try the strongest true result",
+      "Fix anything broken on the live flow first, then new ideas that let an OR/logistics/supply-chain recruiter try the strongest true result on real data",
       "A proposal that would move a still-published resume figure (Brier 0.393, rank 1.66) is allowed, but its title starts with [resume-figure] and its body has a before/after table"
     ],
     "offLimits": [
       "Hand-editing GENERATED regions, docs/*.json artifacts (including docs/benchmark_results.json), metrics.joblib or provenance stamps; regenerate from a clean tree instead",
       "Synthetic, fabricated or live data replacing the frozen 2024 snapshot, drift in backend/seeds/data, or benchmark results not produced by the benchmark script",
-      "Skipping, deselecting or loosening any test or gate to get green",
+      "Skipping, deselecting, xfailing or loosening any test or gate to get green",
       "Claims on the do-not-claim lists, or any percentage without its baseline",
-      "Restoring archived sourcing code from archive/sourcing-v1 unless the owner asks",
+      "A blanket revert of the strip-down; restore archived pieces one at a time, each with tests",
       "Loop machinery: claude-*.yml, loop-metrics, .github/loop-config.json, the docs/archive/loop-brief.md path",
       "Hosting or plan changes, an AWS move, spending money, credentials, key rotation, git history rewrites; never put a secret or key prefix in an issue",
       "CLAUDE.md, LEARNINGS.md, .claude/, docs/handoffs/; LICENSE text and the CC-BY-4.0 attribution"
