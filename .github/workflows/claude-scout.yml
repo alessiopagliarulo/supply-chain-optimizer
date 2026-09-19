@@ -472,7 +472,8 @@ jobs:
             echo "INFLIGHTEOF"
           } >> "$GITHUB_OUTPUT"
 
-      - if: steps.gate.outputs.go == 'true' && steps.ai.outputs.use_bedrock != 'true'
+      - id: scout_agent
+        if: steps.gate.outputs.go == 'true' && steps.ai.outputs.use_bedrock != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -490,7 +491,8 @@ jobs:
 
             You are running inside a one-shot CI job. **There is no second turn.** The moment you
             stop producing tool calls, this container is destroyed. Nothing resumes you. Nobody
-            reads your closing message.
+            reads your closing message - except its LAST LINE, the `SCOUT-DECISION:` line the
+            end of this prompt asks for, which the workflow checks.
 
             Therefore:
             - When you spawn subagents with the Task tool, you MUST pass
@@ -692,6 +694,14 @@ jobs:
             this hour, file NOTHING and say so. Filing filler to look productive is the exact
             failure mode that kills this system.
 
+            7. The LAST line of your final message must be exactly one of these, on its own:
+                   SCOUT-DECISION: filed <N>
+                   SCOUT-DECISION: none - <one plain-English sentence saying why>
+               Use `none` only when you really decided to file nothing: every candidate was
+               already covered by the work listed above, or none cleared the evidence floor.
+               The workflow reads this line. A run that files nothing and has no `none` line
+               is treated as a crash, and the run fails.
+
       # BEDROCK MODE — opt-in only, see docs/bedrock-setup.md and the "Resolve AI provider"
       # step above for why the Scout defaults away from this path.
       - name: Configure AWS credentials (OIDC) for Bedrock
@@ -701,7 +711,8 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ steps.ai.outputs.region }}
 
-      - if: steps.gate.outputs.go == 'true' && steps.ai.outputs.use_bedrock == 'true'
+      - id: scout_agent_bedrock
+        if: steps.gate.outputs.go == 'true' && steps.ai.outputs.use_bedrock == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
@@ -776,20 +787,65 @@ jobs:
       # thinking removes the `proposal` label, so a before/after count could fall even on
       # a perfect run. Issue numbers only ever go up — count the proposals numbered above
       # the high-water mark we recorded before the agent started.
+      #
+      # Zero filed is not automatically a failure: with covered-idea skipping, "every
+      # candidate was already covered" is a correct answer. So zero passes ONLY when the
+      # agent finished cleanly AND its final message says `SCOUT-DECISION: none - <reason>`.
+      # Everything else with zero filed is a malfunction and fails the run: no transcript
+      # on the default branch (the agent never ran), an errored or turn-capped session,
+      # or a session that ended without a decision (the backgrounded-researchers bug).
+      # The one pass without a transcript: a manual test run on a non-default branch,
+      # where claude-code-action refuses to run a workflow file that differs from the
+      # default branch's. That is logged as a warning, not passed off as a result.
       - name: Verify Scout actually filed something
         if: success() && steps.gate.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HIGH_WATER: ${{ steps.gate.outputs.high_water }}
+          EXECUTION_FILE: ${{ steps.scout_agent.outputs.execution_file || steps.scout_agent_bedrock.outputs.execution_file }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           filed=$(gh issue list --state open --label proposal --limit 200 --json number \
             | jq --argjson hw "$HIGH_WATER" '[.[] | select(.number > $hw)] | length')
           echo "Proposals numbered above #$HIGH_WATER (i.e. filed by this run): $filed"
-          if [ "$filed" -le 0 ]; then
-            echo "::error::Scout filed ZERO issues. The run is being failed on purpose — a green tick that produced nothing is worse than a red one, because it looks like the loop is working when it is not. Read the agent's final message in the log above: the usual causes are that it backgrounded its researchers and ended its turn instead of blocking on them, or that every candidate it found failed the evidence floor (in which case the log will say so and this failure is expected)."
-            exit 1
+          if [ "$filed" -gt 0 ]; then
+            echo "Scout filed $filed new proposal(s)."
+            exit 0
           fi
-          echo "Scout filed $filed new proposal(s)."
+
+          fail() {
+            echo "::error::Scout filed ZERO issues and $1 The run is being failed on purpose - a green tick that produced nothing is worse than a red one, because it looks like the loop is working when it is not. Read the agent's final message in the log above: the usual cause is that it backgrounded its researchers and ended its turn instead of blocking on them."
+            exit 1
+          }
+
+          if [ -z "$EXECUTION_FILE" ] || [ ! -s "$EXECUTION_FILE" ]; then
+            default=$(gh api "repos/$REPO" --jq .default_branch 2>/dev/null || true)
+            [ -n "$default" ] || default=main
+            if [ "$REF_NAME" != "$default" ]; then
+              echo "::warning::The Scout agent did not run: this is a test run on '$REF_NAME', and claude-code-action only runs a workflow file identical to the one on '$default'. Nothing to verify here; the real check happens on '$default'."
+              exit 0
+            fi
+            fail "the agent left no transcript, so it never ran."
+          fi
+
+          # The transcript is a JSON array of messages; the last `result` entry is how the
+          # session ended and what its final message said.
+          result=$(jq -c '[.[] | select(.type == "result")] | last // empty' "$EXECUTION_FILE" 2>/dev/null || true)
+          [ -n "$result" ] || fail "the agent's transcript has no final result (it crashed or was cut off)."
+          subtype=$(jq -r '.subtype // ""' <<<"$result")
+          is_error=$(jq -r '.is_error // false' <<<"$result")
+          if [ "$subtype" != "success" ] || [ "$is_error" = "true" ]; then
+            fail "the agent session ended badly (subtype '$subtype', is_error $is_error)."
+          fi
+          decision=$(jq -r '.result // ""' <<<"$result" | tr -d '\r' | grep -E '^[[:space:]*`]*SCOUT-DECISION:' | tail -n 1 || true)
+          # Any separator after `none` (models write -, :, or a long dash); markdown
+          # emphasis around the line is stripped. An empty reason does not count.
+          reason=$(sed -nE 's/^[[:space:]*`]*SCOUT-DECISION:[[:space:]]*none[^[:alnum:]]+//p' <<<"$decision" | sed -E 's/[[:space:]*`]+$//')
+          if [ -z "$reason" ]; then
+            fail "its final message has no 'SCOUT-DECISION: none - <reason>' line (got: '${decision:-nothing}')."
+          fi
+          echo "::notice::Scout deliberately filed nothing this run: $reason"
 
   # ────────────────────────────────────────────────────────────────────────────
   # STALE-APPROVAL RECONCILIATION — opt-in, off by default
