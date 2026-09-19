@@ -108,6 +108,8 @@ restoring the component and distributor data from `archive/sourcing-v1`.
 ## How the owner works
 
 - A student directing (not coding) a portfolio piece aimed at OR, logistics and supply-chain roles.
+- **Loop autonomy is off** (`autonomousBuildEnabled: false`): the loop drafts ideas as proposals only.
+  The Builder builds only proposals the owner has labelled approved, and loop PRs are merged only by the owner.
 - **Proposals:** one outcome each, plain English, a title that states the consequence, judgeable in
   one read (no approve/decline history yet).
 - **Evidence:** `path:line`, and re-derive each number from its source (artifact, live endpoint, SQL),

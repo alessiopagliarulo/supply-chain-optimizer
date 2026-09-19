@@ -168,7 +168,14 @@ export interface TuneBuffersResponse {
  */
 export type BenchmarksResponse =
   | { available: false; artifact: string }
-  | { available: true; artifact: string; schema_version?: unknown; provenance?: unknown; results: unknown[] };
+  | {
+      available: true;
+      artifact: string;
+      schema_version?: unknown;
+      provenance?: unknown;
+      summary?: unknown;
+      results: unknown[];
+    };
 
 // ── Calls ────────────────────────────────────────────────────────────────────
 

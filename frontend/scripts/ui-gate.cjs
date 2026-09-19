@@ -501,14 +501,19 @@ const AUDIT=()=>{
         if(a.nLegendLabels>0)
           ok(`${route}: chart legend text meets its WCAG contrast minimum`,
              a.legendContrast.length===0, JSON.stringify(a.legendContrast));
+      }
+      // axe at the widest AND the narrowest viewport: some violations only exist when a
+      // region overflows. A table's scroll wrapper with no focusable child is keyboard-
+      // unreachable only once it actually scrolls, which it does at 390px and not at 1440.
+      if(vp==='d1440'||vp==='m390'){
         await p.addScriptTag({content:axeSource});
         const ax=await p.evaluate(async()=>{const r=await window.axe.run(document,
           {runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}});
           return r.violations.map(v=>({id:v.id,impact:v.impact,n:v.nodes.length,
             first:(v.nodes[0]&&v.nodes[0].html||'').slice(0,90)}))});
-        report[route].axe=ax;
+        (report[route].axe??={})[vp]=ax;
         const serious=ax.filter(v=>v.impact==='serious'||v.impact==='critical');
-        ok(`${route}: no serious/critical axe violations`, serious.length===0,
+        ok(`${route} @${w}: no serious/critical axe violations`, serious.length===0,
            serious.map(v=>`${v.id}(${v.n}) ${v.first}`).join(' || '));
       }
       ok(`${route} @${vp.replace(/^\D+/,'')}: no leaked undefined/NaN/null in visible text`,
@@ -568,7 +573,8 @@ const AUDIT=()=>{
   // ── the Benchmarks page reads every row of the committed artifact ─────────
   // The page once rejected all 504 rows ("Some rows could not be read") because its
   // reader expected a row shape the benchmark script never wrote. Every check above
-  // passed on that page. Count the table rows against the artifact the API serves.
+  // passed on that page. Count the table rows against the artifact the API serves -
+  // in the results table only: the page has other tables (the per-solver averages).
   let bench=null;
   try{ bench=await (await ctx.request.fetch(API+'/api/v1/routing/benchmarks',{timeout:60000})).json(); }
   catch(e){ ok('GET /routing/benchmarks answers', false, String(e).split('\n')[0]); }
@@ -576,14 +582,18 @@ const AUDIT=()=>{
     await visit('/benchmarks','/benchmarks (rows)');
     const shown=await p.evaluate(()=>({
       alerts:[...document.querySelectorAll('[role=alert]')].map(e=>e.innerText.replace(/\s+/g,' ').slice(0,160)),
-      rows:document.querySelectorAll('tbody tr').length,
+      rows:document.querySelectorAll('[data-testid=benchmark-results] tbody tr').length,
+      averages:document.querySelectorAll('[data-testid=benchmark-averages] tbody tr').length,
       points:document.querySelectorAll('.recharts-scatter-symbol').length,
     }));
-    const withGap=bench.results.filter(r=>typeof r.gap_percent==='number').length;
+    // A point is plotted only for a gap the artifact marks comparable.
+    const withGap=bench.results.filter(r=>typeof r.gap_percent==='number'&&r.gap_comparable===true).length;
     ok('/benchmarks: no error banner', shown.alerts.length===0, JSON.stringify(shown.alerts));
     ok('/benchmarks: one table row per artifact row', shown.rows===bench.results.length,
        `rows=${shown.rows} artifact=${bench.results.length}`);
-    ok('/benchmarks: one chart point per row with a gap', shown.points===withGap,
+    ok('/benchmarks: one averages row per summary entry', shown.averages===(bench.summary||[]).length,
+       `averages=${shown.averages} summary=${(bench.summary||[]).length}`);
+    ok('/benchmarks: one chart point per row with a comparable gap', shown.points===withGap,
        `points=${shown.points} with gap=${withGap}`);
   }
 

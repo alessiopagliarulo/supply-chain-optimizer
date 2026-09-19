@@ -63,7 +63,8 @@ the index accounts for every file, but skip them on a first read:
 - **[archive/loop-brief.md](archive/loop-brief.md)** — the product brief the
   autonomous loop's agents read before acting.
 - **[archive/AUTONOMOUS-LOOP.md](archive/AUTONOMOUS-LOOP.md)** — how the
-  self-improvement loop runs and what it does while unattended.
+  self-improvement loop runs and what it does while unattended. *(Historical in
+  part: the loop now builds only approved ideas; the workflow headers are current.)*
 - **[archive/ML_API_PUSH_PLAN.md](archive/ML_API_PUSH_PLAN.md)** — *(completed 2026-08; kept as history)* the then-active
   build plan tracking in-progress ML/API work.
 - **[archive/DASHBOARD-CONTRACT.md](archive/DASHBOARD-CONTRACT.md)** — the

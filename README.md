@@ -339,6 +339,9 @@ Three pages plus a landing page, no login:
 - **Benchmarks** (`/benchmarks`) - the committed `docs/benchmark_results.json`, as a
   sortable table and a gap-vs-runtime chart per solver, filterable by instance size, with
   its provenance. Sizes with no published reference show "not published", never a number.
+  SINTEF's 100-customer best known ranks fewest vehicles first, so a distance gap is only
+  shown when the solver used the same number of vehicles; other rows show the vehicle gap
+  and "not comparable".
   The page's reader is tested against the real artifact (`npm test` in `frontend/`).
 
 The lead-time model and resilience code stay in the backend and keep their API
@@ -426,8 +429,9 @@ BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
 # or: npm run build && npx vite preview --port 4173 &  API=http://localhost:8000 npm run ui-gate
 ```
 
-The last full run (2026-09-18, local build against a local API, after the app shrank to
-three pages) was 104 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
+The last full run (2026-09-19, local build against a local API, after the Benchmarks page
+gained its averages table and axe began running at 390px as well as 1440px) was 127 passed,
+0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
 **every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
 checks that every removed sourcing-era path renders the 404 page, and asserts what a human
 would otherwise have to notice:
@@ -619,7 +623,7 @@ who checked it, didn't like what I found, and published the correction instead o
 headline.
 
 There's also an autonomous loop running on a schedule — Scout files proposals, Builder
-opens PRs against them, an independent Auditor reviews each one, and I'm the only one who
+opens PRs against the ones I approve, an independent Auditor reviews each one, and I'm the only one who
 can merge to `main` (see `docs/archive/AUTONOMOUS-LOOP.md`). I keep a running list of that
 loop's own failures as a maintainer note — it is not published here — because early runs failed
 in ways a green checkmark didn't catch: a run that filed zero issues and still reported success,

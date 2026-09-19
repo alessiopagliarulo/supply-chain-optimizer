@@ -2,14 +2,14 @@
  * Reading `docs/benchmark_results.json` (written by backend/scripts/benchmark_solomon.py,
  * served untouched by GET /routing/benchmarks).
  *
- * The shape read here is the script's `schema_version` 2 record, field for field. Nothing
+ * The shape read here is the script's `schema_version` 3 record, field for field. Nothing
  * here fills a gap: a row missing a required field is counted as unreadable and left out,
  * and a value the artifact leaves null (no solution, no published reference, no gap) stays
  * null and renders as such. Null is data, never an error.
  */
 
 /** The artifact schema this reader understands (`schema_version` in the file). */
-export const SUPPORTED_SCHEMA_VERSION = 2;
+export const SUPPORTED_SCHEMA_VERSION = 3;
 
 export interface BenchmarkReference {
   distance: number;
@@ -34,8 +34,19 @@ export interface BenchmarkRow {
   distance: number | null;
   /** Which distance field `gap_percent` was computed on; null without a reference. */
   gap_measured_on: string | null;
-  /** Null when there is no feasible solution or no published reference. */
+  /**
+   * Distance gap in the reference's convention. Null when there is no feasible solution, no
+   * published reference, or the gap is not comparable (see `gap_comparable`).
+   */
   gap_percent: number | null;
+  /**
+   * False when the reference ranks fewest vehicles first (SINTEF, 100 customers) and the solver
+   * used a different number of vehicles: its distance then says nothing about beating the
+   * reference, and `vehicle_gap` is the comparison. Null when there is nothing to compare.
+   */
+  gap_comparable: boolean | null;
+  /** Vehicles used minus the reference's vehicles; null when there is nothing to compare. */
+  vehicle_gap: number | null;
   runtime_seconds: number;
   /** Null when no reference value is published for this instance and size. */
   reference: BenchmarkReference | null;
@@ -60,6 +71,24 @@ export interface BestKnownSource {
   applies_to: number[];
   /** How that table measures distance, which is what each gap is compared in. */
   distance_convention: string | null;
+  /** True when the table ranks fewest vehicles first (SINTEF), false for distance only; null if unrecorded. */
+  ranks_vehicles_first: boolean | null;
+  /** How the table ranks solutions in words; the fallback when `ranks_vehicles_first` is not recorded. */
+  objective: string | null;
+}
+
+/** One `summary` entry: per instance size and solver, the averages the script computed. */
+export interface BenchmarkSummary {
+  num_customers: number;
+  solver: string;
+  runs: number;
+  /** Runs whose distance gap is comparable: the runs `mean_gap_percent` averages. */
+  gap_comparable: number;
+  /** Feasible runs with a published reference that used more / fewer vehicles than it. */
+  more_vehicles_than_reference: number;
+  fewer_vehicles_than_reference: number;
+  /** Mean of the comparable gaps; null when no run was comparable. */
+  mean_gap_percent: number | null;
 }
 
 export interface ParsedBenchmarks {
@@ -69,6 +98,10 @@ export interface ParsedBenchmarks {
   schema_supported: boolean;
   rows: BenchmarkRow[];
   unreadable: number;
+  /** The script's per-size, per-solver averages. */
+  summary: BenchmarkSummary[];
+  /** Summary entries missing a required field, left out of `summary`. */
+  summary_unreadable: number;
   provenance: BenchmarkProvenance;
 }
 
@@ -114,6 +147,8 @@ function parseRow(raw: unknown): BenchmarkRow | null {
     distance: num(raw.distance),
     gap_measured_on: str(raw.gap_measured_on),
     gap_percent: num(raw.gap_percent),
+    gap_comparable: typeof raw.gap_comparable === 'boolean' ? raw.gap_comparable : null,
+    vehicle_gap: num(raw.vehicle_gap),
     runtime_seconds: runtime,
     reference,
   };
@@ -130,7 +165,16 @@ function parseProvenance(provenance: unknown): BenchmarkProvenance {
       const title = isObject(s) ? str(s.title) : null;
       if (!isObject(s) || title === null) return [];
       const sizes = Array.isArray(s.applies_to) ? s.applies_to.map(num).filter((n): n is number => n !== null) : [];
-      return [{ title, applies_to: sizes, distance_convention: str(s.distance_convention) }];
+      const ranks = typeof s.ranks_vehicles_first === 'boolean' ? s.ranks_vehicles_first : null;
+      return [
+        {
+          title,
+          applies_to: sizes,
+          distance_convention: str(s.distance_convention),
+          ranks_vehicles_first: ranks,
+          objective: str(s.objective),
+        },
+      ];
     }),
     time_limit_seconds: num(p.time_limit_seconds),
     generated_at: str(p.generated_at),
@@ -141,10 +185,38 @@ function parseProvenance(provenance: unknown): BenchmarkProvenance {
   };
 }
 
-export function parseBenchmarks(results: unknown[], provenance: unknown, schemaVersion: unknown): ParsedBenchmarks {
+function parseSummary(raw: unknown): BenchmarkSummary | null {
+  if (!isObject(raw)) return null;
+  const numCustomers = num(raw.num_customers);
+  const solver = str(raw.solver);
+  const runs = num(raw.runs);
+  const comparable = num(raw.gap_comparable);
+  const more = num(raw.more_vehicles_than_reference);
+  const fewer = num(raw.fewer_vehicles_than_reference);
+  if (numCustomers === null || solver === null || runs === null || comparable === null || more === null || fewer === null) {
+    return null;
+  }
+  return {
+    num_customers: numCustomers,
+    solver,
+    runs,
+    gap_comparable: comparable,
+    more_vehicles_than_reference: more,
+    fewer_vehicles_than_reference: fewer,
+    mean_gap_percent: num(raw.mean_gap_percent),
+  };
+}
+
+export function parseBenchmarks(
+  results: unknown[],
+  provenance: unknown,
+  schemaVersion: unknown,
+  summary: unknown = [],
+): ParsedBenchmarks {
   const version = num(schemaVersion);
   const rows: BenchmarkRow[] = [];
   let unreadable = 0;
+  const summaryEntries = Array.isArray(summary) ? summary.map(parseSummary) : [];
   for (const raw of results) {
     const row = parseRow(raw);
     if (row) rows.push(row);
@@ -155,14 +227,63 @@ export function parseBenchmarks(results: unknown[], provenance: unknown, schemaV
     schema_supported: version === SUPPORTED_SCHEMA_VERSION,
     rows,
     unreadable,
+    summary: summaryEntries.filter((s): s is BenchmarkSummary => s !== null),
+    summary_unreadable: summaryEntries.filter((s) => s === null).length,
     provenance: parseProvenance(provenance),
   };
 }
 
 export type SortKey = keyof Pick<
   BenchmarkRow,
-  'instance' | 'num_customers' | 'solver' | 'vehicles_used' | 'distance' | 'gap_percent' | 'runtime_seconds' | 'status'
+  | 'instance'
+  | 'num_customers'
+  | 'solver'
+  | 'vehicles_used'
+  | 'vehicle_gap'
+  | 'distance'
+  | 'gap_percent'
+  | 'runtime_seconds'
+  | 'status'
 >;
+
+/** A signed percentage, e.g. "+1.23%" / "-0.50%". */
+export const percentLabel = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+
+/**
+ * Whether a row's distance gap may be shown as a number: the artifact computed it AND marked it
+ * comparable. The table and the chart both use this, so a gap the page will not print as a number
+ * is never plotted either. A row from an older artifact with no `gap_comparable` fails it.
+ */
+export const hasComparableGap = (row: BenchmarkRow): row is BenchmarkRow & { gap_percent: number } =>
+  row.gap_percent !== null && row.gap_comparable === true;
+
+/**
+ * The gap cell: the distance gap when it is comparable, "not comparable" when the solver used a
+ * different number of vehicles than a vehicles-first reference, and a dash otherwise. A distance
+ * gap from a different fleet size is never shown as a number.
+ */
+export function gapLabel(row: BenchmarkRow): string {
+  if (hasComparableGap(row)) return percentLabel(row.gap_percent);
+  return row.gap_comparable === false ? 'not comparable' : '-';
+}
+
+/** The vehicles-vs-reference cell: "same", "+4", "-1", or a dash when there is nothing to compare. */
+export function vehicleGapLabel(row: BenchmarkRow): string {
+  if (row.vehicle_gap === null) return '-';
+  if (row.vehicle_gap === 0) return 'same';
+  return `${row.vehicle_gap > 0 ? '+' : ''}${row.vehicle_gap}`;
+}
+
+/** True when a reference table ranks fewest vehicles first, as the SINTEF best known does. */
+export const ranksVehiclesFirst = (source: BestKnownSource) =>
+  source.ranks_vehicles_first ?? source.objective?.startsWith('hierarchical') ?? false;
+
+/** Sizes as a suspended-hyphen list for "<list>-customer": "100", "25- and 50", "25-, 50- and 100". */
+export function sizesLabel(sizes: number[]): string {
+  const sorted = [...new Set(sizes)].sort((a, b) => a - b).map(String);
+  if (sorted.length <= 1) return sorted.join('');
+  return `${sorted.slice(0, -1).join('-, ')}- and ${sorted[sorted.length - 1]}`;
+}
 
 /** Sorts a copy. Nulls always sort last, whichever the direction. */
 export function sortRows(rows: BenchmarkRow[], key: SortKey, ascending: boolean): BenchmarkRow[] {

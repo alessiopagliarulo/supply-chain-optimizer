@@ -1,6 +1,7 @@
 name: Claude — Auditor (adversarial PR review)
 
-# Every PR is torn apart by an INDEPENDENT agent before the owner ever sees it.
+# Every loop PR (`claude/` branches) is torn apart by an INDEPENDENT agent before the
+# owner ever sees it.
 # This is where tokens are deliberately spent: five parallel reviewers, each with a
 # different lens, then a verification pass that throws out anything unsubstantiated.
 # Goal: the owner should only ever be handed PRs that are actually safe to merge.
@@ -28,6 +29,13 @@ concurrency:
 
 jobs:
   audit:
+    # ONLY THE LOOP'S OWN PRs. The owner's direction (2026-09-19): changes he makes by
+    # hand in Claude Code are just pushed - they do not go through the loop, and they do
+    # not spend his Claude usage on an audit. Only AI-drafted work, which lives on
+    # `claude/` branches, is audited automatically; every other branch (his own, `fm/`,
+    # anything else) gets plain CI only. A job-level `if`, so a skipped audit shows as
+    # skipped, never red. A manual run from the Actions tab still audits any PR.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
