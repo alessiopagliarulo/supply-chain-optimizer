@@ -143,18 +143,24 @@ export function docText(doc) {
 }
 
 /**
- * Issue numbers a PR, branch or commit deliberately points at. Only the forms people
- * use on purpose count — "closes #12", "refs #12", "issue #12", an `/issues/12` link,
- * an `issue-12` branch segment — never a bare "#2", which is as often "step #2" as
- * it is an issue, and a false reference would flag an idea covered by unrelated work.
+ * Issue numbers in `repo` ("owner/name") that a PR, branch or commit deliberately
+ * points at. Only the forms people use on purpose count: GitHub's closing keywords
+ * ("closes #12", "fixes #12", "resolves #12"), "refs #12" / "references #12", either
+ * of those followed by a link to an issue IN THIS REPO, and an `issue-12` branch
+ * segment. Never a passing mention - "see #12", "issue #12 will...", "part of #12",
+ * "for #12" - and never a bare "#2" or another repo's issue link: a false reference
+ * flags an idea covered by unrelated work, and a covered idea is never built.
  */
-export function referencedIssues(...texts) {
+export function referencedIssues(repo, ...texts) {
   const out = new Set();
+  const slug = String(repo ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const target = slug
+    ? `(?:#(\\d+)|${slug}#(\\d+)|https?:\\/\\/github\\.com\\/${slug}\\/issues\\/(\\d+))`
+    : "#(\\d+)";
+  const keyword = new RegExp(`\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references)\\s*:?\\s*${target}\\b`, "gi");
   for (const text of texts) {
     const s = String(text ?? "");
-    const keyword = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references|see|issue|idea|part of|towards?|for)\s*:?\s*#(\d+)\b/gi;
-    for (const m of s.matchAll(keyword)) out.add(Number(m[1]));
-    for (const m of s.matchAll(/github\.com\/[\w.-]+\/[\w.-]+\/issues\/(\d+)\b/gi)) out.add(Number(m[1]));
+    for (const m of s.matchAll(keyword)) out.add(Number(m[1] ?? m[2] ?? m[3]));
     for (const m of s.matchAll(/(?:^|[/_-])issue-(\d+)(?=-|$|\/)/gi)) out.add(Number(m[1]));
   }
   return [...out];
@@ -218,7 +224,7 @@ export function collect({ repo, lookbackDays = DEFAULT_LOOKBACK_DAYS, now = new 
 
   const openPrs = json("open pull requests", [
     "pr", "list", "--repo", repo, "--state", "open", "--limit", "200",
-    "--json", "number,title,url,isDraft,headRefName,author,updatedAt,body",
+    "--json", "number,title,url,isDraft,headRefName,author,updatedAt,body,isCrossRepository",
   ], []).map((p) => ({
     kind: "pr",
     number: p.number,
@@ -229,14 +235,15 @@ export function collect({ repo, lookbackDays = DEFAULT_LOOKBACK_DAYS, now = new 
     branch: p.headRefName ?? "",
     author: p.author?.login ?? "",
     loop: isLoopAuthor(p.author?.login),
+    fork: !!p.isCrossRepository,
     date: p.updatedAt ?? null,
-    refs: referencedIssues(p.title, p.body, p.headRefName),
+    refs: referencedIssues(repo, p.title, p.body, p.headRefName),
   }));
 
   const mergedPrs = json("merged pull requests", [
     "pr", "list", "--repo", repo, "--state", "merged", "--limit", "100",
     "--search", `merged:>=${isoDay(sinceIso)}`,
-    "--json", "number,title,url,headRefName,author,mergedAt,body",
+    "--json", "number,title,url,headRefName,author,mergedAt,body,isCrossRepository",
   ], [])
     .filter((p) => !p.mergedAt || Date.parse(p.mergedAt) >= since.getTime())
     .map((p) => ({
@@ -248,8 +255,9 @@ export function collect({ repo, lookbackDays = DEFAULT_LOOKBACK_DAYS, now = new 
       branch: p.headRefName ?? "",
       author: p.author?.login ?? "",
       loop: isLoopAuthor(p.author?.login),
+      fork: !!p.isCrossRepository,
       date: p.mergedAt ?? null,
-      refs: referencedIssues(p.title, p.body, p.headRefName),
+      refs: referencedIssues(repo, p.title, p.body, p.headRefName),
     }));
 
   const commits = json("recent commits", [
@@ -267,7 +275,7 @@ export function collect({ repo, lookbackDays = DEFAULT_LOOKBACK_DAYS, now = new 
         author: c.commit?.author?.name ?? c.author?.login ?? "",
         loop: isLoopAuthor(who),
         date: c.commit?.author?.date ?? null,
-        refs: referencedIssues(message),
+        refs: referencedIssues(repo, message),
       };
     });
 
@@ -303,7 +311,7 @@ export function collect({ repo, lookbackDays = DEFAULT_LOOKBACK_DAYS, now = new 
       headline: n.target?.messageHeadline ?? "",
       ahead: null,
       files: [],
-      refs: referencedIssues(n.name, n.target?.messageHeadline),
+      refs: referencedIssues(repo, n.name, n.target?.messageHeadline),
     };
     if (i < MAX_BRANCHES_DETAILED) {
       const cmp = json(`compare ${n.name}`, [
@@ -313,7 +321,7 @@ export function collect({ repo, lookbackDays = DEFAULT_LOOKBACK_DAYS, now = new 
       if (cmp) {
         branch.ahead = typeof cmp.ahead === "number" ? cmp.ahead : null;
         branch.files = Array.isArray(cmp.files) ? cmp.files : [];
-        branch.refs = [...new Set([...branch.refs, ...referencedIssues(...(cmp.messages ?? []))])];
+        branch.refs = [...new Set([...branch.refs, ...referencedIssues(repo, ...(cmp.messages ?? []))])];
       }
     }
     // Zero commits ahead means it is already merged (or never diverged): not in flight.
@@ -439,7 +447,7 @@ export function explicitCovers(target, data) {
   const work = [...data.openPrs, ...data.branches, ...data.mergedPrs, ...data.commits];
   const seen = new Set();
   return work
-    .filter((w) => !w.loop && (w.refs ?? []).includes(target.number))
+    .filter((w) => !w.loop && !w.fork && (w.refs ?? []).includes(target.number))
     .filter((w) => (seen.has(w.url) ? false : (seen.add(w.url), true)))
     .map((w) => ({ item: w, score: null }));
 }
@@ -453,7 +461,8 @@ export function explicitCovers(target, data) {
  * Anything that names the issue itself is left to `explicitCovers`.
  */
 export function coverageCandidates(target, data, mode) {
-  const prs = [...data.openPrs, ...data.mergedPrs].filter((p) => !(p.refs ?? []).includes(target.number));
+  // A PR from a fork is anyone on GitHub; it never covers the owner's idea.
+  const prs = [...data.openPrs, ...data.mergedPrs].filter((p) => !p.fork && !(p.refs ?? []).includes(target.number));
   if (mode === "build") return prs;
   const olderIdeas = data.ideas.filter((i) => i.number < target.number);
   return [...olderIdeas, ...prs];

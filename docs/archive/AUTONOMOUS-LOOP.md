@@ -6,6 +6,7 @@
 > admin or maintainer labels `approved`, and there is no overnight cap lift. The
 > Scout, Redraft agent and Builder also skip ideas already covered by open or draft
 > PRs, recently pushed branches, recent merges and earlier ideas (label `covered`).
+> The Auditor reviews only the loop's own `claude/` PRs; hand-made changes get plain CI.
 > The workflow headers in `.github/workflows/claude-*.yml` and
 > [`DASHBOARD-CONTRACT.md`](DASHBOARD-CONTRACT.md) are the current source of truth.
 
@@ -17,7 +18,7 @@ How this repo improves itself while the computer is off, and what you do from yo
 |---|---|---|
 | **Scout** | Every hour | Researches the market and the codebase. Files issues labeled `proposal`. Stops at 8 open; never writes code. |
 | **Builder** | When you label an issue `approved` (every 30 minutes as a backstop) | Builds one approved issue and opens one pull request - but only if your review queue has room. |
-| **Auditor** | Every pull request | An independent agent attacks the PR from five angles and posts a verdict before you read it. |
+| **Auditor** | Every loop pull request (`claude/` branches; the owner's own branches get plain CI only) | An independent agent attacks the PR from five angles and posts a verdict before you read it. |
 | **Metrics** | Daily 7am | Recomputes `metrics/loop-metrics.json` from what actually merged, plus a local-only phone-readable summary. No agent, no tokens. |
 | **Retro** | Sundays 6pm | Reads the week's real outcomes and proposes fixes to the loop itself. |
 | **@claude** | Whenever you type it | Comment `@claude do X` on any issue or PR and an agent picks it up. |

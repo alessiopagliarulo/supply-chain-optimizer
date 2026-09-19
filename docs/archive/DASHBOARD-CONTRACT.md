@@ -218,6 +218,14 @@ the file did not exist.
 | `scout.lenses`           | `[]`    | `claude-scout`     | Array of strings. Overrides the built-in rotating research angles; empty ⇒ 3 of 8 rotate per run.        |
 | `scout.maxPerRun`        | `3`     | `claude-scout`     | Hard cap on issues one Scout run may file, even when the shelf has more room.                           |
 | `inFlight.lookbackDays`  | `14`    | Scout, Redraft, Builder | How far back "recent" reaches: branches pushed, PRs merged and commits landed in this many days count as work in flight (1–90). See §8. |
+| `aiProvider`             | `"subscription"` | Builder, Redraft | `"subscription"` or `"bedrock"`. Where the agents' inference runs. Bedrock needs AWS setup first ([loop-dashboard docs/bedrock-setup.md](https://github.com/alessiopagliarulo/loop-dashboard/blob/14fd437/docs/bedrock-setup.md)). |
+| `bedrockRegion`          | `"us-west-2"` | Builder, Redraft, Scout | AWS region for Bedrock mode. Ignored on `"subscription"`. |
+| `scout.aiProvider`       | `"subscription"` | `claude-scout` | The Scout's own switch. It does NOT follow `aiProvider`, because Bedrock has no WebSearch. |
+| `scout.staleCheck.enabled` | `false` | `claude-scout` | Turns on the stale-approval check job: flags approved ideas the code has overtaken (label `stale` + a comment). Off unless set. |
+| `scout.staleCheck.intervalHours` | `24` | `claude-scout` | How often, at most, the stale-approval check runs inside the hourly Scout. |
+
+`scripts/validate-loop-config.sh` (run by `.github/workflows/loop-config.yml`) fails on a
+malformed file or a wrong type for any key above; an unknown top-level key only warns.
 
 The Scout gate prints one line per run saying which of these it actually loaded, or why it
 fell back to defaults — check the run log there before assuming a setting was ignored.

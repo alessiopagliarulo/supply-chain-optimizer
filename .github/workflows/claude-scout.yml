@@ -97,7 +97,7 @@ jobs:
       # until watched on a real Bedrock run, per plan risk R1. Do not assume it.
       #
       # Set `{ "scout": { "aiProvider": "bedrock" } }` in .github/loop-config.json only
-      # once you have accepted that tradeoff. See docs/bedrock-setup.md.
+      # once you have accepted that tradeoff. See loop-dashboard docs/bedrock-setup.md.
       - name: Resolve AI provider
         id: ai
         run: |
@@ -259,15 +259,23 @@ jobs:
           # ── Shelf size ────────────────────────────────────────────────────────────
           # --limit 200 on EVERY list: gh silently truncates at 30, which made every cap
           # above 30 unenforceable and told the Scout it had thousands of free slots.
-          pool=$(gh issue list --state open --label proposal --limit 200 --json number --jq 'length')
+          #
+          # Ideas labelled `covered` are left out of all three counts below, exactly as the
+          # Builder leaves them out: they are waiting on the owner's one-tap decline, not
+          # on triage, and nothing removes the label automatically. Counting them here
+          # would let a couple of flagged ideas fill the shelf (or age past 7 days) and
+          # stand the Scout down for good while every run stays green.
+          pool=$(gh issue list --state open --label proposal --limit 200 --json number,labels \
+            --jq '[.[] | select((.labels | map(.name) | index("covered")) == null)] | length')
           case "$pool" in ''|*[!0-9]*) pool=0 ;; esac
 
           # ── Triage throughput ─────────────────────────────────────────────────────
-          approved_count=$(gh issue list --state open --label approved --limit 200 --json number --jq 'length')
+          approved_count=$(gh issue list --state open --label approved --limit 200 --json number,labels \
+            --jq '[.[] | select((.labels | map(.name) | index("covered")) == null)] | length')
           case "$approved_count" in ''|*[!0-9]*) approved_count=0 ;; esac
 
-          oldest_created=$(gh issue list --state open --label proposal --limit 200 --json createdAt \
-            --jq '[.[].createdAt] | sort | .[0] // empty' 2>/dev/null || true)
+          oldest_created=$(gh issue list --state open --label proposal --limit 200 --json createdAt,labels \
+            --jq '[.[] | select((.labels | map(.name) | index("covered")) == null) | .createdAt] | sort | .[0] // empty' 2>/dev/null || true)
           oldest_days=0
           if [ -n "$oldest_created" ]; then
             # GNU date on the runner; the BSD form is a fallback so this block can also
@@ -702,7 +710,7 @@ jobs:
                The workflow reads this line. A run that files nothing and has no `none` line
                is treated as a crash, and the run fails.
 
-      # BEDROCK MODE — opt-in only, see docs/bedrock-setup.md and the "Resolve AI provider"
+      # BEDROCK MODE — opt-in only, see loop-dashboard docs/bedrock-setup.md and the "Resolve AI provider"
       # step above for why the Scout defaults away from this path.
       - name: Configure AWS credentials (OIDC) for Bedrock
         if: steps.gate.outputs.go == 'true' && steps.ai.outputs.use_bedrock == 'true'
@@ -838,12 +846,23 @@ jobs:
           if [ "$subtype" != "success" ] || [ "$is_error" = "true" ]; then
             fail "the agent session ended badly (subtype '$subtype', is_error $is_error)."
           fi
-          decision=$(jq -r '.result // ""' <<<"$result" | tr -d '\r' | grep -E '^[[:space:]*`]*SCOUT-DECISION:' | tail -n 1 || true)
-          # Any separator after `none` (models write -, :, or a long dash); markdown
-          # emphasis around the line is stripped. An empty reason does not count.
-          reason=$(sed -nE 's/^[[:space:]*`]*SCOUT-DECISION:[[:space:]]*none[^[:alnum:]]+//p' <<<"$decision" | sed -E 's/[[:space:]*`]+$//')
+          # The decision line, matched case-insensitively (a model writes "None" as
+          # readily as "none"), with markdown emphasis, code ticks or a blockquote
+          # marker around it stripped.
+          decision=$(jq -r '.result // ""' <<<"$result" | tr -d '\r' | tr '[:upper:]' '[:lower:]' \
+            | grep -E '^[[:space:]*`>]*scout-decision:' | tail -n 1 || true)
+          body=$(sed -E 's/^[[:space:]*`>]*scout-decision:[[:space:]]*//; s/[[:space:]*`]+$//' <<<"$decision")
+          reason=""
+          case "$body" in
+            # `filed 0` is the prompt's own grammar for filing nothing.
+            "filed 0" | "filed 0 "* | "filed 0-"* | "filed 0:"* | "filed 0,"* | "filed 0."*)
+              reason="filed 0$(sed -E 's/^filed 0[^[:alnum:]]*/: /; s/^: $//' <<<"$body")" ;;
+            # Any separator after `none` (-, :, or a long dash). An empty reason does not count.
+            none*)
+              reason=$(sed -nE 's/^none[^[:alnum:]]+//p' <<<"$body") ;;
+          esac
           if [ -z "$reason" ]; then
-            fail "its final message has no 'SCOUT-DECISION: none - <reason>' line (got: '${decision:-nothing}')."
+            fail "its final message has no 'SCOUT-DECISION: none - <reason>' (or 'filed 0') line (got: '${decision:-nothing}')."
           fi
           echo "::notice::Scout deliberately filed nothing this run: $reason"
 

@@ -142,7 +142,7 @@ jobs:
       # file, missing field, or an unrecognized value all fall back to "subscription" —
       # today's behaviour. "bedrock" runs this agent's inference on AWS Bedrock in the
       # CUSTOMER's own AWS account via GitHub OIDC → an IAM role. See
-      # docs/bedrock-setup.md for the customer-side AWS setup this depends on.
+      # loop-dashboard docs/bedrock-setup.md for the customer-side AWS setup this depends on.
       - name: Resolve AI provider
         id: ai
         run: |
@@ -322,7 +322,7 @@ jobs:
             idea silently drops out of the queue and the owner never sees it again.
 
       # BEDROCK MODE — opt-in via .github/loop-config.json → "aiProvider": "bedrock".
-      # See docs/bedrock-setup.md for the customer-side AWS setup this depends on.
+      # See loop-dashboard docs/bedrock-setup.md for the customer-side AWS setup this depends on.
       - name: Configure AWS credentials (OIDC) for Bedrock
         if: steps.ai.outputs.use_bedrock == 'true'
         uses: aws-actions/configure-aws-credentials@v4

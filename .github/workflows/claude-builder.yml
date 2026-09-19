@@ -51,8 +51,9 @@ jobs:
   # `contents: write` and `pull-requests: write`. Before this gate it fired on the
   # label NAME alone, so anyone who could add a label could start a build. Same
   # fail-closed check as claude-redraft.yml's `authorize` job:
-  #   • schedule / workflow_dispatch - pass (the schedule runs the default branch's
-  #     own workflow; GitHub already restricts workflow_dispatch to write access);
+  #   • schedule / workflow_dispatch - pass here; the queue gate in `build` then
+  #     re-checks who applied `approved` on every candidate issue, so a label added
+  #     by anyone else is never built on the schedule either;
   #   • the `approved` label - ONLY when someone with ADMIN or MAINTAIN permission on
   #     this repository added it. A bot/App identity, or a permission that cannot be
   #     read, is refused. Refusal skips the build; it never turns the run red.
@@ -85,7 +86,7 @@ jobs:
           # App identity) is not a person we can check, so it is not authorized.
           case "$SENDER" in
             '' | *[!A-Za-z0-9-]*)
-              echo "::notice::The \`approved\` label was added by '$SENDER', which is not a plain user account (App and bot identities cannot be permission-checked). Not building. The 30-minute backstop, or a manual run from the Actions tab, will pick up the approved issue."
+              echo "::notice::The \`approved\` label was added by '$SENDER', which is not a plain user account (App and bot identities cannot be permission-checked). Not building. The scheduled backstop checks who applied the label too, so this approval will not be built until a repository admin or maintainer re-applies it."
               echo "ok=false" >> "$GITHUB_OUTPUT"
               exit 0
               ;;
@@ -99,7 +100,7 @@ jobs:
               echo "ok=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "::notice::Ignoring the \`approved\` label added by '$SENDER' (permission: ${perm:-none, or not readable}). Only repository admins and maintainers can start a build. Re-run this workflow manually from the Actions tab if this was intentional."
+              echo "::notice::Ignoring the \`approved\` label added by '$SENDER' (permission: ${perm:-none, or not readable}). Only an approval by a repository admin or maintainer starts a build, on the label event and on the schedule alike."
               echo "ok=false" >> "$GITHUB_OUTPUT"
               ;;
           esac
@@ -131,6 +132,16 @@ jobs:
           if [ "$cap" = "unlimited" ] || [ "$cap" = "null" ] || [ -z "$cap" ]; then
             cap=999999
           fi
+          # A cap that is not a whole number (3.7, -5, "3") would make the `-ge` test
+          # below error out and fall through to the PERMISSIVE branch, silently turning
+          # the cap off. Fall back to the safe default instead, and say so. ("unlimited"
+          # was mapped to 999999 above, so it passes.)
+          case "$cap" in
+            '' | *[!0-9]*)
+              echo "::warning::prCap '$cap' in .github/loop-config.json is not a whole number - using the default of 3."
+              cap=3
+              ;;
+          esac
           autonomous=$(jq -r '.autonomousBuildEnabled // false' .github/loop-config.json 2>/dev/null || echo false)
           [ "$autonomous" = "true" ] || autonomous=false
           echo "Review-queue cap: $cap | Autonomous build: $autonomous"
@@ -143,7 +154,7 @@ jobs:
       # today's behaviour — so a repo that hasn't opted in is completely unaffected.
       # "bedrock" runs this agent's inference on AWS Bedrock in the CUSTOMER's own AWS
       # account via GitHub OIDC → an IAM role, instead of the owner's Claude subscription.
-      # See docs/bedrock-setup.md for what the customer has to set up first. (The Scout
+      # See loop-dashboard docs/bedrock-setup.md for what the customer has to set up first. (The Scout
       # is the one exception — it reads its own scout.aiProvider key and defaults away
       # from Bedrock even when this project-wide key is "bedrock", because Bedrock has
       # no WebSearch tool; see claude-scout.yml for why.)
@@ -226,8 +237,47 @@ jobs:
 
           # `covered` ideas are not buildable: existing work already seems to do them.
           # They stay approved (the owner decides), but they do not count as work here.
-          approved=$(gh issue list --state open --label approved --limit 200 --json number,labels \
-            --jq '[.[] | select((.labels | map(.name) | index("covered")) == null)] | length')
+          # WHO APPROVED IT. The `authorize` job checks the labeller on a label event, but
+          # the 30-minute schedule and manual runs pick up any open `approved` issue. So
+          # every candidate is checked here too: the most recent `approved` label on it
+          # must have been added by a repository admin or maintainer. Anything else
+          # (triage-only collaborator, bot/App identity, unreadable history) is left
+          # alone and listed as off limits. Fail closed, never red.
+          approved_list=$(gh issue list --state open --label approved --limit 200 --json number,labels \
+            --jq '[.[] | select((.labels | map(.name) | index("covered")) == null) | .number] | join(" ")' 2>/dev/null || true)
+          authorized=""
+          unauthorized=""
+          checked_logins=""
+          for n in $approved_list; do
+            who=$(gh api "repos/$REPO/issues/$n/events" --paginate \
+              --jq '.[] | select(.event == "labeled" and .label.name == "approved") | .actor.login' 2>/dev/null | tail -n 1)
+            perm=""
+            case "$who" in
+              '' | *[!A-Za-z0-9-]*) ;;
+              *)
+                perm=$(printf '%s\n' $checked_logins | sed -n "s/^$who=//p" | head -n 1)
+                if [ -z "$perm" ]; then
+                  perm=$(gh api "repos/$REPO/collaborators/$who/permission" --jq '.permission' 2>/dev/null || true)
+                  [ -n "$perm" ] || perm=none
+                  checked_logins="$checked_logins $who=$perm"
+                fi
+                ;;
+            esac
+            case "$perm" in
+              admin | maintain) authorized="$authorized $n" ;;
+              *)
+                unauthorized="$unauthorized #$n"
+                echo "::notice::#$n is labelled approved, but by '${who:-(unknown)}' (permission: ${perm:-not checkable}). Only a repository admin or maintainer's approval starts a build - leaving it alone."
+                ;;
+            esac
+          done
+          approved=$(echo $authorized | wc -w | tr -d ' ')
+          authorized_csv=$(echo $authorized | tr ' ' ',')
+          unauthorized_ideas=$(echo $unauthorized | sed 's/ /, /g')
+          [ -z "$unauthorized_ideas" ] && unauthorized_ideas="(none)"
+          echo "Approved by an admin/maintainer: ${authorized_csv:-(none)} | approved by anyone else: $unauthorized_ideas"
+          echo "authorized=$authorized_csv" >> "$GITHUB_OUTPUT"
+          echo "unauthorized_ideas=$unauthorized_ideas" >> "$GITHUB_OUTPUT"
           proposals=$(gh issue list --state open --label proposal --limit 200 --json number,labels \
             --jq '[.[] | select((.labels | map(.name) | index("covered")) == null)] | length')
           case "$approved" in ''|*[!0-9]*) approved=0 ;; esac
@@ -354,11 +404,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTONOMOUS: ${{ steps.config.outputs.autonomous }}
+          # Only ideas an admin or maintainer approved (see the gate); the rest are off limits anyway.
+          AUTHORIZED: ${{ steps.gate.outputs.authorized }}
         run: |
           file="$RUNNER_TEMP/inflight.json"
           if [ -f scripts/loop-inflight.mjs ] && [ -f "$file" ]; then
-            targets=$(gh issue list --state open --label approved --limit 200 --json number,labels \
-              --jq '[.[] | select((.labels | map(.name) | index("covered")) == null) | .number] | join(",")' 2>/dev/null || true)
+            targets="$AUTHORIZED"
             if [ -n "$targets" ]; then
               LOOP_EMBED_DIR="$RUNNER_TEMP/loop-embed" \
                 node scripts/loop-inflight.mjs check --in "$file" --issues "$targets" --mode build || true
@@ -371,8 +422,9 @@ jobs:
 
           # Did that leave anything to build? Re-read the labels rather than trusting
           # the script's own report — this is what the agent will actually see.
-          remaining=$(gh issue list --state open --label approved --limit 200 --json number,labels \
-            --jq '[.[] | select((.labels | map(.name) | index("covered")) == null)] | length' 2>/dev/null || echo 1)
+          remaining=$(gh issue list --state open --label approved --limit 200 --json number,labels 2>/dev/null \
+            | jq --arg ok ",$AUTHORIZED," '[.[] | select((.labels | map(.name) | index("covered")) == null)
+                                           | select($ok | contains(",\(.number),"))] | length' 2>/dev/null || echo 1)
           case "$remaining" in ''|*[!0-9]*) remaining=1 ;; esac
           covered_now=$(gh issue list --state open --label covered --limit 200 --json number \
             --jq '[.[].number | "#\(.)"] | join(", ")' 2>/dev/null || true)
@@ -442,6 +494,12 @@ jobs:
 
             They are OFF LIMITS too, whatever other label they carry. The owner removes the
             `covered` label if he still wants one built; until then, leave it alone.
+
+            These issues carry `approved`, but the label was NOT added by a repository admin
+            or maintainer, so they are not approved by the owner:
+                ${{ steps.gate.outputs.unauthorized_ideas }}
+
+            They are OFF LIMITS as well. Only the owner's approval starts a build.
 
             This happened for real on 2026-07-14: two Builder runs both picked issue #15, both
             spent fourteen minutes, and produced two pull requests for one feature. The owner
@@ -577,7 +635,7 @@ jobs:
             not watch pass.
 
       # BEDROCK MODE — opt-in via .github/loop-config.json → "aiProvider": "bedrock".
-      # See docs/bedrock-setup.md for the customer-side AWS setup this depends on.
+      # See loop-dashboard docs/bedrock-setup.md for the customer-side AWS setup this depends on.
       - name: Configure AWS credentials (OIDC) for Bedrock
         if: steps.gate.outputs.go == 'true' && steps.coverage.outputs.proceed != 'false' && steps.ai.outputs.use_bedrock == 'true'
         uses: aws-actions/configure-aws-credentials@v4
