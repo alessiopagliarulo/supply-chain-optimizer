@@ -9,7 +9,7 @@
       "Restore and combine archived pieces from archive/sourcing-v1 one at a time, each with tests and wired into the routing flow: component data, distributor locations with real coordinates, map components, resilience/disruption work (for the Digital Twin), lead-time and demand forecasting - skipping the pieces already in flight (Benchmarks page fix, component and distributor data)",
       "The front door describes the combined product with the routing benchmark among its headline results, and does not present pages that are not live yet as if they were",
       "Publish the Solomon benchmark from docs/benchmark_results.json, always against its best-known baseline, and name its weak spots (OR-Tools feasible on only 49 of 56 100-customer cases; CP-SAT's mean gap grows with instance size)",
-      "Make the guards run where they gate: ci.yml still passes -m \"not slow\", so the CI run the deploy waits on never runs the slow artifact pins; repo-tests.yml runs them (PR 20) but does not gate deploy",
+      "Make the guards run where they gate: ci.yml still passes -m \"not slow\", so the CI run the deploy waits on never runs the slow artifact pins; repo-tests.yml runs them (PR 20) but does not gate deploy. This, and any other change under .github/workflows/, may be proposed but not built by the loop: GitHub refuses to let the loop change workflow files, so the proposal says it needs a workflow change and is left for the owner's crew",
       "Fix anything broken on the live flow first, then new ideas that let an OR/logistics/supply-chain recruiter try the strongest true result on real data",
       "A proposal that would move a still-published resume figure (Brier 0.393, rank 1.66) is allowed, but its title starts with [resume-figure] and its body has a before/after table"
     ],
@@ -20,7 +20,6 @@
       "Claims on the do-not-claim lists, or any percentage without its baseline",
       "A blanket revert of the strip-down; restore archived pieces one at a time, each with tests",
       "Loop machinery: claude-*.yml, loop-metrics, .github/loop-config.json, the docs/archive/loop-brief.md path",
-      "Files under .github/workflows/: the loop cannot change them (GitHub refuses the App), so a proposal that needs a workflow change says so and is left for the owner's crew rather than built by the loop",
       "Hosting or plan changes, an AWS move, spending money, credentials, key rotation, git history rewrites; never put a secret or key prefix in an issue",
       "CLAUDE.md, LEARNINGS.md, .claude/, docs/handoffs/; LICENSE text and the CC-BY-4.0 attribution"
     ],

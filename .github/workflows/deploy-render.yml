@@ -26,7 +26,9 @@ name: Deploy to Render
 #
 # Deploys remain fully automatic on green. Nothing here needs a human.
 # `workflow_dispatch` stays as the manual override for a deliberate
-# deploy-anyway (it skips the gate — that is the point of an override).
+# deploy-anyway (it skips the gate — that is the point of an override). It
+# deploys the commit it was dispatched at, and only from main, so the override
+# can redeploy main but cannot ship an unmerged branch.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -42,12 +44,18 @@ jobs:
   deploy:
     name: Trigger Render deploys (only on green CI)
     runs-on: ubuntu-latest
-    # A failed / cancelled CI run must not reach the deploy steps at all.
-    # Manual dispatch has no workflow_run payload, so the second clause lets it
-    # through.
+    # A failed / cancelled CI run must not reach the deploy steps at all. Nor
+    # may a pull request's CI run: `branches: [main]` matches the triggering
+    # run's head branch, which a PR (from a fork especially) can also call
+    # "main", and the deploy below names that run's commit to Render. CI's
+    # push, schedule and collector-triggered runs on main all still deploy.
+    # Manual dispatch has no workflow_run payload; it is allowed from main only.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       github.event.workflow_run.event != 'pull_request_target' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
 
     steps:
       # The commit under test. For workflow_dispatch there is no upstream run,
@@ -106,88 +114,41 @@ jobs:
             sleep 20
           done
 
-      # DEPLOY THE COMMIT WE GATED - NOT WHATEVER IS NEWEST ON main.
+      # DEPLOY THE COMMIT WE GATED - NOT WHATEVER IS NEWEST ON main (issue #5).
       #
-      # These two steps used to POST `-d '{}'`. Render's create-deploy API
-      # documents `commitId` as "the SHA of a specific Git commit to deploy…
-      # Defaults to the latest commit on the service's connected branch", so an
-      # empty body is a request for the BRANCH TIP. Everything above - resolving
-      # the SHA, polling Model CI for that exact SHA, refusing on an absent or
-      # unfinished verdict - was therefore thrown away two steps later: the poll
-      # can wait up to 15 minutes, and the tip can move inside that window. The
-      # workflow could verify commit A and ship commit B, whose gates never ran.
-      # That is the same "no result is not a good result" bug class this file's
-      # own header is about, reintroduced below the defence it describes.
+      # These steps used to POST an empty body, which Render reads as "deploy the
+      # latest commit on the connected branch": the SHA gated above was thrown
+      # away, and while the Model CI poll waited (up to 15 minutes) main's tip
+      # could move to a commit whose gates never ran.
       #
-      # `$SHA` is bound to `steps.commit.outputs.sha` - the SAME output the Model
-      # CI gate polled on, not `github.sha` recomputed independently, which would
-      # quietly reopen the hole. `test_deploy_pins_the_gated_commit.py` asserts
-      # that binding rather than trusting this comment.
+      # Both steps now run .github/scripts/render-deploy.sh, which sends
+      # {"commitId": "$SHA"}, prints Render's deploy id and reported commit, and
+      # goes red unless Render positively names the gated commit (a refusal, a
+      # different commit, or no commit at all). `SHA` is bound to
+      # steps.commit.outputs.sha, the SAME output the gate polled on, never
+      # github.sha recomputed on its own. The script's header documents each
+      # Render reply; test_deploy_pins_the_gated_commit.py runs the script
+      # against each one and checks the binding.
       #
-      # The response is no longer discarded either. `curl -sf` failed the step on
-      # an HTTP error but swallowed Render's explanation along with the deploy id,
-      # so the log could not say WHICH build it started. Now the body is captured:
-      # the deploy id is printed, Render's own error text survives a failure, and
-      # if Render reports building a commit other than the gated one, the step
-      # goes red instead of leaving a green tick over an unverified release.
+      # The script is read from the gated commit itself, not from main's tip.
+      - name: Check out the deploy script at the gated commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.commit.outputs.sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
       - name: Trigger backend deploy (supply-chain-api)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           SHA: ${{ steps.commit.outputs.sha }}
-          SERVICE_ID: srv-d98ru31o3t8c73ed9dig
-        run: |
-          set -euo pipefail
-          response="$(mktemp)"
-          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg sha "$SHA" '{commitId: $sha}')")"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            echo "::error::Render refused the $SERVICE_ID deploy (HTTP $code): $(cat "$response")"
-            exit 1
-          fi
-          if [ "$code" = "202" ]; then
-            # Render answers 202 with an empty body when it queues the deploy
-            # behind one already in progress. The commitId above still pins it;
-            # there is just no deploy id or commit to report back yet.
-            echo "Render queued a deploy of $SHA for $SERVICE_ID (HTTP 202, no deploy id returned while queued)"
-            exit 0
-          fi
-          built="$(jq -r '.commit.id // empty' "$response")"
-          echo "Render deploy $(jq -r '.id // "<no id in response>"' "$response") for $SERVICE_ID, building commit ${built:-<unreported>} (gated: $SHA)"
-          if [ -n "$built" ] && [ "$built" != "$SHA" ]; then
-            echo "::error::Render queued commit $built for $SERVICE_ID, but the commit this run gated is $SHA. An unverified commit is being deployed."
-            exit 1
-          fi
+        run: bash .github/scripts/render-deploy.sh srv-d98ru31o3t8c73ed9dig supply-chain-api
 
+      # Deliberately not `if: always()`: when the backend deploy is refused or
+      # cannot be confirmed as the gated commit, the frontend is held back too,
+      # so nothing more ships until that is understood. Re-run the job after.
       - name: Trigger frontend deploy (supply-chain-ui)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           SHA: ${{ steps.commit.outputs.sha }}
-          SERVICE_ID: srv-d98ru9ss728c73c85bqg
-        run: |
-          set -euo pipefail
-          response="$(mktemp)"
-          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg sha "$SHA" '{commitId: $sha}')")"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            echo "::error::Render refused the $SERVICE_ID deploy (HTTP $code): $(cat "$response")"
-            exit 1
-          fi
-          if [ "$code" = "202" ]; then
-            # Render answers 202 with an empty body when it queues the deploy
-            # behind one already in progress. The commitId above still pins it;
-            # there is just no deploy id or commit to report back yet.
-            echo "Render queued a deploy of $SHA for $SERVICE_ID (HTTP 202, no deploy id returned while queued)"
-            exit 0
-          fi
-          built="$(jq -r '.commit.id // empty' "$response")"
-          echo "Render deploy $(jq -r '.id // "<no id in response>"' "$response") for $SERVICE_ID, building commit ${built:-<unreported>} (gated: $SHA)"
-          if [ -n "$built" ] && [ "$built" != "$SHA" ]; then
-            echo "::error::Render queued commit $built for $SERVICE_ID, but the commit this run gated is $SHA. An unverified commit is being deployed."
-            exit 1
-          fi
+        run: bash .github/scripts/render-deploy.sh srv-d98ru9ss728c73c85bqg supply-chain-ui

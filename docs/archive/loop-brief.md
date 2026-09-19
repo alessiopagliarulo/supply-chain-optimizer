@@ -84,6 +84,8 @@ restoring the component and distributor data from `archive/sourcing-v1`.
    100-customer cases; CP-SAT's mean gap grows with size).
 4. **Guards must run where they gate:** `ci.yml:163` still passes `-m "not slow"`, so the gate the
    deploy waits on never runs the `slow` pins; `repo-tests.yml` runs them (PR 20) but does not gate deploy.
+   This, and any other `.github/workflows/` change, may be proposed but not built by the loop (GitHub
+   refuses the App): the proposal says it needs a workflow change and is left for the owner's crew.
 5. **Fix anything broken on the live flow** first; then **new ideas** that let an OR, logistics or
    supply-chain recruiter try the strongest true result on real data.
 6. **Resume figures** still published (Brier 0.393, rank 1.66): a proposal that moves one is allowed,
@@ -100,8 +102,6 @@ restoring the component and distributor data from `archive/sourcing-v1`.
 - **A blanket revert of the strip-down.** Restore archived pieces one at a time, each with tests.
 - **Loop machinery:** `claude-*.yml`, `loop-metrics.*`, `loop-config.json`, this file's path (the
   Scout and Builder gates read it). Managed from the Loop Dashboard template.
-- **Workflow files:** the loop cannot change `.github/workflows/` (GitHub refuses the App). A proposal
-  that needs a workflow change says so and is left for the owner's crew, not built by the loop.
 - **Hosting, money, secrets:** no hosting or plan change, AWS move, key rotation, force-push, or
   secrets in issues (public repo). Leave `CLAUDE.md`, `LEARNINGS.md`, `.claude/`, `LICENSE`, CC-BY credit alone.
 
