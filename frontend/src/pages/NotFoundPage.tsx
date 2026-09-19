@@ -1,7 +1,7 @@
 /**
  * 404.
  *
- * Every path that is not one of the three pages lands here - including the pages this
+ * Every path that is not one of the app's pages lands here - including the pages this
  * app used to have (/login, /dashboard, /resilience, ...). Saying so beats quietly
  * redirecting: a typo, a stale bookmark and a broken link would otherwise all look
  * like success.
@@ -21,7 +21,7 @@ export default function NotFoundPage() {
         <p className="text-sm text-slate-400 leading-relaxed">
           Nothing is routed at{' '}
           <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 break-all">{location.pathname}</code>. The
-          app has three pages: Route Plan, Simulation and Benchmarks.
+          app&apos;s pages are Map, Route Plan, Digital Twin and Benchmarks.
         </p>
         <Link
           to="/"

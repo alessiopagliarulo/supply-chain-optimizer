@@ -1,8 +1,8 @@
 {
-  "last_run_utc": "2026-09-18T19:48:55.694Z",
+  "last_run_utc": "2026-09-19T20:08:03.018Z",
   "last_run_was_partial": false,
-  "base_url": "http://localhost:4173",
-  "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
+  "base_url": "http://localhost:4199",
+  "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
   "viewport_desktop": {
     "width": 1440,
     "height": 900
@@ -12,34 +12,49 @@
     "height": 844
   },
   "distinct_commits_in_folder": [
-    "0c11eafc2605cbc4a4becbb6a403a336dadfa922"
+    "ef9d1183a9af6525c41b1655853566a7c612cbb2"
   ],
   "mixed_vintage": false,
   "shots": {
     "01-landing": {
-      "captured_at_utc": "2026-09-18T19:48:55.694Z",
-      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
-      "base_url": "http://localhost:4173"
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
     },
-    "02-route-plan": {
-      "captured_at_utc": "2026-09-18T19:48:55.694Z",
-      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
-      "base_url": "http://localhost:4173"
+    "02-map": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
     },
-    "03-simulation": {
-      "captured_at_utc": "2026-09-18T19:48:55.694Z",
-      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
-      "base_url": "http://localhost:4173"
+    "03-route-plan-real-places": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
     },
-    "04-benchmarks": {
-      "captured_at_utc": "2026-09-18T19:48:55.694Z",
-      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
-      "base_url": "http://localhost:4173"
+    "04-route-plan-solomon": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
     },
-    "05-mobile-route-plan": {
-      "captured_at_utc": "2026-09-18T19:48:55.694Z",
-      "commit": "0c11eafc2605cbc4a4becbb6a403a336dadfa922",
-      "base_url": "http://localhost:4173"
+    "05-digital-twin": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
+    },
+    "06-benchmarks": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
+    },
+    "07-mobile-route-plan": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
+    },
+    "08-mobile-map": {
+      "captured_at_utc": "2026-09-19T20:08:03.018Z",
+      "commit": "ef9d1183a9af6525c41b1655853566a7c612cbb2",
+      "base_url": "http://localhost:4199"
     }
   },
   "problems_this_run": []

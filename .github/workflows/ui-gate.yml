@@ -1,0 +1,107 @@
+name: UI gate
+
+# The automated browser gate (frontend/scripts/ui-gate.cjs) on every PR: a real Chromium
+# over every page at four viewports, plus the flows that must work (open the map, open a
+# distributor, the real-place plan solves and draws, a Solomon plan solves and simulates,
+# the Benchmarks table reads the artifact). Until this workflow existed the gate only ran
+# when someone remembered to run it locally, so nothing in CI could catch a broken map.
+#
+# It runs against THIS commit end to end: the backend from this checkout on the committed
+# supply_chain.db (the same file Render serves), and a production build of the frontend
+# pointed at it. Only the map tiles come from the internet (tile.openstreetmap.org).
+#
+# Kept out of ci.yml on purpose: deploy-render.yml waits on the "CI" workflow, and a
+# browser run depends on a third-party tile server that CI does not control. This one is a
+# visible PR check without making a tile outage block a deploy.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ui-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ui-gate:
+    name: Browser gate (every page, 4 viewports)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Start the API on the committed catalogue database
+        working-directory: backend
+        env:
+          DATABASE_URL: sqlite:///./supply_chain.db
+          SECRET_KEY: ci-ui-gate-secret-key-32chars-padding
+          DEBUG: "false"
+          ALLOWED_ORIGINS: http://localhost:4173
+        run: |
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > ../api.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/health > /dev/null && exit 0
+            sleep 2
+          done
+          echo "::error::the API did not answer /health within 120 s"; cat ../api.log; exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the frontend against that API
+        working-directory: frontend
+        env:
+          VITE_API_URL: http://localhost:8000/api/v1
+        run: |
+          npm ci
+          npm run build
+
+      - name: Serve the build
+        working-directory: frontend
+        run: |
+          nohup npx vite preview --port 4173 --strictPort > ../ui.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4173/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::vite preview did not start"; cat ../ui.log; exit 1
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the UI gate
+        working-directory: frontend
+        env:
+          BASE: http://localhost:4173
+          API: http://localhost:8000
+        run: node scripts/ui-gate.cjs
+
+      - name: Keep the gate's screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-gate
+          path: |
+            frontend/scripts/gate-shots/
+            frontend/scripts/gate-report.json
+            api.log
+            ui.log
+          retention-days: 7
+          if-no-files-found: ignore
