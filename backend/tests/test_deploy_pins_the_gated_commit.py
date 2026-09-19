@@ -124,7 +124,7 @@ def _deploy_script() -> str:
     """The deploy step's ``run: |`` block, dedented, comments included (it is
     executed exactly as Actions would run it)."""
     lines = WORKFLOW.read_text(encoding="utf-8").splitlines()
-    start = next(i for i, l in enumerate(lines) if l.strip() == f"- name: {DEPLOY_STEP}")
+    start = next(i for i, line in enumerate(lines) if line.strip() == f"- name: {DEPLOY_STEP}")
     run = next(i for i in range(start, len(lines)) if lines[i].strip() == "run: |")
     key_indent = len(lines[run]) - len(lines[run].lstrip())
     body = []
@@ -327,7 +327,7 @@ def _deploy(tmp_path: Path, plan: dict, *, sha: str = GATED_SHA, with_jq: bool =
         "STUB_PLAN": str(plan_file),
     }
     proc = subprocess.run([bash, str(script)], env=env, capture_output=True, text=True, timeout=60)
-    requests = [json.loads(l) for l in log.read_text(encoding="utf-8").splitlines()]
+    requests = [json.loads(ln) for ln in log.read_text(encoding="utf-8").splitlines()]
     return Run(proc.returncode, proc.stdout + proc.stderr, requests)
 
 
@@ -362,7 +362,7 @@ def test_a_confirmed_deploy_prints_each_deploy_id_and_commit(tmp_path):
     run = _deploy(tmp_path, _both_ok())
     assert run.code == 0, run.output
     for srv in (BACKEND, FRONTEND):
-        line = [l for l in run.output.splitlines() if f"dep-{srv[-4:]}" in l]
+        line = [ln for ln in run.output.splitlines() if f"dep-{srv[-4:]}" in ln]
         assert line and GATED_SHA in line[0], (
             "a successful deploy must print Render's deploy id next to the commit Render "
             f"reports, so the run log says which build it started. Output:\n{run.output}"
