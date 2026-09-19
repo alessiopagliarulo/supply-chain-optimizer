@@ -885,8 +885,12 @@ must not be said, regardless of how much work has been done.
    on any error. This criterion prescribed it until 2026-08-30.
 5. **Browser gate against the LIVE site**, not a local build:
    `cd frontend && BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate`
-   → **188 passed, 0 failed** across the 10 routes in `scripts/ui-gate.cjs` x 4 viewports
-   (1440/1280/768/390), plus head/meta checks on `/login`. Covers overflow, emoji, type
+   → **0 failed** across the 3 routes in `ROUTES` (`frontend/scripts/ui-gate.cjs:80`) x 4
+   viewports (1440/1280/768/390), plus the removed sourcing-era paths asserted as honest
+   404s. An absolute pass count is deliberately not written here, for the same reason it is
+   not written for the backend suite below: the count that stood here survived the shrink to
+   three pages untouched, and this file, the README and issue #8 ended up publishing three
+   different totals for one gate, none of them reproducible. Covers overflow, emoji, type
    size, leaked placeholders in rendered words, clipped chart labels, chart geometry,
    legend overlap and contrast, touch targets, axe serious/critical, head tags, console errors.
 6. **ML verified against the deployed artifacts.** An `ml-pipeline-verifier` pass
@@ -911,9 +915,17 @@ is false — "not checked" is a failure, not a pass.
   The gate is "nothing red but that one", not a number.
 - `./venv/bin/ruff check app` and `./venv/bin/mypy app` clean.
 - `cd frontend && npx tsc -b --force && npm run build`. **Never `tsc --noEmit`** — see item 41.
-- Browser gate: `cd frontend && npm run ui-gate` over **10 routes × 4 viewports** → **188 passed, 0 failed**.
-  (The routes array in `frontend/scripts/ui-gate.cjs:66` holds 10 entries; `/login` is additionally
-  checked for head/meta. "11 routes" written elsewhere is wrong — 188 is a check count, not routes×viewports.)
+- Browser gate: `cd frontend && npm run ui-gate:ci` — one command: build, install Chromium if
+  missing, serve the build on 127.0.0.1:4173, gate it, tear the server down. Over **3 routes ×
+  4 viewports** → **0 failed**. (The routes array is `ROUTES` in `frontend/scripts/ui-gate.cjs:80`
+  and holds 3 entries since the app shrank to three pages; the sourcing-era paths in
+  `REMOVED_ROUTES` beside it are asserted to render the 404 page. A pass count is not restated
+  here — see the 997-vs-1,121 note above. The route count, the pass total and the source line
+  previously cited in this bullet were all stale by 2026-09-19, and
+  `frontend/tests/ui-gate-ci.test.ts` now fails if any of them drift from the gate's own
+  source again.)
+  **CI does not run this gate** — `grep -rni ui.gate .github/` returns nothing (issue #8). It is
+  a pre-push gate you run by hand until that step lands.
   The gate proxies API calls to the LIVE API, so a check can pass vacuously when the deployed
   API does not yet return the data the element needs. A green local gate is only as good as the
   API it is pointed at.

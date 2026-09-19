@@ -418,19 +418,24 @@ and their published-artifact pins, resilience API, auth guards, feed integration
 
 ### Frontend
 
-The frontend has two automated suites. `npm test` (Vitest) checks the Benchmarks page's
-reader against the real committed `docs/benchmark_results.json`, so a row shape the page
-cannot read fails there. The main one is a browser gate that runs against the **live
-deployment** or a local build:
+The frontend has two suites, and they are **not equally automated** — which one runs when
+is the honest part. `npm test` (Vitest) checks the Benchmarks page's reader against the real
+committed `docs/benchmark_results.json`, so a row shape the page cannot read fails there, and
+it runs on **every push** (`ci.yml`, job "Frontend build", step "Unit tests"). The second is a
+browser gate, and **CI does not run it yet** (issue #8): it drives a real Chromium and proxies
+its API calls to the free-tier Render API, so it is run by hand before a deploy. One command:
 
 ```bash
 cd frontend
+npm run ui-gate:ci   # build, serve on 127.0.0.1:4173, gate it, tear the server down
+# against the live deployment instead:
 BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
-# or: npm run build && npx vite preview --port 4173 &  API=http://localhost:8000 npm run ui-gate
 ```
 
-The last full run (2026-09-18, local build against a local API, after the app shrank to
-three pages) was 104 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
+The last full run (2026-09-19, `npm run ui-gate:ci` — a local build with the live API
+proxied in) was **123 passed, 0 failed**. That figure is still hand-recorded from a hand-run
+gate, which is exactly what issue #8 is about; the one command above is at least
+reproducible. `scripts/ui-gate.cjs` drives a real Chromium over
 **every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
 checks that every removed sourcing-era path renders the 404 page, and asserts what a human
 would otherwise have to notice:
