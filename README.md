@@ -623,7 +623,7 @@ who checked it, didn't like what I found, and published the correction instead o
 headline.
 
 There's also an autonomous loop running on a schedule — Scout files proposals, Builder
-opens PRs against them, an independent Auditor reviews each one, and I'm the only one who
+opens PRs against the ones I approve, an independent Auditor reviews each one, and I'm the only one who
 can merge to `main` (see `docs/archive/AUTONOMOUS-LOOP.md`). I keep a running list of that
 loop's own failures as a maintainer note — it is not published here — because early runs failed
 in ways a green checkmark didn't catch: a run that filed zero issues and still reported success,

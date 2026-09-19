@@ -1,0 +1,31 @@
+name: Loop config
+
+# Validates .github/loop-config.json, the settings every loop workflow reads. Those
+# workflows fall back to defaults WITHOUT saying so when the file is malformed or a
+# value has the wrong type, so this is the one place that notices. The checks live in
+# scripts/validate-loop-config.sh (tested by backend/tests/test_loop_workflow_gates.py).
+#
+# DELIBERATELY NOT A JOB IN ci.yml. The deploy waits on the whole `CI` workflow, and
+# this file is editable from the dashboard on a phone: a typo there must turn a tick
+# red and email the owner, not hold back the production app. No agent, no tokens.
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/loop-config.json", "scripts/validate-loop-config.sh", ".github/workflows/loop-config.yml"]
+  pull_request:
+    paths: [".github/loop-config.json", "scripts/validate-loop-config.sh", ".github/workflows/loop-config.yml"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Loop config is valid
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate .github/loop-config.json
+        run: bash scripts/validate-loop-config.sh .github/loop-config.json
