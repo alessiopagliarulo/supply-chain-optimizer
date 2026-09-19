@@ -66,8 +66,7 @@ function GapRuntimeChart({ rows }: { rows: BenchmarkRow[] }) {
   const plotted = rows.filter(hasComparableGap);
   // From the plotted rows, so a solver with nothing comparable gets no empty legend entry.
   const solvers = [...new Set(plotted.map((r) => r.solver))].sort();
-  // Every row with a vehicle comparison whose distance gap is not plotted as comparable.
-  const otherFleet = rows.filter((r) => r.vehicle_gap !== null && !hasComparableGap(r));
+  const otherFleet = rows.filter((r) => r.gap_comparable === false);
   const fleetNote =
     otherFleet.length === 0
       ? null
@@ -116,6 +115,15 @@ function GapRuntimeChart({ rows }: { rows: BenchmarkRow[] }) {
   );
 }
 
+function SolverName({ solver }: { solver: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: solverColor(solver, 0) }} aria-hidden="true" />
+      {solver}
+    </span>
+  );
+}
+
 function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('instance');
   const [ascending, setAscending] = useState(true);
@@ -131,7 +139,7 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left tabular-nums">
+      <table data-testid="benchmark-results" className="w-full text-sm text-left tabular-nums">
         <caption className="sr-only">Benchmark results, one row per instance, size and solver</caption>
         <thead className="text-xs text-slate-400 border-b border-slate-800">
           <tr>
@@ -168,10 +176,7 @@ function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
               <td className="py-1.5 px-2 whitespace-nowrap text-slate-100">{r.instance}</td>
               <td className="py-1.5 px-2 text-right">{r.num_customers}</td>
               <td className="py-1.5 px-2 whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: solverColor(r.solver, 0) }} aria-hidden="true" />
-                  {r.solver}
-                </span>
+                <SolverName solver={r.solver} />
               </td>
               <td className={`py-1.5 px-2 whitespace-nowrap ${r.feasible ? 'text-emerald-400' : 'text-red-400'}`}>{fmtStatus(r.status)}</td>
               <td className="py-1.5 px-2 text-right">{r.vehicles_used}</td>
@@ -232,8 +237,14 @@ function AveragesTable({ summary, sources }: { summary: BenchmarkSummary[]; sour
           ` At ${vehiclesFirst} customers the comparable runs are the ones that matched the best-known truck count, usually the instances the solver handled well, so those averages are not the solver's performance over all its runs.`}
         {' '}The truck columns count every feasible run with a best-known value.
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left tabular-nums">
+      {/* Focusable and named so a keyboard user can scroll it when it overflows on a phone. */}
+      <div
+        className="overflow-x-auto rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+        tabIndex={0}
+        role="region"
+        aria-label="Averages per solver table"
+      >
+        <table data-testid="benchmark-averages" className="w-full text-sm text-left tabular-nums">
           <caption className="sr-only">Average distance gap per instance size and solver, with the runs each covers</caption>
           <thead className="text-xs text-slate-400 border-b border-slate-800">
             <tr>
@@ -250,10 +261,7 @@ function AveragesTable({ summary, sources }: { summary: BenchmarkSummary[]; sour
               <tr key={`${s.num_customers}-${s.solver}`} className="border-b border-slate-800/60 text-slate-300">
                 <td className="py-1.5 px-2">{s.num_customers}</td>
                 <td className="py-1.5 px-2 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: solverColor(s.solver, 0) }} aria-hidden="true" />
-                    {s.solver}
-                  </span>
+                  <SolverName solver={s.solver} />
                 </td>
                 <td className={`py-1.5 px-2 text-right whitespace-nowrap ${s.mean_gap_percent === null ? 'text-slate-500' : ''}`}>
                   {fmtMean(s)}

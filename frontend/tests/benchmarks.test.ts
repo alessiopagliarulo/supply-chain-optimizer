@@ -140,6 +140,13 @@ describe('vehicles first, then distance', () => {
 });
 
 describe('the per-solver averages', () => {
+  it('has one average per instance size and solver', () => {
+    const cells = parsed.summary.map((s) => `${s.num_customers}/${s.solver}`);
+    const solvers = ['cpsat', 'clarke_wright', 'ortools'];
+    expect(cells).toEqual([25, 50, 100].flatMap((size) => solvers.map((solver) => `${size}/${solver}`)));
+    expect(parsed.summary_unreadable).toBe(0);
+  });
+
   it('reads every summary entry, carrying the counts each mean covers', () => {
     expect(parsed.summary).toHaveLength(artifact.summary.length);
     parsed.summary.forEach((s, i) => {
