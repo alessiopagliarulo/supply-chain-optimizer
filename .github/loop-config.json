@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "autonomousBuildEnabled": true,
+  "autonomousBuildEnabled": false,
   "prCap": 3,
   "ideaQueueCap": 6,
   "scout": {
