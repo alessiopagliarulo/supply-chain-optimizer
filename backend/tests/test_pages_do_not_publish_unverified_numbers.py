@@ -108,7 +108,16 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
             "the HTTP status this route represents.",
         ),
     ),
-    "SimulationPage.tsx": (
+    "LandingPage.tsx": (
+        (
+            "frozen 2024 snapshot",
+            "the catalogue's snapshot year. The landing page makes no network request, so it "
+            "cannot read it from GET /catalogue/provenance like the other pages do; it is "
+            "pinned by name to catalogue_provenance.SNAPSHOT_YEAR in "
+            "test_pages_match_their_sources.py.",
+        ),
+    ),
+    "DigitalTwinPage.tsx": (
         (
             "Lateness p95",
             "the NAME of a statistic: the 95th percentile of per-stop lateness, which the "
@@ -185,7 +194,7 @@ def _claims(path: Path) -> list[tuple[JsxText, str]]:
 def test_the_pages_directory_was_actually_found() -> None:
     """A guard that scans zero files is a check that cannot fail."""
     assert len(PAGES) >= 5, (
-        f"expected the landing, Route Plan, Simulation, Benchmarks and 404 pages of "
+        f"expected the landing, Map, Route Plan, Digital Twin, Benchmarks and 404 pages of "
         f"{PAGES_DIR}; found {[p.name for p in PAGES]}. "
         "If the frontend moved, re-point PAGES_DIR — do not let this scan nothing."
     )

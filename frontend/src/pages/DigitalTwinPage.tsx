@@ -77,7 +77,7 @@ function SamplePlanLoader() {
   return (
     <Card title="No plan yet">
       <p className="text-sm text-slate-400 leading-relaxed">
-        Solve a plan on the <Link to="/route-plan" className="text-blue-400 hover:text-blue-300 underline">Route Plan</Link>{' '}
+        Solve a Solomon test case on the <Link to="/route-plan?source=solomon" className="text-blue-400 hover:text-blue-300 underline">Route Plan</Link>{' '}
         page, or solve a built-in sample here with the automatic solver.
       </p>
       {instances && (
@@ -172,7 +172,45 @@ function FrontierChart({ result }: { result: TuneBuffersResponse }) {
   );
 }
 
-export default function SimulationPage() {
+/**
+ * The Digital Twin's "coming next" state. The twin itself (a live replica of the real
+ * distributor network driven by forecasts) is a later task; until it lands this page
+ * says so plainly and runs the part that already works - the discrete-event
+ * simulation and buffer tuning of a solved Route Plan.
+ */
+function ComingNext() {
+  return (
+    <section
+      aria-labelledby="twin-next"
+      className="rounded-xl border border-blue-500/40 bg-gradient-to-br from-blue-950/60 to-slate-900 p-4 sm:p-5 flex flex-col gap-3"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-blue-200 bg-blue-500/20 border border-blue-400/40 rounded-full px-2.5 py-0.5">
+          Coming next
+        </span>
+      </div>
+      <h2 id="twin-next" className="text-lg font-semibold text-white">
+        A digital twin of the distributor network
+      </h2>
+      <p className="text-sm text-slate-300 leading-relaxed max-w-3xl">
+        The next step replays the real distributor network from the Map page: forecast demand for the real
+        components, turn it into route plans on the real locations, and simulate those plans day by day to see where
+        they break. It is not built yet. What works today is below: stress-testing one solved Solomon route plan
+        with random travel and service times, and tuning the buffers that keep it on time.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Link to="/map" className={secondaryButtonClass}>
+          Explore the distributor map
+        </Link>
+        <Link to="/route-plan" className={secondaryButtonClass}>
+          Plan routes on real places
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+export default function DigitalTwinPage() {
   const plan = usePlanStore((s) => s.plan);
   const [limits, setLimits] = useState<RoutingLimits | null>(null);
 
@@ -291,9 +329,11 @@ export default function SimulationPage() {
 
   return (
     <Page
-      title="Simulation"
-      intro="Stress a route plan with random travel and service times in a discrete-event simulation, then search for the schedule and capacity buffers that keep it on time."
+      title="Digital Twin"
+      intro="A simulated replica of the logistics network, for testing plans before they meet the real world. The full twin is coming next; today this page stress-tests a solved route plan in a discrete-event simulation."
     >
+      <ComingNext />
+      <h2 className="text-base font-semibold text-slate-100 -mb-2">Available now: simulate a route plan</h2>
       {!plan && <SamplePlanLoader />}
 
       {plan && (
@@ -304,7 +344,7 @@ export default function SimulationPage() {
                 <span className="font-semibold text-white">{plan.label}</span>
                 {` · ${customers} customers · ${plan.solution.vehicles_used} routes · distance ${plan.solution.total_cost} · solved by ${plan.solution.method} · ${plan.solution.feasible ? 'feasible' : 'not feasible'}`}
               </p>
-              <Link to="/route-plan" className={secondaryButtonClass}>
+              <Link to="/route-plan?source=solomon" className={secondaryButtonClass}>
                 Change plan
               </Link>
             </div>

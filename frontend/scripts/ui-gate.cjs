@@ -60,7 +60,8 @@
 // this file, at 639/640/641 on a single route. It is a global component, so
 // sweeping extra widths across every route would buy nothing.
 //
-// Since issue #16 the app is three pages (Route Plan, Simulation, Benchmarks) plus
+// Since issue #16 the app is a small set of pages plus the landing page; today they are
+// Map, Route Plan, Digital Twin (formerly Simulation) and Benchmarks, plus
 // the landing page, with no login. Every other path, including the removed
 // sourcing-era pages, must render the 404 page; that is asserted too.
 
@@ -77,7 +78,7 @@ const API=process.env.API||'https://supply-chain-api-qy8x.onrender.com';
 // gate's own fault. `/newsvendor/evaluation` measured 259.9s on the deployed
 // instance; 180s cut it off, so it is 300s.
 const PROXY_TIMEOUT=300000;
-const ROUTES=['/route-plan','/simulation','/benchmarks'];
+const ROUTES=['/map','/route-plan','/digital-twin','/benchmarks'];
 // Pages the app used to have. Each must now be an honest 404, not a crash or a redirect.
 const REMOVED_ROUTES=['/login','/register','/dashboard','/components','/cart','/resilience','/model-card','/newsvendor'];
 let pass=0, fail=0;
@@ -96,7 +97,7 @@ const AUDIT=()=>{
   const overflow=all.filter(e=>{
     const r=e.getBoundingClientRect();
     if(!(r.width>0&&(r.right>vw+1||r.left<-1)))return false;
-    if(e.closest('.maplibregl-map,.mapboxgl-map'))return false;     // world markers
+    if(e.closest('.leaflet-container'))return false;     // map tiles and markers, clipped by the map
     let n=e.parentElement;
     while(n&&n!==document.body){ if(/auto|scroll/.test(getComputedStyle(n).overflowX))return false; n=n.parentElement; }
     return true;
@@ -131,7 +132,6 @@ const AUDIT=()=>{
     .map(e=>({sel:desc(e),t:(e.textContent||'').trim().slice(0,80)})).slice(0,8);
   const small=[...document.querySelectorAll('button,a,[role=button],select,summary')].filter(e=>{
     const cs=getComputedStyle(e); if(cs.display==='none'||cs.visibility==='hidden')return false;
-    if(e.closest('.maplibregl-map'))return false;
     if(e.ownerSVGElement||e.closest('svg'))return false;
     if(e.tagName==='A'&&e.closest('p,li,td'))return false;
     const r=e.getBoundingClientRect(); return r.width>0&&r.height>0&&(r.width<44||r.height<44);})
@@ -400,7 +400,7 @@ const AUDIT=()=>{
       ok('/: zero API requests while rendering', landingApiCalls===0,
          `saw ${landingApiCalls} request(s) matching /api/v1 or /health`);
 
-      // ── a link to each of the three pages ──────────────────────────────
+      // ── a link to each of the pages ──────────────────────────────
       const bodyText = await p.evaluate(()=>document.body.innerText);
       for(const route of ROUTES){
         const n = await p.locator(`a[href="${route}"]`).count();
@@ -526,7 +526,7 @@ const AUDIT=()=>{
   // Every check above passes on a page that renders but cannot do anything. So
   // solve the first built-in instance, then simulate the plan it produced.
   await p.setViewportSize({width:1440,height:900});
-  await visit('/route-plan','/route-plan (solve)');
+  await visit('/route-plan?source=solomon','/route-plan Solomon (solve)');
   await p.getByRole('button',{name:/^Solve$/}).click().catch(()=>{});
   // `waitFor`, not `isVisible`: isVisible() answers immediately and ignores its timeout.
   const drawn=await p.getByText('Route 1',{exact:true}).first().waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
@@ -534,10 +534,47 @@ const AUDIT=()=>{
   const plotted=await p.evaluate(()=>document.querySelectorAll('svg[role=img] polyline').length);
   ok('/route-plan: one polyline per route on the x/y plot', plotted>0, `polylines=${plotted}`);
   await p.getByRole('link',{name:/Simulate this plan/}).click().catch(()=>{});
-  await p.waitForURL('**/simulation',{timeout:15000}).catch(()=>{});
+  await p.waitForURL('**/digital-twin',{timeout:15000}).catch(()=>{});
   await p.getByRole('button',{name:/^Run simulation$/}).click().catch(()=>{});
   const simulated=await p.getByText('On-time rate',{exact:true}).first().waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
-  ok('/simulation: the solved plan simulates and shows its KPIs', simulated);
+  ok('/digital-twin: the solved plan simulates and shows its KPIs', simulated);
+  const twinText=await p.evaluate(()=>document.body.innerText);
+  ok('/digital-twin: says plainly that the twin is coming next', /Coming next/i.test(twinText));
+  await gotoRoute(L+'/simulation','/simulation (old address)');
+  await p.waitForURL('**/digital-twin',{timeout:15000}).then(()=>ok('/simulation: moves to /digital-twin', true),()=>ok('/simulation: moves to /digital-twin', false, p.url()));
+
+  // ── the Map page: real distributors at real places ────────────────────────
+  let prov=null, placesModel=null;
+  try{ prov=await (await ctx.request.fetch(API+'/api/v1/catalogue/provenance',{timeout:60000})).json(); }
+  catch(e){ ok('GET /catalogue/provenance answers', false, String(e).split('\n')[0]); }
+  try{ placesModel=await (await ctx.request.fetch(API+'/api/v1/routing/places/model',{timeout:60000})).json(); }
+  catch(e){ ok('GET /routing/places/model answers', false, String(e).split('\n')[0]); }
+  await visit('/map','/map (distributors)');
+  const markers=await p.locator('.leaflet-marker-icon').count();
+  ok('/map: distributor markers are drawn on the map', markers>0, `markers=${markers}`);
+  const tiles=await p.locator('img.leaflet-tile').count();
+  ok('/map: OpenStreetMap tiles load', tiles>0, `tiles=${tiles}`);
+  const mapText=await p.evaluate(()=>document.body.innerText);
+  ok('/map: credits OpenStreetMap', /© OpenStreetMap contributors/.test(mapText));
+  if(prov) ok('/map: labels the catalogue a frozen snapshot, with its year from the API',
+    mapText.includes(`Frozen ${prov.snapshot_year} snapshot`), `snapshot_year=${prov.snapshot_year}`);
+  await p.getByRole('button',{name:/Shenzhen/}).first().click().catch(()=>{});
+  await p.getByRole('list',{name:'Distributors here'}).getByRole('button').first().click().catch(()=>{});
+  const carries=await p.getByText('Largest stock lines',{exact:true}).waitFor({state:'visible',timeout:60000}).then(()=>true,()=>false);
+  ok('/map: a distributor opens with what it carries', carries);
+
+  // ── Route Plan on real places: solved on open, drawn on the map ───────────
+  await visit('/route-plan','/route-plan real places (solve)');
+  const realDrawn=await p.getByText('Truck 1',{exact:true}).first().waitFor({state:'visible',timeout:90000}).then(()=>true,()=>false);
+  ok('/route-plan: the example real-place plan is solved and listed per truck', realDrawn);
+  const lines=await p.locator('.leaflet-overlay-pane path').count();
+  ok('/route-plan: the routes are drawn on the map', lines>0, `paths=${lines}`);
+  const realText=await p.evaluate(()=>document.body.innerText);
+  ok('/route-plan: the example scenario is labelled as one', /Example scenario/.test(realText) && /No destination is a real customer/.test(realText));
+  if(placesModel) ok('/route-plan: states the road factor from the API',
+    realText.includes(`Road distance = straight-line distance × ${placesModel.road_factor}.`), `road_factor=${placesModel.road_factor}`);
+  const realAlerts=await p.evaluate(()=>[...document.querySelectorAll('[role=alert]')].map(e=>e.innerText.slice(0,160)));
+  ok('/route-plan: no error banner on the real-place plan', realAlerts.length===0, JSON.stringify(realAlerts));
 
   // ── the limits the pages state are the API's ──────────────────────────────
   // No page types a cap of its own; each is rendered from GET /routing/instances.
@@ -546,11 +583,11 @@ const AUDIT=()=>{
   try{ limits=(await (await ctx.request.fetch(API+'/api/v1/routing/instances',{timeout:60000})).json()).limits; }
   catch(e){ ok('GET /routing/instances returns the limits', false, String(e).split('\n')[0]); }
   if(limits){
-    await visit('/simulation','/simulation (limits)');
+    await visit('/digital-twin','/digital-twin (limits)');
     const simText=await p.evaluate(()=>document.body.innerText);
-    ok('/simulation: states the replication cap from the API', simText.includes(`Up to ${limits.max_replications}.`),
+    ok('/digital-twin: states the replication cap from the API', simText.includes(`Up to ${limits.max_replications}.`),
        `max_replications=${limits.max_replications}`);
-    await visit('/route-plan','/route-plan (limits)');
+    await visit('/route-plan?source=solomon','/route-plan Solomon (limits)');
     // The dropdown remembers the method of the last plan, so pick Auto before reading its hint.
     await p.locator('#method').selectOption('auto').catch(()=>{});
     const planText=await p.evaluate(()=>document.body.innerText);
@@ -591,7 +628,7 @@ const AUDIT=()=>{
   // Download a built-in instance as CSV, upload that file back, and solve it. If
   // the documented columns ever drift from the node fields the solver takes, the
   // upload is rejected or the solve fails, and this goes red.
-  await visit('/route-plan','/route-plan (CSV round trip)');
+  await visit('/route-plan?source=solomon','/route-plan Solomon (CSV round trip)');
   const csvDownload=await Promise.all([
     p.waitForEvent('download',{timeout:15000}),
     p.getByRole('button',{name:/Download this instance as CSV/}).click(),

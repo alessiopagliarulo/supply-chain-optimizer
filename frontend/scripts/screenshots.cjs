@@ -4,8 +4,9 @@
 // ---------------
 // `docs/screenshots/current/` once held a thorough walkthrough of the sourcing-era
 // app (login, dashboard, cart, resilience, model card...), every shot dated
-// **2026-08-17**. Since issue #16 the app is three pages - Route Plan, Simulation,
-// Benchmarks - plus a landing page, and SHOTS below covers exactly those.
+// **2026-08-17**. The app is now four pages - Map, Route Plan (real places and
+// Solomon test cases), Digital Twin, Benchmarks - plus a landing page, and SHOTS
+// below covers exactly those.
 //
 // A directory named `current/` that is three weeks stale is worse than no
 // directory: its own `_problems.json` still records "app has no dedicated 404
@@ -54,14 +55,24 @@ const MOBILE = { width: 390, height: 844 };
 /** @type {{name:string, route:string, viewport?:object, full?:boolean, settle?:number, prepare?:Function}[]} */
 const SHOTS = [
   { name: '01-landing', route: '/' },
-  { name: '02-route-plan', route: '/route-plan', full: true,
+  { name: '02-map', route: '/map', settle: 60000,
+    prepare: async page => {
+      await page.getByRole('button', { name: /Shenzhen/ }).first().click({ timeout: 60000 });
+      await page.getByRole('list', { name: 'Distributors here' }).getByRole('button').first().click({ timeout: 60000 });
+      await page.getByText('Largest stock lines', { exact: true }).waitFor({ state: 'visible', timeout: 60000 });
+    } },
+  { name: '03-route-plan-real-places', route: '/route-plan', full: true, settle: 60000,
+    prepare: async page => {
+      await page.getByText('Truck 1', { exact: true }).first().waitFor({ state: 'visible', timeout: 90000 });
+    } },
+  { name: '04-route-plan-solomon', route: '/route-plan?source=solomon', full: true,
     prepare: async page => {
       await page.getByRole('button', { name: /^Solve$/ }).click({ timeout: 60000 });
       await page.getByText('Route 1', { exact: true }).first().waitFor({ state: 'visible', timeout: 60000 });
     } },
   // Uses the plan the previous shot solved (kept in sessionStorage), or solves the
-  // first built-in sample when run on its own (ONLY=simulation).
-  { name: '03-simulation', route: '/simulation', full: true, settle: 60000,
+  // first built-in sample when run on its own (ONLY=digital-twin).
+  { name: '05-digital-twin', route: '/digital-twin', full: true, settle: 60000,
     prepare: async page => {
       const sample = page.getByRole('button', { name: /Solve and use this sample/ });
       if (await sample.count()) await sample.click({ timeout: 60000 });
@@ -70,8 +81,9 @@ const SHOTS = [
       await page.getByRole('button', { name: /^Tune buffers$/ }).click({ timeout: 60000 });
       await page.getByText('Chosen buffers', { exact: true }).first().waitFor({ state: 'visible', timeout: 120000 });
     } },
-  { name: '04-benchmarks', route: '/benchmarks', full: true },
-  { name: '05-mobile-route-plan', route: '/route-plan', viewport: MOBILE },
+  { name: '06-benchmarks', route: '/benchmarks', full: true },
+  { name: '07-mobile-route-plan', route: '/route-plan', viewport: MOBILE, settle: 60000 },
+  { name: '08-mobile-map', route: '/map', viewport: MOBILE, settle: 60000 },
 ];
 
 const problems = [];

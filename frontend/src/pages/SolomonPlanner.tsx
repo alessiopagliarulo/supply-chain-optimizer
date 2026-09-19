@@ -17,7 +17,6 @@ import {
   Card,
   ErrorBox,
   Field,
-  Page,
   Stat,
   buttonClass,
   inputClass,
@@ -51,7 +50,8 @@ function download(name: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function RoutePlanPage() {
+/** Route Plan, "Solomon test cases" tab: the planar x/y instances and customer CSVs. */
+export default function SolomonPlanner() {
   const { plan, setPlan } = usePlanStore();
 
   const [catalog, setCatalog] = useState<InstanceList | null>(null);
@@ -191,10 +191,7 @@ export default function RoutePlanPage() {
   const methodHelp = method === 'auto' ? autoHelp : METHODS.find((m) => m.value === method)?.help;
 
   return (
-    <Page
-      title="Route Plan"
-      intro="Pick a built-in instance or upload your own customers, choose a solver, and get a capacitated vehicle routing plan that respects every time window. Every plan is checked by the shared validator, not taken on the solver's word."
-    >
+    <>
       {catalogError && (
         <ErrorBox title="Could not load the instance list">{catalogError}</ErrorBox>
       )}
@@ -389,7 +386,7 @@ export default function RoutePlanPage() {
                 />
                 <RouteLegend reports={solution.validation.routes} capacity={loaded.vehicle_capacity} />
                 {solution.routes.length > 0 && (
-                  <Link to="/simulation" className={`${buttonClass} self-start`}>
+                  <Link to="/digital-twin" className={`${buttonClass} self-start`}>
                     Simulate this plan
                     <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
@@ -402,6 +399,6 @@ export default function RoutePlanPage() {
           </Card>
         </div>
       )}
-    </Page>
+    </>
   );
 }

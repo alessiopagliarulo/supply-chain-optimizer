@@ -1,15 +1,16 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import ErrorBoundary from './components/ErrorBoundary';
 import LandingPage from './pages/LandingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { startWarmup } from './services/warmup';
 
-// Each page (and the charting library two of them use) loads on first visit, so the
+// Each page (and the map and charting libraries they use) loads on first visit, so the
 // landing page ships only what it renders.
+const MapPage = lazy(() => import('./pages/MapPage'));
 const RoutePlanPage = lazy(() => import('./pages/RoutePlanPage'));
-const SimulationPage = lazy(() => import('./pages/SimulationPage'));
+const DigitalTwinPage = lazy(() => import('./pages/DigitalTwinPage'));
 const BenchmarksPage = lazy(() => import('./pages/BenchmarksPage'));
 import './index.css';
 
@@ -37,8 +38,10 @@ function AppLayout() {
 }
 
 /**
- * Exactly three pages plus the landing page. No login: every page is public.
- * Any other path - including the removed sourcing-era pages - is a 404.
+ * Exactly four pages plus the landing page: Map, Route Plan, Digital Twin, Benchmarks.
+ * No login: every page is public. `/simulation` (the Digital Twin's former name) moves
+ * to its new address; any other path - including the removed sourcing-era pages - is
+ * a 404.
  */
 function App() {
   return (
@@ -49,8 +52,10 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route element={<AppLayout />}>
+            <Route path="/map" element={<MapPage />} />
             <Route path="/route-plan" element={<RoutePlanPage />} />
-            <Route path="/simulation" element={<SimulationPage />} />
+            <Route path="/digital-twin" element={<DigitalTwinPage />} />
+            <Route path="/simulation" element={<Navigate to="/digital-twin" replace />} />
             <Route path="/benchmarks" element={<BenchmarksPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

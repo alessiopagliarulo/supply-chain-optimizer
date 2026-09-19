@@ -38,14 +38,14 @@ On top of the solvers:
 >
 > API reference (Swagger): **[supply-chain-api-qy8x.onrender.com/docs](https://supply-chain-api-qy8x.onrender.com/docs)**
 >
-> No signup and no login - the landing page links straight to the three pages.
+> No signup and no login - the landing page links straight to the four pages.
 > **The page loads instantly. The first *data* request may take 50-120 s.** The UI is a
 > Render static site and never spins down; the API is a Render free-tier web service that
 > sleeps when idle, so the first call after a quiet spell waits for it to wake. Each page
 > shows an amber *"Free-tier backend is waking up"* banner after 3 seconds until the
 > response lands.
 
-**Live demo flow:** Route Plan (solve a Solomon sample) -> Simulation (stress the plan, tune buffers) -> Benchmarks (every solver on every Solomon instance).
+**Live demo flow:** Map (every real distributor at its real location) -> Route Plan (truck routes between real places, drawn on the map; or a Solomon test case) -> Digital Twin (coming next; today it stress-tests a solved plan and tunes buffers) -> Benchmarks (every solver on every Solomon instance).
 
 ---
 
@@ -237,11 +237,12 @@ Open http://localhost:5173 and pick a page. There is no login.
 
 ```
 frontend/src/
-  pages/          Landing, RoutePlan, Simulation, Benchmarks, NotFound
-  components/     NavBar, RoutePlot (x/y route plot + legend), ui, ErrorBoundary, WakeNotice
-  lib/            customerCsv (upload format), benchmarks (artifact reader), colors
-  store/          Zustand: planStore (the solved plan Route Plan hands to Simulation)
-  services/api.ts Axios client for the /routing endpoints
+  pages/          Landing, Map, RoutePlan (RealPlacePlanner + SolomonPlanner tabs), DigitalTwin, Benchmarks, NotFound
+  components/     NavBar, RoutePlot (x/y route plot + legend), map/ (Leaflet + OpenStreetMap: BaseMap,
+                  SiteLayer clusters, RouteLayer, DistributorSearchBar), SnapshotNotice, ui, ErrorBoundary, WakeNotice
+  lib/            customerCsv (upload format), benchmarks (artifact reader), sites + geo (map helpers), colors
+  store/          Zustand: planStore (the solved plan Route Plan hands to Digital Twin)
+  services/       api.ts (Axios client: /routing, /routing/places, /distributors, /catalogue), catalogue.ts
 frontend/scripts/
   ui-gate.cjs     the automated browser gate (see Tests)
   screenshots.cjs regenerates docs/screenshots/current/
@@ -264,7 +265,7 @@ backend/app/
 ```mermaid
 flowchart TB
     subgraph FE["Frontend — React + TypeScript"]
-        UI["Pages: Route Plan, Simulation,<br/>Benchmarks<br/>(Zustand store, Axios client)"]
+        UI["Pages: Map, Route Plan, Digital Twin,<br/>Benchmarks<br/>(Leaflet + OSM, Zustand, Axios)"]
     end
 
     subgraph BE["Backend — FastAPI"]
@@ -325,14 +326,25 @@ Lead-time and demand-forecast training runs are tracked with MLflow (params, rea
 
 ## Web app
 
-Three pages plus a landing page, no login:
+Four pages plus a landing page, no login. Every view of catalogue data says it is a
+frozen 2024 snapshot, with the year read from `GET /catalogue/provenance`.
 
-- **Route Plan** (`/route-plan`) - pick a built-in sample (real Solomon C101 and R101,
+- **Map** (`/map`) - every located distributor at its real coordinates on free
+  OpenStreetMap tiles (Leaflet, no API key), clustered where many share a city (the
+  Shenzhen group is one marker of 29). Click one for its city, country, what it carries
+  (categories and largest stock lines) and a link to plan routes from it.
+- **Route Plan** (`/route-plan`), **Real places** tab - pick a real depot and
+  destinations, plan truck routes with the CVRPTW engine on great-circle distance x 1.3
+  (the road factor), and see them on the map with per-truck colours, a legend, distance,
+  trucks and runtime. Loads, trucks and hours are a labelled example scenario: the
+  catalogue has no orders. See [docs/REAL_PLACE_ROUTING.md](docs/REAL_PLACE_ROUTING.md).
+- **Route Plan**, **Solomon test cases** tab (`/route-plan?source=solomon`) - pick a built-in sample (real Solomon C101 and R101,
   25-customer versions; see `backend/app/vrp/data/samples/README.md`), any Solomon
   benchmark file present in `backend/app/vrp/data/solomon/`, or upload a customer CSV
   (header `x,y,demand,ready,due,service_time`, depot first). Choose a solver, solve, and
   see each route on an x/y plot with distance, vehicles, feasibility and runtime.
-- **Simulation** (`/simulation`) - run the current plan through the SimPy
+- **Digital Twin** (`/digital-twin`; `/simulation` redirects there) - labelled "coming
+  next": the twin of the real network is a later task. Today it runs the current plan through the SimPy
   discrete-event simulation (on-time rate, lateness mean and p95, completion against
   depot close, utilization), then tune schedule and capacity buffers and see the
   evaluated frontier.
@@ -344,7 +356,7 @@ Three pages plus a landing page, no login:
 The lead-time model and resilience code stay in the backend and keep their API
 endpoints; they no longer have pages.
 
-Screenshots of all three pages: [`docs/screenshots/current/`](docs/screenshots/current/)
+Screenshots of every page: [`docs/screenshots/current/`](docs/screenshots/current/)
 (regenerate with `npm run screenshots`; `_manifest.json` records the commit and URL).
 
 ---
@@ -426,8 +438,8 @@ BASE=https://supply-chain-ui-bhwz.onrender.com npm run ui-gate
 # or: npm run build && npx vite preview --port 4173 &  API=http://localhost:8000 npm run ui-gate
 ```
 
-The last full run (2026-09-18, local build against a local API, after the app shrank to
-three pages) was 104 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
+The last full run (2026-09-19, local build against a local API, with the Map page and
+real-place routing) was 159 passed, 0 failed. `scripts/ui-gate.cjs` drives a real Chromium over
 **every route at 4 viewports** (390 / 768 / 1280 / 1440), solves a plan and simulates it,
 checks that every removed sourcing-era path renders the 404 page, and asserts what a human
 would otherwise have to notice:

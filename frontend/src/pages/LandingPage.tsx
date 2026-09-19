@@ -1,12 +1,12 @@
 /**
- * Public landing page at `/`: what the app is and a link to each of its three pages.
+ * Public landing page at `/`: what the app is and a link to each of its four pages.
  *
  * Renders with ZERO network requests - it must work while the free-tier API is still
  * asleep. main.tsx skips the warm-up ping on this route for the same reason, so this
  * component must never import services/api or anything that touches the network.
  */
 import { Link } from 'react-router-dom';
-import { ArrowRight, BarChart3, Route, Timer, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BarChart3, Boxes, Map as MapIcon, Route, type LucideIcon } from 'lucide-react';
 
 interface Destination {
   to: string;
@@ -17,16 +17,22 @@ interface Destination {
 
 const PAGES: Destination[] = [
   {
+    to: '/map',
+    title: 'Map',
+    body: 'Every electronic-component distributor in the catalogue at its real location on an OpenStreetMap map, with what each one carries.',
+    icon: MapIcon,
+  },
+  {
     to: '/route-plan',
     title: 'Route Plan',
-    body: 'Solve a capacitated vehicle routing problem with time windows on a built-in Solomon instance or your own customer CSV, and see every route on an x/y plot.',
+    body: 'Pick a real depot and destinations and plan truck routes with the capacitated vehicle routing solver, drawn on the map. The Solomon test cases are one tab away.',
     icon: Route,
   },
   {
-    to: '/simulation',
-    title: 'Simulation',
-    body: 'Run the plan through a discrete-event simulation with random travel and service times, then tune schedule and capacity buffers against it.',
-    icon: Timer,
+    to: '/digital-twin',
+    title: 'Digital Twin',
+    body: 'Coming next: a simulated replica of the network. Today it stress-tests a solved route plan with random travel and service times and tunes its buffers.',
+    icon: Boxes,
   },
   {
     to: '/benchmarks',
@@ -45,16 +51,16 @@ export default function LandingPage() {
             SupplyChain<span className="text-white">IQ</span>
           </p>
           <h1 className="text-3xl sm:text-4xl font-semibold text-white leading-tight">
-            Vehicle routing with time windows, stress-tested by simulation
+            Truck routing on a real electronics supply network
           </h1>
           <p className="text-base text-slate-400 leading-relaxed max-w-2xl">
-            Plan delivery routes that respect vehicle capacity and every customer's time window, see how
-            the plan holds up when travel and service times vary, and check the solvers against the
-            standard benchmark instances.
+            See where real component distributors are, plan capacity-limited truck routes between them, and
+            check the solvers against the standard benchmark instances. The distributor catalogue is a
+            frozen 2024 snapshot, not live data.
           </p>
         </header>
 
-        <nav aria-label="Pages" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <nav aria-label="Pages" className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {PAGES.map(({ to, title, body, icon: Icon }) => (
             <Link
               key={to}

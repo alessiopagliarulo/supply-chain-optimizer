@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { BarChart3, Route, Timer, type LucideIcon } from 'lucide-react';
+import { BarChart3, Boxes, Map as MapIcon, Route, type LucideIcon } from 'lucide-react';
 
 interface NavItem {
   path: string;
@@ -8,13 +8,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { path: '/map', label: 'Map', icon: MapIcon },
   { path: '/route-plan', label: 'Route Plan', icon: Route },
-  { path: '/simulation', label: 'Simulation', icon: Timer },
+  { path: '/digital-twin', label: 'Digital Twin', icon: Boxes },
   { path: '/benchmarks', label: 'Benchmarks', icon: BarChart3 },
 ];
 
 /**
- * Three links fit on one row at any width down to a phone, so there is no hamburger:
+ * Four links fit on one row at any width down to a phone, so there is no hamburger:
  * below `sm` the labels drop and each link keeps its icon plus an accessible name.
  */
 export default function NavBar() {

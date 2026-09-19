@@ -44,3 +44,101 @@ body {
 .hub-marker-pulse {
   animation: hub-pulse 1.8s ease-in-out infinite;
 }
+
+/* ── Leaflet maps (components/map) ─────────────────────────────────────────── */
+
+.leaflet-container {
+  background: #aad3df; /* OpenStreetMap's water colour, shown before tiles load */
+  font: inherit;
+}
+
+/* 44px zoom buttons: a real touch target, not Leaflet's default 30px. */
+/* (0,3,1) specificity: leaflet.css loads after this file, in the map chunk. */
+.leaflet-container .leaflet-control-zoom.leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.leaflet-marker-icon.site-marker-hit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+}
+.site-marker-hit:focus-visible {
+  outline: none;
+}
+.site-marker-hit:focus-visible .site-marker {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px #2563eb;
+}
+
+.site-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 120ms ease;
+}
+.site-marker-hit:hover .site-marker {
+  transform: scale(1.12);
+}
+.site-marker--single { width: 18px; height: 18px; }
+.site-marker--group { width: 28px; height: 28px; }
+.site-marker--cluster {
+  width: 36px;
+  height: 36px;
+  background: #1e3a8a;
+  border-width: 3px;
+  box-shadow: 0 0 0 5px rgba(30, 58, 138, 0.25), 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+.site-marker--default { background: #2563eb; }
+.site-marker--selected { background: #f59e0b; box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.35), 0 1px 4px rgba(15, 23, 42, 0.45); }
+.site-marker--stop { background: #0f172a; }
+.site-marker--dim { background: #94a3b8; border-color: #e2e8f0; opacity: 0.8; }
+.site-marker--depot {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: #dc2626;
+  border-width: 3px;
+}
+.site-marker--depot.site-marker--single::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 2px;
+}
+
+/* Route stop numbers on the real-place planner map. */
+.leaflet-marker-icon.stop-badge-hit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+}
+.stop-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}

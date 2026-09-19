@@ -187,6 +187,155 @@ export const routingApi = {
   benchmarks: () => api.get<BenchmarksResponse>('/routing/benchmarks').then((r) => r.data),
 };
 
+// ── Catalogue: the frozen distributor snapshot (backend/app/api/distributors.py) ──
+
+/** GET /catalogue/provenance: what the catalogue is. Read before labelling it anywhere. */
+export interface CatalogueProvenance {
+  is_live: boolean;
+  snapshot_year: number;
+  summary: string;
+  dataset: string;
+  dataset_url: string;
+  license: string;
+  original_source: string;
+  counts: { components: number; distributors: number; offers: number };
+  coordinates: {
+    precision: string;
+    tolerance_km: number;
+    source: string;
+    distinct_points: number;
+    distributors_on_shared_points: number;
+    unlocated_distributors: number;
+  };
+  documentation: { path: string; url: string };
+}
+
+export interface Distributor {
+  id: number;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  is_domestic: boolean | null;
+  total_offers: number;
+  total_stock: number;
+  /** How many OTHER distributors sit on exactly this point (coordinates are per city). */
+  shares_location_with: number;
+}
+
+/** A distributor the map can place: coordinates known. */
+export type LocatedDistributor = Distributor & { latitude: number; longitude: number };
+
+export const isLocated = (d: Distributor): d is LocatedDistributor => d.latitude !== null && d.longitude !== null;
+
+/** One component a distributor carries, with its 2024-snapshot offer. */
+export interface CarriedComponent {
+  component_id: number;
+  mpn: string;
+  manufacturer: string;
+  category: string;
+  price: number;
+  currency: string | null;
+  stock: number;
+  moq: number;
+  sku: string | null;
+}
+
+export const catalogueApi = {
+  provenance: () => api.get<CatalogueProvenance>('/catalogue/provenance').then((r) => r.data),
+  distributors: () =>
+    api.get<Distributor[]>('/distributors', { params: { located_only: true } }).then((r) => r.data.filter(isLocated)),
+  components: (distributorId: number) =>
+    api
+      .get<CarriedComponent[]>(`/distributors/${distributorId}/components`, { params: { limit: 1000 } })
+      .then((r) => r.data),
+};
+
+// ── Real-place routing (backend/app/api/routing_places.py) ───────────────────
+
+/** The example assumptions around the real places. None of these are real data. */
+export interface PlacesScenario {
+  stop_load: number;
+  vehicle_capacity: number;
+  num_vehicles: number;
+  speed_kmh: number;
+  service_minutes: number;
+  max_route_hours: number;
+}
+
+export interface PlacesModel {
+  road_factor: number;
+  road_factor_rationale: string;
+  earth_radius_km: number;
+  /** Country (as the catalogue spells it) -> road-connected region. */
+  road_regions: Record<string, string>;
+  default_scenario: PlacesScenario;
+  limits: {
+    max_stops: number;
+    max_vehicles: number;
+    max_capacity: number;
+    max_route_hours: number;
+    max_time_limit_seconds: number;
+    max_exact_customers: number;
+    auto_exact_max_customers: number;
+  };
+  example: { depot_id: number; stop_ids: number[] } | null;
+  documentation: string;
+}
+
+export interface Place {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+}
+
+export interface PlacedRoute {
+  /** Indices into the response's `stops`, in visiting order. */
+  stops: number[];
+  load: number;
+  distance_km: number;
+  straight_line_km: number;
+  duration_hours: number;
+  service_start_hours: number[];
+}
+
+export interface PlacesSolveResponse {
+  depot: Place;
+  stops: Place[];
+  scenario: PlacesScenario;
+  road_factor: number;
+  method: string;
+  status: SolveStatus;
+  feasible: boolean;
+  proven_optimal: boolean;
+  wall_seconds: number;
+  vehicles_used: number;
+  total_km: number;
+  total_straight_line_km: number;
+  routes: PlacedRoute[];
+  violations: string[];
+}
+
+export interface PlacesSolveRequest {
+  depot_id: number;
+  stop_ids: number[];
+  scenario: PlacesScenario;
+  method: SolverMethod;
+  time_limit_seconds: number;
+}
+
+export const placesApi = {
+  model: () => api.get<PlacesModel>('/routing/places/model').then((r) => r.data),
+  solve: (req: PlacesSolveRequest) =>
+    api.post<PlacesSolveResponse>('/routing/places/solve', req).then((r) => r.data),
+};
+
 /**
  * A reader-facing message for a failed call: the server's own `detail` when it sent
  * one (FastAPI's 422s say exactly which field is wrong), otherwise what went wrong

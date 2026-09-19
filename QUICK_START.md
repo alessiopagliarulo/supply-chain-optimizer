@@ -76,20 +76,29 @@ Frontend ready at: http://localhost:5173
 
 ## 4. Open the app
 
-Open http://localhost:5173. There is no login; the landing page links to the three pages.
+Open http://localhost:5173. There is no login; the landing page links to the four pages.
 
 ---
 
 ## 5. Demo flow
 
-### Route Plan
+### Map
+Every located distributor from the frozen 2024 catalogue at its real location on an
+OpenStreetMap map. Click a marker (or search) to see who is there and what they carry.
+
+### Route Plan - Real places
+Opens on an example plan (Farnell, Leeds, to every other UK distributor) already solved
+and drawn on the map. Change the depot, tick destinations or click map markers, adjust
+the example scenario and press **Plan routes**. See `docs/REAL_PLACE_ROUTING.md`.
+
+### Route Plan - Solomon test cases
 Pick a built-in Solomon sample (C101 or R101, 25 customers) or upload your own customer
 CSV (the page lists the columns; "Download this instance as CSV" gives you a template).
 Choose a solver and press **Solve** to see every route on an x/y plot, with total
 distance, vehicles used, feasibility and solver runtime.
 
-### Simulation
-Press **Simulate this plan** (or solve a sample on the page itself). Set variability,
+### Digital Twin
+Marked "coming next". Until then it simulates a Solomon plan: press **Simulate this plan** (or solve a sample on the page itself). Set variability,
 distribution, replications and seed, then **Run simulation** for on-time rate, lateness,
 completion against depot close and utilization. **Tune buffers** searches schedule and
 capacity buffers and charts the evaluated frontier.
