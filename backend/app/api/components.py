@@ -22,6 +22,8 @@ class ComponentResponse(BaseModel):
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     num_offers: int = 0
+    # Only filled when the list is requested with include_offers=true.
+    offers: Optional[List["OfferResponse"]] = None
 
     class Config:
         from_attributes = True
@@ -34,7 +36,11 @@ class OfferResponse(BaseModel):
     distributor_city: Optional[str]
     distributor_state: Optional[str]
     distributor_country: Optional[str]
-    is_domestic: bool
+    # Distributor HQ/warehouse city point, so offers can be plotted and routed
+    # without a second lookup. City precision; see GET /catalogue/provenance.
+    distributor_latitude: Optional[float]
+    distributor_longitude: Optional[float]
+    is_domestic: Optional[bool]
     price: float
     stock: int
     moq: int = 1
@@ -43,6 +49,28 @@ class OfferResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+ComponentResponse.model_rebuild()
+
+
+def _offer(o: DistributorOffer, d: Distributor) -> OfferResponse:
+    return OfferResponse(
+        id=o.id,
+        distributor_id=d.id,
+        distributor_name=d.name,
+        distributor_city=d.city,
+        distributor_state=d.state,
+        distributor_country=d.country,
+        distributor_latitude=d.latitude,
+        distributor_longitude=d.longitude,
+        is_domestic=d.is_domestic,
+        price=o.price,
+        stock=o.stock,
+        moq=int(o.moq or 1),
+        sku=o.sku,
+        currency=o.currency,
+    )
 
 
 class ComponentDetailResponse(BaseModel):
@@ -66,6 +94,8 @@ async def list_components(
     category: Optional[str] = Query(None),
     manufacturer: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    distributor_id: Optional[int] = Query(None, description="Only components this distributor has an offer for."),
+    include_offers: bool = Query(False, description="Embed every offer (cheapest first) with its distributor's coordinates."),
     # Bounded pagination. `skip=-5` used to be accepted silently — SQLite treats a
     # negative OFFSET as no offset, so the caller got page 1 while believing it had
     # asked for something else. `limit` had no ceiling, so a single request could ask
@@ -113,7 +143,28 @@ async def list_components(
             | Component.manufacturer.ilike(f"%{search}%")
         )
 
-    rows = q.offset(skip).limit(limit).all()
+    if distributor_id is not None:
+        if db.query(Distributor.id).filter(Distributor.id == distributor_id).first() is None:
+            raise HTTPException(status_code=404, detail="Distributor not found")
+        carried = db.query(DistributorOffer.component_id).filter(
+            DistributorOffer.distributor_id == distributor_id
+        )
+        q = q.filter(Component.id.in_(carried))
+
+    # Stable order, or skip/limit pages can overlap or drop rows.
+    rows = q.order_by(Component.id.asc()).offset(skip).limit(limit).all()
+
+    offers_by_component = {}
+    if include_offers and rows:
+        page_ids = [c.id for c, *_ in rows]
+        for o, d in (
+            db.query(DistributorOffer, Distributor)
+            .join(Distributor, DistributorOffer.distributor_id == Distributor.id)
+            .filter(DistributorOffer.component_id.in_(page_ids))
+            .order_by(DistributorOffer.price.asc(), DistributorOffer.id.asc())
+            .all()
+        ):
+            offers_by_component.setdefault(o.component_id, []).append(_offer(o, d))
 
     results = []
     for c, min_price, max_price, num_offers in rows:
@@ -129,6 +180,7 @@ async def list_components(
             min_price=float(min_price) if min_price is not None else None,
             max_price=float(max_price) if max_price is not None else None,
             num_offers=int(num_offers) if num_offers is not None else 0,
+            offers=offers_by_component.get(c.id, []) if include_offers else None,
         ))
     return results
 
@@ -145,6 +197,7 @@ class CatalogueStats(BaseModel):
     total_distributors: int
     domestic_distributors: int
     international_distributors: int
+    unlocated_distributors: int = 0
     total_offers: int
     categories: int
     manufacturers: int
@@ -182,6 +235,7 @@ async def get_stats(db: Session = Depends(get_db)):
     dist_count = db.query(Distributor).count()
     offer_count = db.query(DistributorOffer).count()
     domestic_count = db.query(Distributor).filter(Distributor.is_domestic.is_(True)).count()
+    international_count = db.query(Distributor).filter(Distributor.is_domestic.is_(False)).count()
     categories = db.query(Component.category).distinct().count()
     manufacturers = db.query(Component.manufacturer).distinct().count()
 
@@ -189,7 +243,9 @@ async def get_stats(db: Session = Depends(get_db)):
         "total_components": comp_count,
         "total_distributors": dist_count,
         "domestic_distributors": domestic_count,
-        "international_distributors": dist_count - domestic_count,
+        # Counted, not derived: a distributor with an unknown location is neither.
+        "international_distributors": international_count,
+        "unlocated_distributors": dist_count - domestic_count - international_count,
         "total_offers": offer_count,
         "categories": categories,
         "manufacturers": manufacturers,
@@ -213,20 +269,7 @@ async def get_component(component_id: int, db: Session = Depends(get_db)):
     )
 
     offers = [
-        OfferResponse(
-            id=o.id,
-            distributor_id=d.id,
-            distributor_name=d.name,
-            distributor_city=d.city,
-            distributor_state=d.state,
-            distributor_country=d.country,
-            is_domestic=d.is_domestic,
-            price=o.price,
-            stock=o.stock,
-            moq=int(o.moq or 1),
-            sku=o.sku,
-            currency=o.currency,
-        )
+        _offer(o, d)
         for o, d in offers_raw
     ]
 
@@ -273,19 +316,6 @@ async def get_offers(
         q = q.order_by(Distributor.name.asc())
 
     return [
-        OfferResponse(
-            id=o.id,
-            distributor_id=d.id,
-            distributor_name=d.name,
-            distributor_city=d.city,
-            distributor_state=d.state,
-            distributor_country=d.country,
-            is_domestic=d.is_domestic,
-            price=o.price,
-            stock=o.stock,
-            moq=int(o.moq or 1),
-            sku=o.sku,
-            currency=o.currency,
-        )
+        _offer(o, d)
         for o, d in q.all()
     ]
