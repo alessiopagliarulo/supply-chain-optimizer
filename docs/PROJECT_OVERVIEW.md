@@ -36,7 +36,7 @@ Three questions feed one decision:
 | Route optimization | Real distributor geography | Exhaustive enumeration (≤8 stops), OR-Tools routing above that | Symmetric TSP; proven optimum on the sizes the site actually produces, guided local search beyond them |
 | Network fragility analysis | The real distributor→component bipartite graph | NetworkX | Spectral graph theory: algebraic connectivity (Fiedler), betweenness, PageRank, k-core, HHI |
 | Monte Carlo disruption simulation | 1,000 scenarios over that graph | NumPy | Percolation; tail risk (CVaR-95) |
-| Lead-time prediction | **4,148 real DigiKey observations across 7 snapshots, collected by our own weekly pipeline** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14); the served model is fitted on an earlier cut — 2,615 usable rows of the then five-snapshot panel / 324 API-derived features, retrained 2026-09-03, so the artifact is one snapshot behind the panel and `/ml/model-info` reports `stale: true` | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
+| Lead-time prediction | **4,890 real DigiKey observations across 8 snapshots, collected by our own weekly pipeline** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14, 742 on 2026-09-21); the served model is fitted on an earlier cut — 2,615 usable rows of the then five-snapshot panel / 324 API-derived features, retrained 2026-09-03, so the artifact is three snapshots behind the panel and `/ml/model-info` reports `stale: true` | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
 | Macro supply-stress regime model | NY Fed GSCPI + FRED, 339 monthly observations | scikit-learn | Walk-forward validation; proper scoring rules (Brier); calibration slope; ship gate vs persistence and climatology |
 | Intermittent-demand benchmark | Monash car parts: 2,674 series × 51 months, 136,374 observations | Croston / SBA / TSB, custom CRPS | Distributional forecasting; proper scoring rules; Friedman + Nemenyi significance testing |
 | Macro demand backtest | US Census M3 `A34SNO`, 198 monthly observations, ALFRED vintage `2026-08-16` (pinned, offline) | Prophet, Chronos-Bolt | Rolling-origin backtesting; time-series foundation models; data-vintage reproducibility |
@@ -76,7 +76,7 @@ worse than predicting the mean. The model learned how three vendors quote, not h
 Effective sample size is 28 manufacturers, not 2,615 rows. (Those three counts describe the
 **2026-09-03 served artifact**, fitted on the then five-snapshot, 2,664-row cut of the panel —
 2,615 of those rows survive the label and match-quality drops. The panel on disk has since
-grown to 4,148 rows / 7 snapshots; the artifact has not been refitted. The fold groups are 472 *grouping keys*
+grown to 4,890 rows / 8 snapshots on disk; the artifact has not been refitted. The fold groups are 472 *grouping keys*
 from `lead_time_model._group_key`, over 361 distinct `base_product` values — the two counts are
 different quantities and `LEAKAGE_PROGRESSION.md` keeps them apart.)
 *(`docs/leakage_progression.json`, `python -m seeds.run_leakage_progression`)*
@@ -158,8 +158,8 @@ Being precise here is what makes the rest credible.
   (Live pricing *is* real, on demand, via `/live-prices/*`.)
 - **Not** a validated lead-time point predictor. Family-grouped R² is +0.08; the honest product is
   an interval, which is what Move 2 builds.
-- **Not** temporal validation of the lead-time model — the panel holds seven snapshot dates
-  spanning 2026-07-01 to 2026-09-14 (the served artifact was fitted on the first five), which is
+- **Not** temporal validation of the lead-time model — the panel holds 8 snapshot dates
+  spanning 2026-07-01 to 2026-09-21 (the served artifact was fitted on the first five), which is
   far too short a span for time-series features to be learnable. The weekly collector fixes this
   over time. *(This line read "there are two snapshots" until 2026-09-01; that matched neither the
   panel nor the artifact at any point.)*
