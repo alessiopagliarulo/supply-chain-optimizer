@@ -144,12 +144,12 @@ they hear it from me:
   benchmark on a real intermittent-demand panel (Monash car parts) — see the
   demand-method row above and [docs/INTERMITTENT_DEMAND.md](docs/INTERMITTENT_DEMAND.md).
 - **Disruption probabilities are structural, not empirical** (see the CVaR caveat above).
-- **The lead-time panel is 4,148 real observations across seven snapshot dates**
-  (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14), all from DigiKey — one distributor, not a cross-distributor consensus. 791
+- **The lead-time panel is 4,890 real observations across 8 snapshot dates**
+  (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14, 742 on 2026-09-21), all from DigiKey — one distributor, not a cross-distributor consensus. 791
   of 791 parts were polled on 2026-08-15; 6.2% missed (43 not in DigiKey's catalog, 6 in
   the catalog with no published lead time), and that miss list is in
   `seeds/data/lead_time_panel/collection_log.csv`.
-- **The served lead-time model is one snapshot behind the panel, and that gap is
+- **The served lead-time model is three snapshots behind the panel, and that gap is
   published rather than hidden.** The collector runs weekly; the model is retrained by
   hand, so the two drift apart between retrains. The deployed artifact was trained
   **2026-09-03** on the **2,615** usable rows of the then 2,664-row, five-snapshot cut of
@@ -157,7 +157,7 @@ they hear it from me:
   describes *that artifact*, not the panel on disk today.
   `GET /api/v1/ml/model-info` publishes both sides: the training count, and a
   `training_data_staleness` block that compares the panel sha256 the artifact recorded at
-  fit time (`c68e2891…`) with the file on disk (`d94df904…` since the 2026-09-07
+  fit time (`c68e2891…`) with the file on disk (`d3472e7e…` since the 2026-09-21
   collector run). They differ, so it currently reports `stale: true` and names the
   retrain command. The tripwire is deliberately a warning and not a build failure, so a
   scheduled collector commit cannot turn CI red by itself.
@@ -229,7 +229,7 @@ Open http://localhost:5173 and pick a page. There is no login.
 **Backend:** Python 3.11 · FastAPI · SQLAlchemy · SQLite (dev **and** current production — `render.yaml` pins `DATABASE_URL=sqlite:///./supply_chain.db`; PostgreSQL support exists in the SQLAlchemy layer via `psycopg`, but nothing is deployed on it) · OR-Tools · NetworkX · scikit-learn (Prophet is installed and used by the offline `seeds/` backtests; no API route imports it)  
 **Frontend:** React 19 · TypeScript · Vite · Tailwind CSS v4 · Recharts · Zustand  
 **Algorithms:** Monte Carlo simulation, Spectral Graph Theory, TSP (kept for the routing rebuild)  
-**Data:** Nexar/Octopart static 2024 snapshot (real component pricing), DigiKey API (4,148 real observed lead times + live pricing), Nexar & OEMsecrets live pricing, FRED and IMF PortWatch (live), GPR index (downloaded live, but the published archive's newest observation is **September 2021** — see the feeds note below), ACLED (needs a key — reports as inactive without one)
+**Data:** Nexar/Octopart static 2024 snapshot (real component pricing), DigiKey API (4,890 real observed lead times + live pricing), Nexar & OEMsecrets live pricing, FRED and IMF PortWatch (live), GPR index (downloaded live, but the published archive's newest observation is **September 2021** — see the feeds note below), ACLED (needs a key — reports as inactive without one)
 
 ---
 
@@ -507,7 +507,7 @@ mode this whole section exists to catch.
 One of those 52 gates emits a warning rather than a failure right now, and that is by
 design: `test_training_data_staleness_is_reported_never_ignored` reports **STALE** —
 the served artifact was fitted on the panel at `c68e2891…` and the file on disk is
-`d94df904…` since the 2026-09-07 collector run. A scheduled data commit must not be able
+`d3472e7e…` since the 2026-09-21 collector run. A scheduled data commit must not be able
 to turn the build red by itself, so the tripwire warns, names the retrain command, and the
 gap is served on `/api/v1/ml/model-info`. See [Tests](#tests).
 
@@ -642,7 +642,7 @@ than let a bad number ship quietly.
 | Source | What it provides |
 |--------|-----------------|
 | Nexar / Octopart (**static 2024 snapshot**, via HuggingFace `mdnh/electronic-components-supply-chain`, CC-BY-4.0) | Real component pricing, stock levels, distributor offers (791 components, 92 distributors, 8,176 offers). Real data, but a **frozen snapshot** — not a live API feed. See [docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md). |
-| DigiKey API (**live**) | **4,148 real observed lead times across seven snapshots** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14), collected from all 791 catalogued components — 6.19% miss rate on the full 2026-08-15 sweep, logged per attempt. The served model is fitted on an earlier cut of this panel (2,615 usable rows of the then 2,664-row, five-snapshot cut, trained 2026-09-03) — see the lead-time bullets above. Collected by [`app/ml/lead_time_collector.py`](backend/app/ml/lead_time_collector.py) (resumable, quota-aware, honours `X-RateLimit-Remaining` and `Retry-After`) and scheduled weekly via [`.github/workflows/collect-lead-times.yml`](.github/workflows/collect-lead-times.yml). Also supplies live pricing/stock through `/api/v1/live-prices/*`. |
+| DigiKey API (**live**) | **4,890 real observed lead times across 8 snapshots** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14, 742 on 2026-09-21), collected from all 791 catalogued components — 6.19% miss rate on the full 2026-08-15 sweep, logged per attempt. The served model is fitted on an earlier cut of this panel (2,615 usable rows of the then 2,664-row, five-snapshot cut, trained 2026-09-03) — see the lead-time bullets above. Collected by [`app/ml/lead_time_collector.py`](backend/app/ml/lead_time_collector.py) (resumable, quota-aware, honours `X-RateLimit-Remaining` and `Retry-After`) and scheduled weekly via [`.github/workflows/collect-lead-times.yml`](.github/workflows/collect-lead-times.yml). Also supplies live pricing/stock through `/api/v1/live-prices/*`. |
 | FRED (Federal Reserve) | Freight index, PPI, macro stress regime |
 | ACLED | Conflict event counts by country (distributor risk) |
 | IMF PortWatch | Port call frequency (congestion delay) |
