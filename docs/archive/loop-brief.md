@@ -84,6 +84,8 @@ restoring the component and distributor data from `archive/sourcing-v1`.
    100-customer cases; CP-SAT's mean gap grows with size).
 4. **Guards must run where they gate:** `ci.yml:163` still passes `-m "not slow"`, so the gate the
    deploy waits on never runs the `slow` pins; `repo-tests.yml` runs them (PR 20) but does not gate deploy.
+   This, and any other `.github/workflows/` change, may be proposed but not built by the loop (GitHub
+   refuses the App): the proposal says it needs a workflow change and is left for the owner's crew.
 5. **Fix anything broken on the live flow** first; then **new ideas** that let an OR, logistics or
    supply-chain recruiter try the strongest true result on real data.
 6. **Resume figures** still published (Brier 0.393, rank 1.66): a proposal that moves one is allowed,
