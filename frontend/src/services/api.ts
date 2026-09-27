@@ -177,6 +177,94 @@ export type BenchmarksResponse =
       results: unknown[];
     };
 
+// ── Types: the shapes backend/app/api/stochastic.py returns ──────────────────
+
+export interface FrontierBomItem {
+  component_id: number;
+  quantity: number;
+}
+
+/** One lambda on the swept mean-CVaR frontier. */
+export interface FrontierPoint {
+  lambda: number;
+  expected_cost_usd: number;
+  cvar_95_usd: number;
+  var_95_usd: number;
+  tail_premium_usd: number;
+  first_stage_cost_usd: number;
+  expected_recourse_usd: number;
+  n_suppliers: number;
+  supplier_ids: number[];
+  solver_status: string;
+  mip_gap_pct: number;
+  solve_seconds: number;
+  n_atoms_in_tail: number;
+  n_variables: number;
+  dominated: boolean;
+}
+
+export interface FrontierResponse {
+  cached: boolean;
+  frontier: FrontierPoint[];
+  partial: boolean;
+  unsolved_points: { lambda: number; reason: string; solver_status: string; detail: string }[];
+  frontier_shape: { kind: string; statement?: string };
+  recommendation: { available: boolean; knee_lambda: number | null; statement: string };
+  instance: { total_units: number; n_lines: number; depot_lat: number; depot_lng: number };
+  calibration: {
+    base_annual_prob: number;
+    horizon_days: number;
+    centrality_spread: number;
+    p_disruption_min: number;
+    p_disruption_median: number;
+    p_disruption_max: number;
+    n_distributors_in_pool: number;
+  };
+  scenarios: {
+    kind: string;
+    n_distinct: number;
+    p_no_disruption: number;
+    solve_set: { kind: string; exact: boolean; n_distinct: number; thinned: boolean; variable_budget: number };
+    evaluation_set: { kind: string; n_atoms: number };
+  };
+  solver: {
+    engine: string;
+    max_time_in_seconds_per_point: number;
+    sweep_time_budget_s: number;
+    sweep_wall_seconds: number;
+    any_point_hit_time_limit: boolean;
+    points_requested: number;
+    points_solved: number;
+    points_unsolved: number;
+  };
+  caveats: string[];
+}
+
+export interface CalibrationResponse {
+  method: string;
+  parameters: {
+    base_annual_prob: number;
+    horizon_days: number;
+    centrality_spread: number;
+    base_horizon_prob: number;
+    max_failure_prob: number;
+  };
+  base_rate_source: { citation: string; quote: string; derivation: string; known_weakness: string };
+  distributors: {
+    distributor_id: number;
+    distributor_name: string;
+    betweenness_normalized: number;
+    p_disruption_over_horizon: number;
+  }[];
+}
+
+/** Only the fields the Sourcing Risk page reads from GET /catalogue/provenance. */
+export interface CatalogueProvenance {
+  is_live: boolean;
+  snapshot_year: number;
+  summary: string;
+}
+
 // ── Calls ────────────────────────────────────────────────────────────────────
 
 export const routingApi = {
@@ -192,6 +280,13 @@ export const routingApi = {
   tuneBuffers: (req: TuneBuffersRequest) =>
     api.post<TuneBuffersResponse>('/routing/tune-buffers', req).then((r) => r.data),
   benchmarks: () => api.get<BenchmarksResponse>('/routing/benchmarks').then((r) => r.data),
+};
+
+export const sourcingApi = {
+  frontier: (items: FrontierBomItem[]) =>
+    api.post<FrontierResponse>('/stochastic/frontier', { items }).then((r) => r.data),
+  calibration: () => api.get<CalibrationResponse>('/stochastic/calibration').then((r) => r.data),
+  catalogueProvenance: () => api.get<CatalogueProvenance>('/catalogue/provenance').then((r) => r.data),
 };
 
 /**
