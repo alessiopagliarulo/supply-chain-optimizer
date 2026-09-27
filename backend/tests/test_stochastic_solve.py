@@ -7,80 +7,20 @@ instance, lambda = 0 (minimise expected cost) and lambda = 1 (minimise CVaR_95) 
 DIFFERENT plans, and the risk-averse one must not put every line on the single cheapest
 distributor.
 
-THE FIXTURE, AND WHY IT HAS A TRADE-OFF
----------------------------------------
-Three distributors, two BOM lines of 1,000 units each, all at the same distance from the
-factory, each failing independently with probability 0.10 over the horizon.
-
-    distributor   price (line 10 / line 20)   stock per line
-    1  cheapest   $1.00 / $2.00               1,000  - can carry the whole BOM alone
-    2             $1.02 / $2.04                 500
-    3             $1.04 / $2.08                 500
-
-Buying everything from distributor 1 is cheapest on average, but it fails in 10% of
-outcomes, which covers the whole worst 5%. Then the survivors hold only 500 + 500 units per line, so
-the gap is bought back at an expedite premium. Splitting across 2 and 3 costs more up
-front and loses at most half the BOM to any one failure.
-
-The scenario set is the full 2**3 = 8-atom support, probabilities written out by hand:
-none fail 0.9**3 = 0.729; one fails 0.1 * 0.9**2 = 0.081; two fail 0.1**2 * 0.9 = 0.009;
-all three fail 0.1**3 = 0.001.
+The fixture is described in `tests/_stochastic_fixture.py`: three equally risky
+distributors, the cheapest able to carry the whole BOM alone, the other two half each.
 """
 from __future__ import annotations
 
 import pytest
 
-from app.optimization.sourcing import BomLine, Offer
-from app.optimization.stochastic import (
-    DisruptionScenario,
-    ScenarioSet,
-    solve_stochastic_sourcing,
-)
+from app.optimization.stochastic import solve_stochastic_sourcing
 from app.optimization.strategies import get_strategy
-
-CHEAPEST = 1
-
-_PRICE = {1: 1.00, 2: 1.02, 3: 1.04}
-_STOCK = {1: 1_000, 2: 500, 3: 500}
-
-
-def _instance():
-    bom = [
-        BomLine(component_id=10, mpn="PART-10", quantity=1_000),
-        BomLine(component_id=20, mpn="PART-20", quantity=1_000),
-    ]
-    offers = [
-        Offer(
-            component_id=cid,
-            distributor_id=did,
-            distributor_name=f"Distributor {did}",
-            price_usd=_PRICE[did] * (1 if cid == 10 else 2),
-            stock=_STOCK[did],
-            moq=1,
-            is_domestic=True,
-            dist_km_from_depot=800.0,
-        )
-        for cid in (10, 20)
-        for did in (1, 2, 3)
-    ]
-    atoms = [
-        (frozenset(), 0.729),
-        (frozenset({1}), 0.081), (frozenset({2}), 0.081), (frozenset({3}), 0.081),
-        (frozenset({1, 2}), 0.009), (frozenset({1, 3}), 0.009), (frozenset({2, 3}), 0.009),
-        (frozenset({1, 2, 3}), 0.001),
-    ]
-    scenarios = ScenarioSet(
-        scenarios=[DisruptionScenario(failed=f, probability=p) for f, p in atoms],
-        n_draws=0,
-        seed=-1,
-        failure_probs={1: 0.1, 2: 0.1, 3: 0.1},
-        kind="exact",
-    )
-    return bom, offers, scenarios
+from tests._stochastic_fixture import CHEAPEST, DEMAND, instance
 
 
 def _solve(lam: float):
-    bom, offers, scenarios = _instance()
+    bom, offers, scenarios = instance()
     return solve_stochastic_sourcing(
         bom, offers, get_strategy("balanced"), scenarios, lam=lam, time_limit_s=20.0,
     )
@@ -112,7 +52,7 @@ def test_each_solve_returns_a_plan_that_covers_the_bom_and_its_cost_distribution
         per_line: dict[int, int] = {}
         for a in result.assignments:
             per_line[a.component_id] = per_line.get(a.component_id, 0) + a.quantity
-        assert per_line == {10: 1_000, 20: 1_000}
+        assert per_line == DEMAND
         # One realized cost per scenario atom, and the atoms carry the whole measure.
         assert len(result.outcomes) == 8
         assert sum(o.probability for o in result.outcomes) == pytest.approx(1.0)
