@@ -6,12 +6,14 @@
  * lambda in `min (1 - lambda) E[cost] + lambda CVaR_95[cost]` with CP-SAT and returns one
  * plan per lambda. The slider then moves along that frontier, so every figure on the page
  * is read from a live response - POST /stochastic/frontier, GET /stochastic/calibration
- * and GET /catalogue/provenance - never typed in.
+ * and GET /catalogue/provenance - never typed in. The model's limits are stated here, on
+ * the page, from the same responses.
  *
  * Nothing is fetched on mount: a solve can take tens of seconds, so it runs on a click.
  */
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import {
   CartesianGrid,
   Legend,
@@ -152,6 +154,60 @@ function FrontierChart({ points, selected }: { points: FrontierPoint[]; selected
         </ScatterChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+function Limits({ solved, point }: { solved: Solved | null; point: FrontierPoint | null }) {
+  const f = solved?.frontier;
+  const cal = solved?.calibration;
+  const year = solved?.provenance?.snapshot_year;
+  return (
+    <Card title="What this result rests on">
+      <ul className="flex flex-col gap-3 text-sm text-slate-300 leading-relaxed list-disc pl-5">
+        <li>
+          <span className="font-semibold text-white">The disruption chances are assumed, not measured. </span>
+          {cal && f
+            ? `They start from a published base rate - ${pct(cal.parameters.base_annual_prob)} a year, from ${cal.base_rate_source.citation} - which describes whole firms, not single suppliers. Over a ${f.calibration.horizon_days}-day order window that gives each distributor in this pool a failure chance between ${pct(f.calibration.p_disruption_min)} and ${pct(f.calibration.p_disruption_max)}, set by how central it is in the supplier network. Nothing in the catalogue was used to estimate them, and failures are drawn independently, so a shared shock that takes out several distributors at once is not modelled.`
+            : 'They start from a published base rate for whole firms and are spread across distributors by how central each one is in the supplier network. Nothing in the catalogue was used to estimate them, and failures are drawn independently. Solve a BOM to see the exact figures.'}
+        </li>
+        <li>
+          <span className="font-semibold text-white">At low volume the tail rests on a few scenarios. </span>
+          {f && point
+            ? `The tail cost is the average of the worst 5% of outcomes. At the selected risk weight that average covers ${point.n_atoms_in_tail} distinct combination${point.n_atoms_in_tail === 1 ? '' : 's'} of failed distributors, out of ${count(f.scenarios.evaluation_set.n_atoms)} ${f.scenarios.evaluation_set.kind === 'exact' ? 'possible combinations, each weighted by its exact probability' : 'combinations in a random sample'}. When only a handful of combinations decide it, one assumed probability can move the whole number.`
+            : 'The tail cost is the average of the worst 5% of outcomes. At low volume only a handful of failure combinations decide it, so one assumed probability can move the whole number.'}
+        </li>
+        <li>
+          <span className="font-semibold text-white">The prices and stock are a frozen snapshot. </span>
+          {year
+            ? `Every offer is a real ${year} observation from the catalogue, not a current quote.`
+            : 'Every offer is a real observation from a past year, not a current quote.'}
+        </li>
+        <li>
+          <span className="font-semibold text-white">The solver runs on a budget. </span>
+          {f
+            ? `Each risk weight gets at most ${f.solver.max_time_in_seconds_per_point} seconds of CP-SAT search and the whole sweep at most ${f.solver.sweep_time_budget_s} seconds; the second stage is capped at ${count(f.scenarios.solve_set.variable_budget)} variables. This request solved ${f.solver.points_solved} of ${f.solver.points_requested} risk weights in ${f.solver.sweep_wall_seconds.toFixed(1)} seconds${f.solver.any_point_hit_time_limit ? ', and at least one hit its time limit, so that plan is the best found rather than proven optimal' : ', every one to proven optimality'}${f.scenarios.solve_set.thinned ? '. The scenario set was thinned to fit the variable cap; the costs shown are still scored on the full set.' : '.'}`
+            : 'Each risk weight gets a fixed CP-SAT time limit and the whole sweep a fixed total budget; the page shows both once a BOM is solved. Only the preset BOMs are offered, because they solve inside that budget.'}
+        </li>
+        <li>
+          <span className="font-semibold text-white">A risk-weight sweep can miss some efficient plans. </span>
+          Sweeping one weight finds only the plans on the outer edge of the cost-versus-tail trade-off, so the
+          true set of efficient plans can be larger than the points shown.
+        </li>
+      </ul>
+      {f && f.caveats.length > 0 && (
+        <details className="group text-sm text-slate-400">
+          <summary className="cursor-pointer text-slate-300 hover:text-white min-h-[44px] flex items-center gap-1.5 list-none [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+            The API's own caveats, in full
+          </summary>
+          <ul className="flex flex-col gap-2 list-disc pl-5 mt-2 leading-relaxed">
+            {f.caveats.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Card>
   );
 }
 
@@ -354,6 +410,7 @@ export default function SourcingRiskPage() {
         </Card>
       )}
 
+      <Limits solved={solved} point={point} />
     </Page>
   );
 }
