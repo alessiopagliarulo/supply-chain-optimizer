@@ -203,19 +203,19 @@ def test_per_snapshot_breakdowns_match_the_csv() -> None:
 def test_served_artifact_claims_are_not_forced_to_match_the_live_panel() -> None:
     """Guard against re-introducing the original conflation bug the other way:
     a future edit must not make this file assert that the served-model
-    training count (2,615 rows / 5 snapshots, trained 2026-09-03) equals the
+    training count (3,351 rows / 6 snapshots, trained 2026-09-10) equals the
     live CSV's row count. They are allowed -- expected -- to differ, and they
     differ even immediately after a retrain, because ``build_training_design``
-    drops rows with no label or a bad DigiKey match (2,664 in that cut of the
-    CSV, 2,615 fitted). Between retrains the gap widens by a whole snapshot --
-    it is a full snapshot wide right now, with 3,406 rows on disk against a
-    2,664-row training cut. README.md / docs/PROJECT_OVERVIEW.md /
+    drops rows with no label, a bad DigiKey match or unfillable static fields
+    (3,406 in that cut of the CSV, 3,351 fitted). Between retrains the gap
+    widens by a whole snapshot per collector run -- it is three snapshots wide
+    right now, with 5,632 rows on disk against a 3,406-row training cut. README.md / docs/PROJECT_OVERVIEW.md /
     docs/RESEARCH_TECHNIQUES.md all publish both subjects side by side.
     This test just documents that the panel-total regexes above do not match the
     served-artifact sentences, so nobody "fixes" a future failure by loosening
     PANEL_ACROSS_RE until it accidentally does.
 
-    The sentences below are copied from those docs and are the 2026-09-03
+    The sentences below are copied from those docs and are the 2026-09-10
     vintage; they are FIXTURES for the regexes, not assertions about the docs'
     current wording, so a doc rewrite does not break this test -- but keeping
     them current is what makes the fixture representative."""
@@ -223,19 +223,22 @@ def test_served_artifact_claims_are_not_forced_to_match_the_live_panel() -> None
 
     served_model_sentences = [
         # README.md
-        "was trained **2026-09-03** on the **2,615** usable rows of the then "
-        "2,664-row, five-snapshot cut of the panel, with **324** features",
-        "The served model is fitted on an earlier cut of this panel (2,615 "
-        "usable rows of the then 2,664-row, five-snapshot cut, trained "
-        "2026-09-03)",
+        "was trained **2026-09-10** on the **3,351** usable rows of the then "
+        "3,406-row, six-snapshot cut of the panel (2026-07-01 through "
+        "2026-09-07), with **324** features",
+        "The 2,226 rows from the 2026-09-14, 2026-09-21 and 2026-09-28 "
+        "snapshots are not in it, and a retrain is still owed.",
+        "The served model is fitted on an earlier cut of this panel (3,351 "
+        "usable rows of the then 3,406-row, six-snapshot cut, trained "
+        "2026-09-10; a retrain is still owed)",
         # docs/PROJECT_OVERVIEW.md
-        "the served model is fitted on an earlier cut -- 2,615 usable rows of "
-        "the then five-snapshot panel / 324 API-derived features, retrained "
-        "2026-09-03",
+        "the served model is fitted on an earlier cut -- 3,351 usable rows of "
+        "the then six-snapshot panel / 324 API-derived features, retrained "
+        "2026-09-10",
         # docs/RESEARCH_TECHNIQUES.md
-        "the **served model is fitted on an earlier cut of it** -- 2,615 usable "
-        "rows of the then 2,664-row, five-snapshot panel (sha256 "
-        "`c68e2891...`), retrained 2026-09-03",
+        "the **served model is fitted on an earlier cut of it** -- 3,351 usable "
+        "rows of the then 3,406-row, six-snapshot panel (sha256 "
+        "`d94df904...`), retrained 2026-09-10",
     ]
 
     for sentence in served_model_sentences:
@@ -250,7 +253,7 @@ def test_served_artifact_claims_are_not_forced_to_match_the_live_panel() -> None
     # is not actually exercising the distinction it claims to. The two can never
     # coincide while build_training_design drops any row at all, but assert it
     # rather than assume it.
-    trained_rows = 2615
+    trained_rows = 3351
     assert trained_rows != actual_total, (
         f"the served-artifact row count ({trained_rows}) now equals the live "
         f"panel total ({actual_total}) -- the distinction this test documents "
