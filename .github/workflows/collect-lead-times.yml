@@ -28,7 +28,7 @@ on:
         required: false
         default: ""
 
-# Needed to push the updated panel CSV back to main.
+# Needed to push the updated panel CSV (and the docs figures describing it) back to main.
 permissions:
   contents: write
 
@@ -85,6 +85,7 @@ jobs:
           DIGIKEY_CLIENT_SECRET: ${{ secrets.DIGIKEY_CLIENT_SECRET }}
           DIGIKEY_SANDBOX: "false"
           MOUSER_API_KEY: ${{ secrets.MOUSER_API_KEY }}
+          LIMIT: ${{ inputs.limit }}
         run: |
           # No --limit by default: the collector reads DigiKey's X-RateLimit-Remaining
           # header and stops 25 calls short of the 1,000/day wall by itself, so all
@@ -95,23 +96,66 @@ jobs:
           # committed SQLite file itself — render.yaml pins
           # DATABASE_URL=sqlite:///./supply_chain.db — so the deployed instance
           # picks up a reseed at deploy time, not from this job.)
-          LIMIT_ARG=""
-          if [ -n "${{ inputs.limit }}" ]; then LIMIT_ARG="--limit ${{ inputs.limit }}"; fi
-          python -m app.ml.lead_time_collector $LIMIT_ARG --no-sync-db
+          LIMIT_ARG=()
+          if [ -n "$LIMIT" ]; then LIMIT_ARG=(--limit "$LIMIT"); fi
+          python -m app.ml.lead_time_collector "${LIMIT_ARG[@]}" --no-sync-db
+
+      - name: Did the panel change?
+        id: panel
+        run: |
+          PANEL="backend/seeds/data/lead_time_panel/observed_lead_times.csv"
+          LOG="backend/seeds/data/lead_time_panel/collection_log.csv"
+          if [ -z "$(git status --porcelain -- "$PANEL" "$LOG")" ]; then
+            echo "No new observations — panel unchanged, nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # README.md, docs/PROJECT_OVERVIEW.md and docs/RESEARCH_TECHNIQUES.md state the
+      # panel's size in prose, and tests/test_lead_time_panel_docs_pinned_to_csv.py
+      # checks that prose against the CSV. Pushing new rows without new prose turned
+      # main red after every run, so the figures are regenerated from the grown CSV
+      # here and ride in the same commit. Only panel figures are touched; what the
+      # served model was trained on stays as metrics.joblib records it until a retrain.
+      - name: Update panel figures in the docs
+        if: steps.panel.outputs.changed == 'true'
+        working-directory: backend
+        run: python scripts/sync_panel_docs.py
+
+      # The same guard CI runs, on the tree about to be pushed. If it is red, nothing
+      # is pushed: main stays green and the failure email names the reason.
+      - name: Check the docs against the panel
+        if: steps.panel.outputs.changed == 'true'
+        working-directory: backend
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY || 'ci-collector-secret-key-32chars-pad' }}
+          DATABASE_URL: sqlite:///./supply_chain.db
+          DEBUG: "false"
+        run: python -m pytest tests/test_lead_time_panel_docs_pinned_to_csv.py tests/test_sync_panel_docs.py -q -p no:cacheprovider
 
       - name: Commit updated panel
+        if: steps.panel.outputs.changed == 'true'
         run: |
           # The log is committed alongside the panel: it is what makes the run
           # resumable (a run stopped by the daily quota picks up where it left
           # off) and it is the audit trail behind the reported miss rate.
           PANEL="backend/seeds/data/lead_time_panel/observed_lead_times.csv"
           LOG="backend/seeds/data/lead_time_panel/collection_log.csv"
-          if [ -z "$(git status --porcelain -- "$PANEL" "$LOG")" ]; then
-            echo "No new observations — panel unchanged, nothing to commit."
-            exit 0
-          fi
           git config user.name  "lead-time-collector[bot]"
           git config user.email "lead-time-collector@users.noreply.github.com"
-          git add "$PANEL" "$LOG"
+          git add "$PANEL" "$LOG" README.md docs/PROJECT_OVERVIEW.md docs/RESEARCH_TECHNIQUES.md
           git commit -m "data(lead-times): weekly observed snapshot $(date -u +%Y-%m-%d)"
           git push
+
+      # A failed doc update, guard or push leaves main untouched, but the week's rows
+      # must not be lost with the runner: keep them so they can be committed by hand.
+      - name: Keep the collected rows if the push was stopped
+        if: failure() && steps.panel.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lead-time-panel-${{ github.run_id }}
+          path: |
+            backend/seeds/data/lead_time_panel/observed_lead_times.csv
+            backend/seeds/data/lead_time_panel/collection_log.csv
+          retention-days: 30
