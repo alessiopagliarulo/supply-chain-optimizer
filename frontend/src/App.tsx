@@ -11,6 +11,7 @@ import { startWarmup } from './services/warmup';
 const RoutePlanPage = lazy(() => import('./pages/RoutePlanPage'));
 const SimulationPage = lazy(() => import('./pages/SimulationPage'));
 const BenchmarksPage = lazy(() => import('./pages/BenchmarksPage'));
+const SourcingRiskPage = lazy(() => import('./pages/SourcingRiskPage'));
 import './index.css';
 
 function AppLayout() {
@@ -37,8 +38,9 @@ function AppLayout() {
 }
 
 /**
- * Exactly three pages plus the landing page. No login: every page is public.
- * Any other path - including the removed sourcing-era pages - is a 404.
+ * Four pages plus the landing page. No login: every page is public.
+ * Any other path - including the sourcing-era pages still archived at git tag
+ * archive/sourcing-v1 - is a 404.
  */
 function App() {
   return (
@@ -52,6 +54,7 @@ function App() {
             <Route path="/route-plan" element={<RoutePlanPage />} />
             <Route path="/simulation" element={<SimulationPage />} />
             <Route path="/benchmarks" element={<BenchmarksPage />} />
+            <Route path="/sourcing-risk" element={<SourcingRiskPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

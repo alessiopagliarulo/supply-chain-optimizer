@@ -61,8 +61,9 @@
 // sweeping extra widths across every route would buy nothing.
 //
 // Since issue #16 the app is three pages (Route Plan, Simulation, Benchmarks) plus
-// the landing page, with no login. Every other path, including the removed
-// sourcing-era pages, must render the 404 page; that is asserted too.
+// the landing page, with no login; the restored sourcing model added a fourth,
+// Sourcing Risk. Every other path, including the sourcing-era pages still archived
+// at git tag archive/sourcing-v1, must render the 404 page; that is asserted too.
 
 // Final pre-push gate. Drives a real browser against a LOCAL build with the live
 // API proxied in, across every route and viewport, and asserts the specific
@@ -77,7 +78,7 @@ const API=process.env.API||'https://supply-chain-api-qy8x.onrender.com';
 // gate's own fault. `/newsvendor/evaluation` measured 259.9s on the deployed
 // instance; 180s cut it off, so it is 300s.
 const PROXY_TIMEOUT=300000;
-const ROUTES=['/route-plan','/simulation','/benchmarks'];
+const ROUTES=['/route-plan','/simulation','/benchmarks','/sourcing-risk'];
 // Pages the app used to have. Each must now be an honest 404, not a crash or a redirect.
 const REMOVED_ROUTES=['/login','/register','/dashboard','/components','/cart','/resilience','/model-card','/newsvendor'];
 let pass=0, fail=0;
@@ -400,7 +401,7 @@ const AUDIT=()=>{
       ok('/: zero API requests while rendering', landingApiCalls===0,
          `saw ${landingApiCalls} request(s) matching /api/v1 or /health`);
 
-      // ── a link to each of the three pages ──────────────────────────────
+      // ── a link to each of the four pages ───────────────────────────────
       const bodyText = await p.evaluate(()=>document.body.innerText);
       for(const route of ROUTES){
         const n = await p.locator(`a[href="${route}"]`).count();
@@ -597,6 +598,60 @@ const AUDIT=()=>{
        `points=${shown.points} with gap=${withGap}`);
   }
 
+  // ── the Sourcing Risk page solves a real frontier ─────────────────────────
+  // The sweep above audits the page before anything is solved, which is only its
+  // bill-of-materials picker. The frontier, its chart, the slider and the tables
+  // exist only after a solve, so solve the first reference BOM, move the risk weight
+  // from one end to the other, and audit the SOLVED page at all four widths.
+  {
+    await p.setViewportSize({width:1440,height:900});
+    await visit('/sourcing-risk','/sourcing-risk (solve)');
+    await p.getByRole('button',{name:/^Solve the frontier$/}).click().catch(()=>{});
+    // A cold sweep is several CP-SAT solves; the server caps the whole sweep itself.
+    const solved=await p.getByText('Distributors used',{exact:true}).first()
+      .waitFor({state:'visible',timeout:170000}).then(()=>true,()=>false);
+    ok('/sourcing-risk: Solve returns a frontier and its plan', solved,
+       solved?'':(await p.evaluate(()=>document.body.innerText)).match(/The frontier could not be solved[\s\S]{0,200}/)?.[0]||'');
+    if(solved){
+      const shown=await p.evaluate(()=>({
+        points:document.querySelectorAll('.recharts-scatter-symbol').length,
+        max:Number(document.querySelector('#risk-weight')?.getAttribute('max')),
+      }));
+      // One chart symbol per solved risk weight, plus the highlighted selection.
+      ok('/sourcing-risk: one chart point per solved risk weight', shown.points===shown.max+2,
+         JSON.stringify(shown));
+      const read=()=>p.evaluate(()=>{
+        const label=document.querySelector('label[for=risk-weight]')?.textContent||'';
+        const used=[...document.querySelectorAll('span')].find(e=>e.textContent==='Distributors used');
+        return {label, used:used?.nextElementSibling?.textContent||''};
+      });
+      const low=await read();
+      await p.locator('#risk-weight').fill(String(shown.max));
+      const high=await read();
+      ok('/sourcing-risk: the slider moves along the frontier', low.label!==high.label, JSON.stringify({low,high}));
+      for(const [w,h] of [[1440,900],[1280,800],[768,1024],[390,844]]){
+        await p.setViewportSize({width:w,height:h});
+        await p.waitForTimeout(600);
+        const a=await p.evaluate(AUDIT);
+        ok(`/sourcing-risk (solved) @${w}: no horizontal overflow`, a.overflow.length===0,
+           a.overflow.length?JSON.stringify(a.overflow.slice(0,3)):'');
+        ok(`/sourcing-risk (solved) @${w}: no leaked undefined/NaN/null in visible text`,
+           a.leaks.length===0, a.leaks.length?JSON.stringify(a.leaks.slice(0,3)):'');
+        if(a.nLegends>0)
+          ok(`/sourcing-risk (solved) @${w}: chart legend clear of the axis labels`,
+             a.legendOverlap.length===0, JSON.stringify(a.legendOverlap));
+        if(w===1440){
+          ok('/sourcing-risk (solved): no tiny text / small prose', a.tiny.length===0,
+             a.tiny.length?JSON.stringify(a.tiny.slice(0,4)):'');
+          ok('/sourcing-risk (solved): no clipped chart labels', a.svgClip.length===0,
+             a.svgClip.length?JSON.stringify(a.svgClip):'');
+        }
+        if(w===390) ok('/sourcing-risk (solved) @390: touch targets >= 44px', a.small.length===0,
+           a.small.length?JSON.stringify(a.small.slice(0,4)):'');
+      }
+    }
+  }
+
   // ── a customer CSV in the documented format solves ────────────────────────
   // Download a built-in instance as CSV, upload that file back, and solve it. If
   // the documented columns ever drift from the node fields the solver takes, the
@@ -625,7 +680,7 @@ const AUDIT=()=>{
   // ── the nav AT its own label breakpoint ───────────────────────────────────
   // Nav overflow has shipped from this repo three times; the rule written down
   // after the third is to measure AT the breakpoint and one pixel either side.
-  // Three links always fit, so there is no hamburger: below `sm` (640px) the
+  // Four links always fit, so there is no hamburger: below `sm` (640px) the
   // labels drop and only the icons remain. Asserted per width: the labels are
   // shown on the correct side of the boundary, the bar does not scroll, and no
   // descendant paints past the viewport.

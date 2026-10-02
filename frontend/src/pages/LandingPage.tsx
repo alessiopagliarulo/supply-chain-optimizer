@@ -1,12 +1,12 @@
 /**
- * Public landing page at `/`: what the app is and a link to each of its three pages.
+ * Public landing page at `/`: what the app is and a link to each of its four pages.
  *
  * Renders with ZERO network requests - it must work while the free-tier API is still
  * asleep. main.tsx skips the warm-up ping on this route for the same reason, so this
  * component must never import services/api or anything that touches the network.
  */
 import { Link } from 'react-router-dom';
-import { ArrowRight, BarChart3, Route, Timer, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BarChart3, Route, ShieldCheck, Timer, type LucideIcon } from 'lucide-react';
 
 interface Destination {
   to: string;
@@ -34,6 +34,12 @@ const PAGES: Destination[] = [
     body: 'Compare the exact CP-SAT model, Clarke-Wright savings and OR-Tools routing on the Solomon benchmark set against the best-known solutions.',
     icon: BarChart3,
   },
+  {
+    to: '/sourcing-risk',
+    title: 'Sourcing Risk',
+    body: 'Choose a bill of materials and sweep a risk weight: a two-stage stochastic CP-SAT model trades expected cost against the cost of the worst disruption scenarios.',
+    icon: ShieldCheck,
+  },
 ];
 
 export default function LandingPage() {
@@ -54,7 +60,7 @@ export default function LandingPage() {
           </p>
         </header>
 
-        <nav aria-label="Pages" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <nav aria-label="Pages" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {PAGES.map(({ to, title, body, icon: Icon }) => (
             <Link
               key={to}

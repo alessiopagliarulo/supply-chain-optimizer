@@ -24,13 +24,27 @@ On top of the solvers:
   [`docs/benchmark_results.json`](docs/benchmark_results.json) by
   `backend/scripts/benchmark_solomon.py`.
 
-> **Sourcing work archived.** This repo began as an electronics-component sourcing
-> platform. That optimizer (the sourcing MILP, the stochastic program with its CVaR
-> frontier, and their pages) was removed and is preserved at git tag
-> [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1).
-> Some sourcing-era backend analytics (demand-method benchmark, macro regime model,
-> network resilience, live risk feeds) still ship API endpoints with no page; the
-> sections further down that describe them are about that backend code, not the web app.
+> **Risk-aware sourcing is live again; the rest of the sourcing era stays archived.**
+> This repo began as an electronics-component sourcing platform. Its strongest piece, the
+> two-stage stochastic sourcing model with a mean-CVaR objective, is back on `main` as a
+> separate model beside the routing engine: [`backend/app/optimization/stochastic.py`](backend/app/optimization/stochastic.py),
+> served by `POST /api/v1/stochastic/frontier` and `GET /api/v1/stochastic/calibration`
+> and shown on the **Sourcing Risk** page. The first stage qualifies distributors and
+> commits BOM quantities; a scenario is a set of distributors that cannot deliver; the
+> second stage re-buys from the survivors at an expedite premium and books what it cannot
+> cover as unmet demand. The objective is `min (1 - lambda) E[cost] + lambda CVaR_95[cost]`,
+> linearised with Rockafellar-Uryasev so CP-SAT solves it exactly.
+>
+> Still archived at git tag
+> [`archive/sourcing-v1`](https://github.com/alessiopagliarulo/supply-chain-optimizer/tree/archive/sourcing-v1)
+> and not coming back with it: the cart, checkout, dashboard, map, scheduler, model-card
+> and resilience pages and the login-gated shopping flow; the diversification and volume
+> sweeps and their pages; and the offline frontier study (`docs/cvar_frontier.json`,
+> `docs/CVAR_EFFICIENT_FRONTIER.md`) - the page solves its frontier live instead of
+> quoting that study. Some other sourcing-era backend analytics (demand-method benchmark,
+> macro regime model, network resilience, live risk feeds) still ship API endpoints with
+> no page; the sections further down that describe them are about that backend code, not
+> the web app.
 
 ---
 
@@ -38,7 +52,7 @@ On top of the solvers:
 >
 > API reference (Swagger): **[supply-chain-api-qy8x.onrender.com/docs](https://supply-chain-api-qy8x.onrender.com/docs)**
 >
-> No signup and no login - the landing page links straight to the three pages.
+> No signup and no login - the landing page links straight to the four pages.
 > **The page loads instantly. The first *data* request may take 50-120 s.** The UI is a
 > Render static site and never spins down; the API is a Render free-tier web service that
 > sleeps when idle, so the first call after a quiet spell waits for it to wake. Each page
@@ -46,6 +60,13 @@ On top of the solvers:
 > response lands.
 
 **Live demo flow:** Route Plan (solve a Solomon sample) -> Simulation (stress the plan, tune buffers) -> Benchmarks (every solver on every Solomon instance).
+
+**Sourcing Risk in under two minutes:** open **Sourcing Risk**, keep the IoT sensor node
+BOM and press **Solve the frontier**. Drag the risk weight from *Cheapest on average* to
+*Safest tail*: the tail cost falls, the expected cost rises, and the plan spreads from four
+distributors to six, with the new ones marked. Read *What this result rests on* for what
+the numbers assume. Then open **Route Plan**: routing deliveries is the second, separate
+model, and it does not use the sourcing plan.
 
 ---
 
@@ -329,7 +350,7 @@ Lead-time and demand-forecast training runs are tracked with MLflow (params, rea
 
 ## Web app
 
-Three pages plus a landing page, no login:
+Four pages plus a landing page, no login:
 
 - **Route Plan** (`/route-plan`) - pick a built-in sample (real Solomon C101 and R101,
   25-customer versions; see `backend/app/vrp/data/samples/README.md`), any Solomon
@@ -347,11 +368,20 @@ Three pages plus a landing page, no login:
   shown when the solver used the same number of vehicles; other rows show the vehicle gap
   and "not comparable".
   The page's reader is tested against the real artifact (`npm test` in `frontend/`).
+- **Sourcing Risk** (`/sourcing-risk`) - pick a reference bill of materials, solve the
+  mean-CVaR frontier live (one CP-SAT solve per risk weight, inside the server's per-solve
+  and per-sweep time limits), then move the risk weight along it: expected cost, tail cost
+  (the average of the worst 5% of disruption scenarios), the distributors in the plan and
+  each one's assumed failure chance. The page states its own limits from the same
+  responses: the disruption probabilities are calibrated from a published firm-level base
+  rate and are structural, not measured from this data; at low volume the tail rests on a
+  few scenario combinations; the catalogue is a frozen 2024 snapshot; and the solver's time
+  and size caps. Only the preset BOMs are offered, because they solve inside those caps.
 
 The lead-time model and resilience code stay in the backend and keep their API
 endpoints; they no longer have pages.
 
-Screenshots of all three pages: [`docs/screenshots/current/`](docs/screenshots/current/)
+Screenshots of the Route Plan, Simulation and Benchmarks pages: [`docs/screenshots/current/`](docs/screenshots/current/)
 (regenerate with `npm run screenshots`; `_manifest.json` records the commit and URL).
 
 ---
@@ -379,6 +409,8 @@ POST /api/v1/routing/solve                   # CVRPTW route plan (CP-SAT exact, 
 POST /api/v1/routing/simulate                # SimPy DES of a route plan: on-time rate, lateness, completion, utilization
 POST /api/v1/routing/tune-buffers            # Buffer-tuning optimization: find schedule/capacity buffers balancing on-time rate against cost/slack via DES simulation
 GET  /api/v1/routing/benchmarks              # docs/benchmark_results.json as committed, or available: false
+POST /api/v1/stochastic/frontier            # mean-CVaR sourcing frontier: one CP-SAT solve per risk weight, with its caveats
+GET  /api/v1/stochastic/calibration         # every distributor's assumed disruption probability and where it comes from
 ```
 
 Full API reference (live Swagger UI): **https://supply-chain-api-qy8x.onrender.com/docs** — or http://localhost:8000/docs when running locally  

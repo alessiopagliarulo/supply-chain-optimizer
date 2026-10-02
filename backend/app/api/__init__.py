@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api import auth, catalogue, components, distributors, cart, live_prices, ml, graph, feeds, benchmark, resilience, demand, newsvendor, routing
+from app.api import auth, catalogue, components, distributors, cart, live_prices, ml, graph, feeds, benchmark, resilience, demand, newsvendor, routing, stochastic
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -17,5 +17,6 @@ api_router.include_router(resilience.router)
 api_router.include_router(demand.router)
 api_router.include_router(newsvendor.router)
 api_router.include_router(routing.router)
+api_router.include_router(stochastic.router)
 
 __all__ = ["api_router"]

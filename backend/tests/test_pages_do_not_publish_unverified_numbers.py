@@ -34,8 +34,10 @@ drift away from the backend the way a typed literal can.
 
 To that this file adds the handful of **static string props that a browser shows to a
 sighted reader** — `title` (the native tooltip), `hint`, `subtitle`, `caption`, `label`,
-`placeholder`. The since-removed NewsvendorPage published "51 monthly observations"
-through `hint=`; that is a claim, and it would be invisible to a text-node-only scan.
+`placeholder`, and the two text props of this app's own `components/ui.tsx`: `intro`
+(every page's lead paragraph) and `detail` (the line under a headline `Stat`). The
+since-removed NewsvendorPage published "51 monthly observations" through `hint=`; that
+is a claim, and it would be invisible to a text-node-only scan.
 
 THREE GAPS THIS GUARD DOES NOT CLOSE — stated so nobody mistakes green for total
 --------------------------------------------------------------------------------
@@ -76,7 +78,9 @@ PINNED: dict[str, frozenset[str]] = {}
 
 #: Static string props a browser shows to a sighted reader. `aria-*` and `alt` are
 #: deliberately absent — see gap 2 in the module docstring.
-VISIBLE_PROPS = ("title", "hint", "subtitle", "caption", "label", "placeholder")
+VISIBLE_PROPS = (
+    "title", "hint", "subtitle", "caption", "label", "placeholder", "intro", "detail",
+)
 #: A number as a reader would see it, for the failure message.
 _NUMBER_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 
@@ -106,6 +110,15 @@ PAGE_ALLOW: dict[str, tuple[tuple[str, str], ...]] = {
         (
             "404",
             "the HTTP status this route represents.",
+        ),
+    ),
+    "SourcingRiskPage.tsx": (
+        (
+            "worst 5%",
+            "the DEFINITION of the tail cost the page shows: CVaR at alpha = 0.95, the only "
+            "level POST /stochastic/frontier computes (`stochastic.DEFAULT_ALPHA`), which is "
+            "why the response fields the page reads are named `cvar_95_usd` and "
+            "`var_95_usd`. A definition, not a measured value.",
         ),
     ),
     "SimulationPage.tsx": (
@@ -184,8 +197,9 @@ def _claims(path: Path) -> list[tuple[JsxText, str]]:
 
 def test_the_pages_directory_was_actually_found() -> None:
     """A guard that scans zero files is a check that cannot fail."""
-    assert len(PAGES) >= 5, (
-        f"expected the landing, Route Plan, Simulation, Benchmarks and 404 pages of "
+    assert len(PAGES) >= 6, (
+        f"expected the landing, Route Plan, Simulation, Benchmarks, Sourcing Risk and 404 "
+        f"pages of "
         f"{PAGES_DIR}; found {[p.name for p in PAGES]}. "
         "If the frontend moved, re-point PAGES_DIR — do not let this scan nothing."
     )

@@ -44,3 +44,48 @@ body {
 .hub-marker-pulse {
   animation: hub-pulse 1.8s ease-in-out infinite;
 }
+
+/* The risk-weight slider on Sourcing Risk. The native range track is a bright white
+   bar on this dark theme; a slate track with a blue thumb reads as part of the app.
+   The input itself stays 44px tall for touch; only the track is thin. */
+.range-dark {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.range-dark::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #334155;
+}
+.range-dark::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #334155;
+}
+.range-dark::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 9999px;
+  background: #3b82f6;
+  border: 2px solid #e2e8f0;
+}
+.range-dark::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #3b82f6;
+  border: 2px solid #e2e8f0;
+}
+.range-dark:focus-visible {
+  outline: none;
+}
+.range-dark:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px #60a5fa;
+}
+.range-dark:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px #60a5fa;
+}
