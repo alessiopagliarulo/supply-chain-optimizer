@@ -24,7 +24,7 @@ Verified against the artifacts on disk:
 | **Monash car parts** (`docs/intermittent_demand.json`) | **2,674 series × 51 months**, 24.1% non-zero, **2,646 scored** under the rolling-origin protocol | **Now carrying the demand story** — proper scoring rules and significance testing shipped (1.1/1.2 below); still supports a newsvendor study (1.4) and conformal calibration. |
 | Census M3 A34SNO (`docs/forecast_backtest.json`) | `n_obs=198` at the pinned `2026-08-16` vintage, **`n_windows=3`**, horizon 12 → **36 test points from 3 origins** | The weakest evidence in the repo. No significance test is possible. And the series is *revised in place* — see 4.1; it is now vintage-pinned, and the revision moves WAPE more than the model choice does. Saying so is worth more than another model. |
 | CVaR frontier (`docs/cvar_frontier.json`, archived at tag `archive/sourcing-v1`) | tail atoms now 31–54 after calibration work; largest single atom still 32–80% of tail mass | Tail estimate improved but remains atom-dominated at low volume. Report it. |
-| Lead-time panel | **5,632 rows / 9 snapshots on disk** (sha256 `d7e612df…`); the **served model is fitted on an earlier cut of it** — 3,351 usable rows of the then 3,406-row, six-snapshot panel (sha256 `d94df904…`), retrained 2026-09-10 — one distributor | Supports the ST-extension *event narrative*; supports almost no inference. The staleness tripwire reports `stale: true` — the 2026-09-14 collector run moved the panel past the artifact, and a retrain is still owed. Every `3,351` / `472` / `28` / `324` figure below is a property of that artifact, not of the panel. |
+| Lead-time panel | **6,374 rows / 10 snapshots on disk** (sha256 `e409b62c…`); the **served model is fitted on an earlier cut of it** — 3,351 usable rows of the then 3,406-row, six-snapshot panel (sha256 `d94df904…`), retrained 2026-09-10 — one distributor | Supports the ST-extension *event narrative*; supports almost no inference. The staleness tripwire reports `stale: true` — the 2026-09-14 collector run moved the panel past the artifact, and a retrain is still owed. Every `3,351` / `472` / `28` / `324` figure below is a property of that artifact, not of the panel. |
 
 **Therefore: stop pointing new statistics at the 198-point macro series. Point them at car parts.**
 Nearly every item below gets cheaper and more defensible under that reframe.
@@ -136,7 +136,7 @@ than patched, and Monash now carries the demand story:
 28 manufacturers — all three straight from `leakage_progression.json` →
 `counts.n_rows` / `counts.n_family_group_keys` / `counts.n_manufacturers`, which that file pins
 to `provenance.inputs.lead_time_panel.sha256` `d94df904…`, i.e. the **2026-09-10 artifact vintage**, fitted on the
-then 3,406-row cut of a panel that now holds 5,632 rows).*
+then 3,406-row cut of a panel that now holds 6,374 rows).*
 
 > **Use the right noun for 472.** It is the count of `_group_key` values, not of part
 > families. Grouping on `base_product` collapses 742 MPNs into **361** base_product levels;

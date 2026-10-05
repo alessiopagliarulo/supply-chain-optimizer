@@ -36,7 +36,7 @@ Three questions feed one decision:
 | Route optimization | Real distributor geography | Exhaustive enumeration (≤8 stops), OR-Tools routing above that | Symmetric TSP; proven optimum on the sizes the site actually produces, guided local search beyond them |
 | Network fragility analysis | The real distributor→component bipartite graph | NetworkX | Spectral graph theory: algebraic connectivity (Fiedler), betweenness, PageRank, k-core, HHI |
 | Monte Carlo disruption simulation | 1,000 scenarios over that graph | NumPy | Percolation; tail risk (CVaR-95) |
-| Lead-time prediction | **5,632 real DigiKey observations across 9 snapshots, collected by our own weekly pipeline** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14, 742 on 2026-09-21, 742 on 2026-09-28); the served model is fitted on an earlier cut — 3,351 usable rows of the then six-snapshot panel / 324 API-derived features, retrained 2026-09-10, so the artifact is three snapshots behind the panel, `/ml/model-info` reports `stale: true`, and a retrain is still owed | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
+| Lead-time prediction | **6,374 real DigiKey observations across 10 snapshots, collected by our own weekly pipeline** (75 on 2026-07-01, 742 on 2026-08-15, 363 on 2026-08-17, 742 on 2026-08-24, 742 on 2026-08-31, 742 on 2026-09-07, 742 on 2026-09-14, 742 on 2026-09-21, 742 on 2026-09-28, 742 on 2026-10-05); the served model is fitted on an earlier cut — 3,351 usable rows of the then six-snapshot panel / 324 API-derived features, retrained 2026-09-10, so the artifact is four snapshots behind the panel, `/ml/model-info` reports `stale: true`, and a retrain is still owed | scikit-learn, GroupKFold | Supervised regression; group-aware CV; leakage detection |
 | Macro supply-stress regime model | NY Fed GSCPI + FRED, 339 monthly observations | scikit-learn | Walk-forward validation; proper scoring rules (Brier); calibration slope; ship gate vs persistence and climatology |
 | Intermittent-demand benchmark | Monash car parts: 2,674 series × 51 months, 136,374 observations | Croston / SBA / TSB, custom CRPS | Distributional forecasting; proper scoring rules; Friedman + Nemenyi significance testing |
 | Macro demand backtest | US Census M3 `A34SNO`, 198 monthly observations, ALFRED vintage `2026-08-16` (pinned, offline) | Prophet, Chronos-Bolt | Rolling-origin backtesting; time-series foundation models; data-vintage reproducibility |
@@ -76,7 +76,7 @@ worse than predicting the mean. The model learned how three vendors quote, not h
 Effective sample size is 28 manufacturers, not 3,351 rows. (Those three counts describe the
 **2026-09-10 served artifact**, fitted on the then six-snapshot, 3,406-row cut of the panel —
 3,351 of those rows survive the label, match-quality and static-fill drops. The panel on disk has since
-grown to 5,632 rows / 9 snapshots on disk; the artifact has not been refitted. The fold groups are 472 *grouping keys*
+grown to 6,374 rows / 10 snapshots on disk; the artifact has not been refitted. The fold groups are 472 *grouping keys*
 from `lead_time_model._group_key`, over 361 distinct `base_product` values — the two counts are
 different quantities and `LEAKAGE_PROGRESSION.md` keeps them apart.)
 *(`docs/leakage_progression.json`, `python -m seeds.run_leakage_progression`)*
@@ -158,8 +158,8 @@ Being precise here is what makes the rest credible.
   (Live pricing *is* real, on demand, via `/live-prices/*`.)
 - **Not** a validated lead-time point predictor. Family-grouped R² is +0.08; the honest product is
   an interval, which is what Move 2 builds.
-- **Not** temporal validation of the lead-time model — the panel holds 9 snapshot dates
-  spanning 2026-07-01 to 2026-09-28 (the served artifact was fitted on the first six), which is
+- **Not** temporal validation of the lead-time model — the panel holds 10 snapshot dates
+  spanning 2026-07-01 to 2026-10-05 (the served artifact was fitted on the first six), which is
   far too short a span for time-series features to be learnable. The weekly collector fixes this
   over time. *(This line read "there are two snapshots" until 2026-09-01; that matched neither the
   panel nor the artifact at any point.)*
